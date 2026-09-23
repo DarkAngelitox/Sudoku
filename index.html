@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#172554">
+<title>Sudoku</title>
+<style>
+:root{--bg:#eef4ff;--card:#fff;--ink:#172033;--blue:#2563eb;--line:#b8c4d8;--thick:#172554;--given:#e8eef8;--selected:#dbeafe;--good:#dcfce7;--bad:#fee2e2}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:linear-gradient(160deg,#eaf2ff,#f8fbff);color:var(--ink);min-height:100vh}
+.app{width:min(560px,100%);margin:auto;padding:18px 14px 30px}
+header{text-align:center;margin-bottom:12px}
+h1{margin:0;font-size:34px;letter-spacing:1px}
+.subtitle{color:#64748b;font-size:14px;margin-top:3px}
+.top{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0}
+.stat,.selectbox{background:var(--card);border-radius:14px;padding:10px;text-align:center;box-shadow:0 4px 15px #1e3a8a12}
+.stat b{display:block;font-size:19px}.stat span{font-size:11px;color:#64748b}
+select{border:0;background:transparent;font-size:15px;font-weight:700;color:var(--blue);outline:0}
+.board{background:var(--thick);padding:3px;border-radius:12px;display:grid;grid-template-columns:repeat(9,1fr);aspect-ratio:1;box-shadow:0 10px 25px #17255425;overflow:hidden}
+.cell{position:relative;background:#fff;border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:clamp(22px,7vw,35px);font-weight:600;cursor:pointer;user-select:none}
+.cell:nth-child(3n){border-right:2px solid var(--thick)}
+.cell:nth-child(n+19):nth-child(-n+27),.cell:nth-child(n+46):nth-child(-n+54){border-bottom:2px solid var(--thick)}
+.cell:nth-child(n+73){border-bottom:0}
+.cell.given{background:var(--given);font-weight:800;color:#172554}
+.cell.selected{background:var(--selected);color:var(--blue)}
+.cell.same{background:#eff6ff}
+.cell.good{background:var(--good);color:#166534}
+.cell.bad{background:var(--bad);color:#b91c1c}
+.cell.conflict{box-shadow:inset 0 0 0 2px #ef4444}
+.keypad{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:13px}
+.key{border:0;background:#fff;border-radius:12px;padding:12px 5px;font-size:21px;font-weight:700;color:#1e3a8a;box-shadow:0 4px 12px #1e3a8a12;cursor:pointer}
+.key:active,.btn:active{transform:scale(.97)}
+.key.erase{color:#dc2626}.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.btn{border:0;border-radius:12px;padding:12px 6px;background:#fff;color:#172033;font-weight:700;box-shadow:0 4px 12px #1e3a8a12;cursor:pointer}
+.btn.primary{background:var(--blue);color:white}
+.message{min-height:28px;text-align:center;font-weight:700;margin:11px 0 0}
+.win{color:#15803d}.hint{color:#a16207}.error{color:#b91c1c}
+footer{text-align:center;color:#94a3b8;font-size:11px;margin-top:12px}
+@media(max-width:380px){.app{padding:12px 9px}.key{padding:10px 4px}.actions .btn{font-size:12px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header><h1>🧩 SUDOKU</h1><div class="subtitle">Juega directamente en tu navegador</div></header>
+<div class="top">
+  <div class="stat"><b id="timer">00:00</b><span>TIEMPO</span></div>
+  <div class="stat"><b id="errors">0</b><span>ERRORES</span></div>
+  <div class="selectbox"><span style="display:block;font-size:11px;color:#64748b">NIVEL</span><select id="difficulty"><option value="easy">Fácil</option><option value="medium" selected>Medio</option><option value="hard">Difícil</option></select></div>
+</div>
+<div id="board" class="board"></div>
+<div id="keypad" class="keypad"></div>
+<div class="actions">
+ <button class="btn primary" id="newBtn">🔄 Nuevo</button>
+ <button class="btn" id="hintBtn">💡 Pista</button>
+ <button class="btn" id="resetBtn">↩️ Reiniciar</button>
+</div>
+<div id="message" class="message"></div>
+<footer>Tu partida se guarda automáticamente en este dispositivo.</footer>
+</div>
+<script>
+const store="sudoku_pwa_v1";
+let solution=[], puzzle=[], current=[], given=[], selected=-1, errors=0, seconds=0, timerId=null;
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function pattern(r,c){return (r*3+Math.floor(r/3)+c)%9}
+function makeSolution(){
+  let rows=shuffle([0,1,2]).flatMap(g=>shuffle([0,1,2]).map(r=>g*3+r));
+  let cols=shuffle([0,1,2]).flatMap(g=>shuffle([0,1,2]).map(c=>g*3+c));
+  let nums=shuffle([1,2,3,4,5,6,7,8,9]);
+  return rows.map(r=>cols.map(c=>nums[pattern(r,c)]));
+}
+function generate(){
+  solution=makeSolution(); let p=solution.map(r=>r.slice());
+  let holes={easy:38,medium:48,hard:56}[document.getElementById("difficulty").value];
+  shuffle([...Array(81).keys()]).slice(0,holes).forEach(i=>p[Math.floor(i/9)][i%9]=0);
+  puzzle=p.flat(); current=puzzle.slice(); given=puzzle.map(x=>x!==0);
+}
+function save(){
+  localStorage.setItem(store,JSON.stringify({solution,puzzle,current,given,errors,seconds,difficulty:document.getElementById("difficulty").value}));
+}
+function load(){
+  try{
+    let x=JSON.parse(localStorage.getItem(store)); if(!x||!x.solution||x.solution.length!==9)return false;
+    solution=x.solution;puzzle=x.puzzle;current=x.current;given=x.given;errors=x.errors||0;seconds=x.seconds||0;
+    document.getElementById("difficulty").value=x.difficulty||"medium"; return true;
+  }catch(e){return false}
+}
+function startTimer(){clearInterval(timerId);timerId=setInterval(()=>{seconds++;renderStats();save()},1000)}
+function renderStats(){document.getElementById("errors").textContent=errors;let m=String(Math.floor(seconds/60)).padStart(2,"0"),s=String(seconds%60).padStart(2,"0");document.getElementById("timer").textContent=m+":"+s}
+function setMsg(t,cl=""){let e=document.getElementById("message");e.textContent=t;e.className="message "+cl}
+function draw(){
+  let b=document.getElementById("board");b.innerHTML="";
+  for(let i=0;i<81;i++){
+    let d=document.createElement("div");d.className="cell"+(given[i]?" given":"");
+    if(i===selected)d.classList.add("selected");
+    if(selected>=0 && !given[i] && (Math.floor(i/9)===Math.floor(selected/9)||i%9===selected%9||Math.floor(i/27)===Math.floor(selected/27)&&Math.floor(i%9/3)===Math.floor(selected%9/3)))d.classList.add("same");
+    if(current[i]!==0&&!given[i])d.textContent=current[i];
+    else if(given[i])d.textContent=puzzle[i];
+    d.onclick=()=>{selected=i;draw();};
+    b.appendChild(d);
+  }
+}
+function press(n){
+  if(selected<0||given[selected])return;
+  current[selected]=n;
+  if(n!==solution[Math.floor(selected/9)][selected%9]){errors++;setMsg("Ese número no es correcto.","error")}
+  else setMsg("");
+  draw();renderStats();checkWin();save();
+}
+function erase(){if(selected>=0&&!given[selected]){current[selected]=0;draw();save();setMsg("")}}
+function checkWin(){
+  if(current.every((v,i)=>v===solution[Math.floor(i/9)][i%9])){
+    clearInterval(timerId);setMsg("🎉 ¡Sudoku completado! ¡Excelente!","win");save();
+  }
+}
+function newGame(){
+  clearInterval(timerId);errors=0;seconds=0;selected=-1;setMsg("");generate();draw();renderStats();startTimer();save();
+}
+function hint(){
+  if(selected<0){setMsg("Selecciona una casilla primero.","hint");return}
+  if(given[selected]){setMsg("Esa casilla ya tiene un número.","hint");return}
+  current[selected]=solution[Math.floor(selected/9)][selected%9];draw();save();checkWin();setMsg("💡 Pista colocada.","hint");
+}
+document.getElementById("newBtn").onclick=newGame;
+document.getElementById("resetBtn").onclick=()=>{current=puzzle.slice();errors=0;seconds=0;selected=-1;draw();renderStats();setMsg("");save()};
+document.getElementById("hintBtn").onclick=hint;
+document.getElementById("difficulty").onchange=newGame;
+
+let kp=document.getElementById("keypad");
+for(let n=1;n<=9;n++){let b=document.createElement("button");b.className="key";b.textContent=n;b.onclick=()=>press(n);kp.appendChild(b)}
+let e=document.createElement("button");e.className="key erase";e.textContent="⌫";e.onclick=erase;kp.appendChild(e);
+
+document.addEventListener("keydown",e=>{if(e.key>="1"&&e.key<="9")press(+e.key);if(e.key==="Backspace"||e.key==="Delete")erase();if(e.key==="Escape"){selected=-1;draw()}});
+if(!load()){generate();save()}
+draw();renderStats();startTimer();
+</script>
+</body>
+</html>
