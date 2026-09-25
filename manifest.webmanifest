@@ -1,1 +1,10 @@
-{"name":"Sudoku con Amor","short_name":"Sudoku ❤️","start_url":"./index2.html","display":"standalone","background_color":"#0b1220","theme_color":"#2563eb","description":"Sudoku con dificultad, notas, estadísticas y mucho amor.","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
+{
+  "name": "Sudomi 🇩🇴",
+  "short_name": "Sudomi",
+  "start_url": "./index2.html",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#003087",
+  "description": "Sudoku dominicano: lógica, paciencia y orgullo.",
+  "icons": []
+}
