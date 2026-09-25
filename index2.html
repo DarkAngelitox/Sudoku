@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Sudoku</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:#0f172a;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{min-height:100dvh;overflow-x:hidden}
+button,select{font:inherit;border:0;cursor:pointer}
+button:focus-visible,select:focus-visible{outline:3px solid #60a5fa;outline-offset:2px}
+.app{width:min(1120px,100%);min-height:100dvh;margin:auto;padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));display:flex;flex-direction:column}
+header{text-align:center;flex:0 0 auto}h1{margin:2px 0;font-size:clamp(27px,4vw,38px)}.sub{opacity:.72;font-size:13px}
+.top{display:flex;gap:8px;justify-content:center;align-items:center;margin:10px 0;flex-wrap:wrap}.topbtn,.select{background:#334155;color:#fff;border-radius:10px;padding:9px 12px}.select{appearance:auto}
+.stats{width:min(700px,100%);margin:0 auto 8px;display:flex;justify-content:space-between;background:#1e293b;border-radius:14px;padding:9px 14px;font-size:14px}
+.gameArea{display:flex;justify-content:center;align-items:center;gap:18px;flex:1}
+.boardWrap{display:flex;justify-content:center;align-items:center;min-width:0}.board{width:min(88vw,72vh,610px);aspect-ratio:1;background:#0f172a;border:3px solid #64748b;border-radius:10px;overflow:hidden;display:grid;grid-template-columns:repeat(9,1fr);touch-action:manipulation;box-shadow:0 16px 45px #0005}
+.cell{position:relative;background:#f8fafc;color:#0f172a;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:clamp(20px,5.2vw,38px);border-right:1px solid #cbd5e1;border-bottom:1px solid #cbd5e1;user-select:none;transition:background .08s,color .08s}.cell:nth-child(9n){border-right:0}.cell:nth-child(n+73){border-bottom:0}.cell.br{border-right:3px solid #64748b}.cell.bb{border-bottom:3px solid #64748b}.given{background:#e2e8f0}.peer{background:#e0f2fe}.selected{background:#bfdbfe!important}.sameNum{background:#dbeafe!important;color:#2563eb}.sameNum.wrong{color:#dc2626;background:#fee2e2!important}.wrong{color:#dc2626;background:#fee2e2}.correct{color:#15803d}.selected.sameNum{background:#93c5fd!important;color:#1d4ed8}.notes{position:absolute;inset:3px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);font-size:clamp(8px,1.8vw,14px);color:#475569;font-weight:700}.note{display:flex;align-items:center;justify-content:center;border-radius:3px}.note.highlight{color:#2563eb;background:#bfdbfe}
+.side{width:min(330px,30vw);display:flex;flex-direction:column;gap:8px}.controls{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.action{padding:11px 7px;font-weight:600;background:#334155;color:#fff;border-radius:10px}.action.active{background:#2563eb}.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.key{padding:13px 4px;border-radius:11px;background:#e2e8f0;color:#0f172a;font-size:20px;font-weight:700}.key:active,.action:active,.topbtn:active{transform:scale(.98)}
+.msg{text-align:center;min-height:22px;margin:6px 0;font-size:13px;color:#cbd5e1}.footerTip{text-align:center;opacity:.55;font-size:11px;margin-top:7px}
+.modal{position:fixed;inset:0;background:#020617e8;display:none;align-items:center;justify-content:center;padding:18px;z-index:20}.modal.show{display:flex}.card{width:min(540px,100%);max-height:92dvh;overflow:auto;background:#f8fafc;color:#0f172a;border-radius:22px;padding:23px;box-shadow:0 20px 60px #0008}.card h2{text-align:center;margin-top:0}.card h3{margin-bottom:6px}.card p{line-height:1.5}.primary{width:100%;padding:13px;border-radius:12px;background:#2563eb;color:#fff;font-weight:700;margin-top:10px}.secondary{padding:11px 15px;border-radius:11px;background:#e2e8f0;color:#0f172a;font-weight:700}.tutorialNav{display:flex;gap:8px;margin-top:14px}.tutorialNav button{flex:1}.pageDots{text-align:center;margin:12px 0;font-size:12px;color:#64748b}.tutorialPage{display:none}.tutorialPage.active{display:block}.tutorialGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:150px;margin:12px auto}.tutorialGrid div{height:42px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;border-radius:5px}.legend{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.legend div{padding:10px;border-radius:9px;background:#e2e8f0}.winIcon{text-align:center;font-size:60px}
+@media(max-width:800px){.gameArea{flex-direction:column;gap:8px}.board{width:min(94vw,78vh,560px)}.side{width:min(560px,100%)}.controls{grid-template-columns:repeat(3,1fr)}.keys{grid-template-columns:repeat(5,1fr)}.key{padding:11px 4px}}
+@media(max-height:700px) and (min-width:801px){.board{width:min(62vh,520px)}.gameArea{gap:12px}.side{width:270px}}
+@media(display-mode:fullscreen){.app{padding-top:max(8px,env(safe-area-inset-top))}.sub{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+<header><h1>🧩 Sudoku</h1><div class="sub">Completa cada fila, columna y bloque 3×3</div></header>
+<div class="top">
+<select id="difficulty" class="select"><option value="easy">Fácil</option><option value="medium">Medio</option><option value="hard">Difícil</option><option value="expert">Experto</option><option value="master">Maestro</option><option value="extreme">Extremo</option></select>
+<button class="topbtn" id="tutorialBtn">📖 Tutorial</button><button class="topbtn" id="fullscreenBtn">⛶ Pantalla completa</button>
+</div>
+<div class="stats"><span>⏱️ <b id="timer">00:00</b></span><span>❌ <b id="errors">0</b></span><span>💡 <b id="hintCount">∞</b></span></div>
+<div class="gameArea">
+<div class="boardWrap"><div id="board" class="board"></div></div>
+<div class="side">
+<div id="message" class="msg"></div>
+<div class="controls">
+<button class="action" id="newBtn">🎲 Nuevo</button><button class="action" id="hintBtn">💡 Pista</button><button class="action" id="noteBtn">✏️ Notas</button><button class="action" id="eraseBtn">⌫ Borrar</button><button class="action" id="resetBtn">↻ Reiniciar</button>
+</div>
+<div id="keys" class="keys"></div>
+<div class="footerTip">Selecciona un número para resaltarlo en todo el tablero.</div>
+</div></div>
+</div>
+
+<div id="tutorial" class="modal"><div class="card">
+<h2>📖 Tutorial de Sudoku</h2>
+<div id="tutorialPage1" class="tutorialPage active"><h3>1. El objetivo</h3><p>El tablero tiene 9 filas, 9 columnas y 9 bloques de 3×3. Debes colocar los números del <b>1 al 9</b> de forma que cada fila, columna y bloque contenga cada número una sola vez.</p><div class="tutorialGrid"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div></div><p>No necesitas hacer cálculos: se trata de encontrar qué número puede ocupar cada casilla usando las reglas.</p></div>
+<div id="tutorialPage2" class="tutorialPage"><h3>2. Cómo elegir un número</h3><p>Toca una casilla vacía y después toca un número. Si el número es correcto, quedará colocado. Si es incorrecto, aparecerá <b>rojo</b> y recibirás una vibración cuando el dispositivo la soporte.</p><p>Cuando seleccionas una casilla que contiene un número, <b>todos los números iguales y sus notas se resaltan en azul</b>. Esto ayuda a localizar rápidamente dónde está ese número en el tablero.</p><div class="legend"><div>🔵 Azul<br><small>Número igual o nota seleccionada</small></div><div>🔴 Rojo<br><small>Número introducido incorrectamente</small></div></div></div>
+<div id="tutorialPage3" class="tutorialPage"><h3>3. Cómo usar las notas</h3><p>Activa <b>✏️ Notas</b> y toca los posibles candidatos de una casilla. Las notas se organizan así:</p><div class="tutorialGrid"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div></div><p>Al colocar correctamente un número, ese candidato se elimina automáticamente de las notas de todas las casillas de su misma fila, columna y bloque 3×3.</p><p>Para borrar una casilla, usa <b>⌫ Borrar</b>. También se borrarán todas las notas que tenga esa casilla.</p></div>
+<div id="tutorialPage4" class="tutorialPage"><h3>4. Una estrategia sencilla</h3><p>Empieza buscando filas, columnas o bloques que ya tengan muchos números. Si solo falta un número, puedes colocarlo directamente.</p><p>Después busca casillas donde solamente exista <b>un candidato posible</b>. Las notas te ayudan a descubrirlas.</p><p>También puedes seleccionar un número para ver todos sus apariciones y notas en azul. Así resulta más fácil detectar lugares donde todavía falta.</p></div>
+<div id="tutorialPage5" class="tutorialPage"><h3>5. Dificultades y errores</h3><p><b>Fácil y Medio:</b> puedes usar pistas sin límite.</p><p><b>Difícil, Experto, Maestro y Extremo:</b> tienes <b>una sola pista</b> por partida.</p><p>En esas cuatro dificultades, si acumulas <b>3 errores</b>, la partida se reinicia automáticamente con un Sudoku diferente.</p><p>Los números rojos no se quedan bloqueados: puedes seleccionarlos, corregirlos o borrarlos.</p></div>
+<div id="tutorialPage6" class="tutorialPage"><h3>6. Pantalla completa y controles</h3><p>Usa <b>⛶ Pantalla completa</b> para ocupar todo el espacio disponible. En navegadores compatibles, el juego entra en modo pantalla completa después de tocar el botón.</p><p>En iPhone, Safari tiene limitaciones propias para la API de pantalla completa. Si agregas el juego a la pantalla de inicio, se abrirá como una aplicación y aprovechará mucho mejor toda la pantalla.</p><p>En PC y tablets compatibles, el botón permite salir y volver a entrar del modo pantalla completa.</p></div>
+<div class="pageDots" id="pageDots">Página 1 de 6</div>
+<div class="tutorialNav"><button class="secondary" id="tutorialPrev">← Anterior</button><button class="secondary" id="tutorialNext">Siguiente →</button></div>
+<button class="primary" id="closeTutorial">Cerrar tutorial</button>
+</div></div>
+
+<div id="win" class="modal"><div class="card" style="text-align:center"><div class="winIcon">🏆</div><h2>¡Sudoku completado!</h2><p>⏱️ Tiempo: <b id="winTime"></b></p><p>❌ Errores: <b id="winErrors"></b></p><button class="primary" id="anotherBtn">🎮 Jugar otro</button></div></div>
+
+<script>
+const holes={easy:38,medium:45,hard:50,expert:54,master:58,extreme:62},hardLevels=new Set(['hard','expert','master','extreme']),STORE='sudoku_pwa_v3';
+let solution=[],puzzle=[],board=[],notes=[],wrong=[],selected=-1,difficulty='easy',errors=0,seconds=0,usedHint=false,noteMode=false,locked=false,timerId,tutorialPage=1;
+const $=id=>document.getElementById(id);
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function pattern(r,c){return(r*3+Math.floor(r/3)+c)%9}
+function makeSolution(){let rows=[],cols=[],gs=shuffle([0,1,2]),cs=shuffle([0,1,2]);for(const g of gs)for(const r of shuffle([0,1,2]))rows.push(g*3+r);for(const g of cs)for(const c of shuffle([0,1,2]))cols.push(g*3+c);let nums=shuffle([1,2,3,4,5,6,7,8,9]),s=[];for(let r=0;r<9;r++){s[r]=[];for(let c=0;c<9;c++)s[r][c]=nums[pattern(rows[r],cols[c])]}return s.flat()}
+function peers(i){let out=new Set(),r=Math.floor(i/9),c=i%9,br=Math.floor(r/3)*3,bc=Math.floor(c/3)*3;for(let k=0;k<9;k++){out.add(r*9+k);out.add(k*9+c)}for(let rr=br;rr<br+3;rr++)for(let cc=bc;cc<bc+3;cc++)out.add(rr*9+cc);out.delete(i);return[...out]}
+function generate(){solution=makeSolution();puzzle=[...solution];for(const i of shuffle([...Array(81).keys()]).slice(0,holes[difficulty]))puzzle[i]=0;board=[...puzzle];notes=Array.from({length:81},()=>new Set);wrong=Array(81).fill(false);selected=-1;errors=0;seconds=0;usedHint=false;noteMode=false;locked=false;save();render();update();clearInterval(timerId);timerId=setInterval(()=>{if(!locked){seconds++;update();save()}},1000);message('Selecciona una casilla para comenzar.')}
+function format(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function message(t){$('message').textContent=t}
+function selectedNumber(){return selected>=0&&board[selected]?board[selected]:null}
+function render(){let b=$('board');b.innerHTML='';let active=selectedNumber();for(let i=0;i<81;i++){let el=document.createElement('div'),r=Math.floor(i/9),c=i%9;el.className='cell';if(c===2||c===5)el.classList.add('br');if(r===2||r===5)el.classList.add('bb');if(i===selected)el.classList.add('selected');else if(selected>=0&&(Math.floor(selected/9)===r||selected%9===c||(Math.floor(selected/27)===Math.floor(i/27)&&Math.floor((selected%9)/3)===Math.floor(c/3))))el.classList.add('peer');if(active&&board[i]===active)el.classList.add('sameNum');if(puzzle[i])el.classList.add('given');if(wrong[i])el.classList.add('wrong');if(board[i]===solution[i]&&puzzle[i]===0&&board[i])el.classList.add('correct');if(!board[i]){let ns=document.createElement('div');ns.className='notes';for(let n=1;n<=9;n++){let s=document.createElement('span');s.className='note';if(notes[i].has(n)){s.textContent=n;if(active===n)s.classList.add('highlight')}ns.appendChild(s)}el.appendChild(ns)}else el.textContent=board[i];el.onclick=()=>{if(!locked){selected=i;render();save()}};b.appendChild(el)}$('noteBtn').classList.toggle('active',noteMode)}
+function removePeerNote(i,n){for(const p of peers(i))notes[p].delete(n);notes[i].delete(n)}
+function input(n){if(locked)return;if(selected<0)return message('Primero selecciona una casilla.');if(puzzle[selected])return message('Esa casilla es fija.');if(n===0)return erase();if(noteMode){if(board[selected])return message('Borra el número antes de usar notas.');notes[selected].has(n)?notes[selected].delete(n):notes[selected].add(n);render();save();return}board[selected]=n;notes[selected].clear();if(n===solution[selected]){wrong[selected]=false;removePeerNote(selected,n);message('✓ Correcto');render();checkWin()}else{wrong[selected]=true;errors++;if(navigator.vibrate)navigator.vibrate([90,45,90]);message('✕ Ese número no es correcto.');render();if(hardLevels.has(difficulty)&&errors>=3){locked=true;message('3 errores. Generando un Sudoku diferente…');setTimeout(generate,900)}}save();update()}
+function erase(){if(locked||selected<0)return;if(puzzle[selected])return message('No puedes borrar una casilla fija.');board[selected]=0;wrong[selected]=false;notes[selected].clear();render();save();message('Casilla y notas borradas.')}
+function hint(){if(locked)return;if(hardLevels.has(difficulty)&&usedHint)return message('En esta dificultad ya usaste tu única pista.');let t=selected;if(t<0||puzzle[t]||board[t]){let a=[...Array(81).keys()].filter(i=>!puzzle[i]&&!board[i]);if(!a.length)return;a.sort((x,y)=>peers(x).filter(p=>!board[p]).length-peers(y).filter(p=>!board[p]).length);t=a[0];selected=t}board[t]=solution[t];wrong[t]=false;removePeerNote(t,solution[t]);usedHint=true;message('💡 Pista: coloqué un número correcto.');render();update();save();checkWin()}
+function checkWin(){if(board.every((v,i)=>v===solution[i])){locked=true;clearInterval(timerId);$('winTime').textContent=format(seconds);$('winErrors').textContent=errors;$('win').classList.add('show')}}
+function update(){$('timer').textContent=format(seconds);$('errors').textContent=errors;$('hintCount').textContent=hardLevels.has(difficulty)?(usedHint?'0':'1'):'∞'}
+function save(){try{localStorage.setItem(STORE,JSON.stringify({difficulty,solution,puzzle,board,notes:notes.map(x=>[...x]),wrong,selected,errors,seconds,usedHint,noteMode}))}catch(e){}}
+function setTutorialPage(p){tutorialPage=Math.max(1,Math.min(6,p));for(let i=1;i<=6;i++)$('tutorialPage'+i).classList.toggle('active',i===tutorialPage);$('pageDots').textContent='Página '+tutorialPage+' de 6';$('tutorialPrev').disabled=tutorialPage===1;$('tutorialNext').disabled=tutorialPage===6}
+async function toggleFullscreen(){try{if(document.fullscreenElement){await document.exitFullscreen();return}let el=document.documentElement;if(el.requestFullscreen)await el.requestFullscreen();else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();else message('Tu navegador no permite pantalla completa desde esta página.')}catch(e){message('El navegador bloqueó la pantalla completa. Toca el botón otra vez.')}}
+$('difficulty').onchange=e=>{difficulty=e.target.value;generate()};
+$('newBtn').onclick=generate;$('hintBtn').onclick=hint;$('eraseBtn').onclick=erase;
+$('noteBtn').onclick=()=>{noteMode=!noteMode;render();message(noteMode?'Modo notas activado.':'Modo notas desactivado.')};
+$('resetBtn').onclick=()=>{board=[...puzzle];notes=Array.from({length:81},()=>new Set);wrong=Array(81).fill(false);selected=-1;errors=0;seconds=0;usedHint=false;locked=false;save();render();update();clearInterval(timerId);timerId=setInterval(()=>{seconds++;update();save()},1000);message('Partida reiniciada.')};
+$('tutorialBtn').onclick=()=>{$('tutorial').classList.add('show');setTutorialPage(1)};$('closeTutorial').onclick=()=>$('tutorial').classList.remove('show');$('tutorialPrev').onclick=()=>setTutorialPage(tutorialPage-1);$('tutorialNext').onclick=()=>setTutorialPage(tutorialPage+1);$('anotherBtn').onclick=()=>{$('win').classList.remove('show');generate()};$('fullscreenBtn').onclick=toggleFullscreen;
+document.addEventListener('fullscreenchange',()=>{$('fullscreenBtn').textContent=document.fullscreenElement?'⛶ Salir de pantalla completa':'⛶ Pantalla completa'});
+for(let n=1;n<=9;n++){let k=document.createElement('button');k.className='key';k.textContent=n;k.onclick=()=>input(n);$('keys').appendChild(k)}
+document.onkeydown=e=>{if(e.key>='1'&&e.key<='9')input(+e.key);else if(e.key==='Backspace'||e.key==='Delete')erase();else if(e.key==='Escape'&&document.fullscreenElement)document.exitFullscreen()};
+$('tutorial').addEventListener('click',e=>{if(e.target.id==='tutorial')$('tutorial').classList.remove('show')});$('win').addEventListener('click',e=>{if(e.target.id==='win')$('win').classList.remove('show')});
+generate();setTutorialPage(1);
+</script>
+</body>
+</html>
