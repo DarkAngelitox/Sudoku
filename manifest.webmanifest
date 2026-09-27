@@ -1,7 +1,7 @@
 {
   "name": "Sudomi 🇩🇴",
   "short_name": "Sudomi",
-  "start_url": "./index2.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0b1220",
   "theme_color": "#003087",
