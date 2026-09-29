@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b3d91">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SUDOMI 0.2.0</title>
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+<section id="homeScreen" class="home-screen" aria-labelledby="homeTitle">
+  <div class="home-brand">
+    <div class="flag-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <p class="home-kicker">SUDOKU · REPÚBLICA DOMINICANA</p>
+    <h1 id="homeTitle">SUDOMI</h1>
+    <p class="home-tagline">Sudoku con sabor dominicano.</p>
+    <p class="home-motto">Hecho con lógica. Jugado con amor.</p>
+  </div>
+  <nav class="home-menu" aria-label="Menú principal">
+    <button id="playBtn" class="home-option play-option"><span class="option-icon">▶️</span><span class="option-copy"><strong>Jugar</strong><small>Continúa o empieza una partida</small></span><span class="option-arrow">›</span></button>
+    <button class="home-option feature-option" data-feature="Sudoku del día"><span class="option-icon">📅</span><span class="option-copy"><strong>Sudoku del día</strong><small>Un nuevo reto cada día</small></span><span class="dev-badge">🚧 En desarrollo</span></button>
+    <button class="home-option feature-option" data-feature="Multijugador"><span class="option-icon">⚔️</span><span class="option-copy"><strong>Multijugador</strong><small>Juega con amigos</small></span><span class="dev-badge">🚧 En desarrollo</span></button>
+    <button class="home-option feature-option" data-feature="Entrenamiento"><span class="option-icon">🧠</span><span class="option-copy"><strong>Entrenamiento</strong><small>Aprende técnicas de Sudoku</small></span><span class="dev-badge">🚧 En desarrollo</span></button>
+    <button class="home-option feature-option" data-feature="Modo Profesor"><span class="option-icon">👨‍🏫</span><span class="option-copy"><strong>Modo Profesor</strong><small>Consejos para mejorar</small></span><span class="dev-badge">🚧 En desarrollo</span></button>
+    <button class="home-option feature-option" data-feature="Logros"><span class="option-icon">🏆</span><span class="option-copy"><strong>Logros</strong><small>Desafíos y recompensas</small></span><span class="dev-badge">🚧 En desarrollo</span></button>
+    <button class="home-option feature-option" data-feature="Estadísticas"><span class="option-icon">📊</span><span class="option-copy"><strong>Estadísticas</strong><small>Tu progreso en SUDOMI</small></span><span class="dev-badge">🚧 En desarrollo</span></button>
+    <button class="home-option feature-option" data-feature="Perfil"><span class="option-icon">👤</span><span class="option-copy"><strong>Perfil</strong><small>Tu identidad y nivel</small></span><span class="dev-badge">🚧 En desarrollo</span></button>
+    <button class="home-option feature-option" data-feature="Personalizar"><span class="option-icon">🎨</span><span class="option-copy"><strong>Personalizar</strong><small>Temas y apariencia</small></span><span class="dev-badge">🚧 En desarrollo</span></button>
+    <button class="home-option feature-option" data-feature="Configuración"><span class="option-icon">⚙️</span><span class="option-copy"><strong>Configuración</strong><small>Preferencias del juego</small></span><span class="dev-badge">🚧 En desarrollo</span></button>
+  </nav>
+  <footer class="home-footer"><span>🇩🇴 Hecho con orgullo dominicano</span><span>SUDOMI · 0.2.0</span></footer>
+</section>
+<div id="gameScreen" class="game-screen hidden">
+<div id="app">
+<header class="topbar">
+  <div><div class="brand">🇩🇴 <span>SUDOMI</span></div><div class="tag">Sudoku con sabor dominicano.</div></div>
+  <div class="top-actions">
+    <button class="icon-btn" id="homeBtn" title="Volver al inicio" aria-label="Volver al inicio">⌂</button>
+    <select id="difficulty" aria-label="Dificultad">
+      <option value="easy">Fácil</option><option value="medium">Medio</option>
+      <option value="hard">Difícil</option><option value="expert">Experto</option>
+      <option value="master">Maestro</option><option value="extreme">Extremo</option>
+    </select>
+    <button class="icon-btn" id="pauseBtn" title="Pausar">⏸</button>
+    <button class="icon-btn" id="undoBtn" title="Deshacer">↶</button>
+    <button class="icon-btn" id="redoBtn" title="Rehacer">↷</button>
+    <button class="icon-btn" id="newBtn" title="Nuevo Sudoku">↻</button>
+  </div>
+</header>
+<main>
+<section class="statsbar">
+<div><small>TIEMPO</small><strong id="timer">00:00</strong></div>
+<div><small>ERRORES</small><strong id="errors">0</strong></div>
+<div><small>PISTAS</small><strong id="hints">0/1</strong></div>
+<div><small>DIFICULTAD</small><strong id="difficultyLabel">Fácil</strong></div>
+</section>
+<section class="game-shell">
+<div id="pauseOverlay" class="pause-overlay hidden"><div><div class="pause-title">PAUSA</div><button id="resumeBtn" class="primary">Continuar</button></div></div>
+<div id="board" class="board" role="grid" aria-label="Sudoku"></div>
+</section>
+<div class="selection-info"><span id="selectedInfo">Selecciona una casilla</span><span id="remainingInfo">—</span></div>
+<div id="keypad" class="keypad"></div>
+<div class="mode-row"><button id="notesBtn" class="tool">✎ Notas</button><button id="eraseBtn" class="tool">⌫ Borrar</button><button id="hintBtn" class="tool">💡 Pista</button></div>
+<details class="help"><summary>Controles rápidos</summary><p>Selecciona una casilla y luego un número. Activa Notas para guardar candidatos. Las notas se limpian automáticamente cuando un número correcto ocupa su fila, columna o bloque.</p></details>
+</main></div>
+</div>
+<div id="modal" class="modal hidden"></div>
+<script src="js/app.js"></script>
+</body></html>
