@@ -1,0 +1,8 @@
+// Same-Wi-Fi relay client. The companion lan-server.js runs on the host PC.
+(()=>{
+ let session=null,handlers=[],cursor=0,polling=false,backlog=[];
+ const api=async(path,options={})=>{const r=await fetch(path,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});const data=await r.json();if(!r.ok)throw new Error(data.error||'No se pudo conectar');return data};
+ async function poll(){if(!session||polling)return;polling=true;while(session){try{const s=session;const d=await api(`/api/poll?room=${encodeURIComponent(s.room)}&player=${s.player}&token=${encodeURIComponent(s.token)}&since=${cursor}`);if(session!==s)continue;cursor=d.cursor||cursor;for(const e of d.events||[]){if(handlers.length)handlers.forEach(fn=>fn(e));else backlog.push(e)}}catch(e){if(handlers.length)handlers.forEach(fn=>fn({type:'error',message:e.message}));await new Promise(r=>setTimeout(r,1500))}}polling=false}
+ async function begin(path){session=await api(path);cursor=0;poll();return session}
+ window.SudomiLAN={create:game=>begin(`/api/create?game=${encodeURIComponent(game)}`),join:(game,room)=>begin(`/api/join?game=${encodeURIComponent(game)}&room=${encodeURIComponent(room)}`),on:fn=>{handlers.push(fn);if(backlog.length){const pending=backlog;backlog=[];pending.forEach(e=>fn(e))}},off:fn=>handlers=handlers.filter(x=>x!==fn),get session(){return session},send:async(type,payload={})=>{if(!session)throw new Error('La sala se desconectó');return api('/api/send',{method:'POST',body:JSON.stringify({...session,type,payload})})},leave(){session=null;handlers=[];backlog=[];cursor=0}};
+})();
