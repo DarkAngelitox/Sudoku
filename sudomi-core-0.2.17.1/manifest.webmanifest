@@ -1,0 +1,17 @@
+{
+  "name": "SUDOMI",
+  "short_name": "SUDOMI",
+  "description": "Sudoku y juegos de mesa para dos jugadores, también por internet.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7fbff",
+  "theme_color": "#0b3d91",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
