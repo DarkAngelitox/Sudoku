@@ -1,0 +1,1 @@
+Pon aqui las fotos de las casillas (cuadradas, JPG/PNG/WebP) y registralas en js/dominopolis-fotos.js
