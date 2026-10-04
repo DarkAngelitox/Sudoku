@@ -44,8 +44,8 @@
  const peerId=(game,code)=>`sudomi-${game}-${code}`;
 
  const store={
-  save(){try{session?sessionStorage.setItem(KEY,JSON.stringify({session,cursor:0,at:Date.now()})):sessionStorage.removeItem(KEY)}catch(_){}},
-  read(){try{const v=JSON.parse(sessionStorage.getItem(KEY));return v&&v.session&&v.session.kind==='online'&&Date.now()-v.at<6*3600*1000?v:null}catch(_){return null}}
+  save(){try{session?localStorage.setItem(KEY,JSON.stringify({session,cursor:0,at:Date.now()})):localStorage.removeItem(KEY)}catch(_){}},
+  read(){try{const v=JSON.parse(localStorage.getItem(KEY));return v&&v.session&&v.session.kind==='online'&&Date.now()-v.at<6*3600*1000?v:null}catch(_){return null}}
  };
 
  /* ---------- error messages ---------- */
@@ -294,7 +294,7 @@
    })();
    return session;
   },
-  forget(){try{sessionStorage.removeItem(KEY)}catch(_){}},
+  forget(){try{localStorage.removeItem(KEY)}catch(_){}},
   // Messages are queued while the other phone is away and delivered when it is back.
   send:async(type,payload={})=>{
    if(!session)throw new Error('La sala se desconectó');

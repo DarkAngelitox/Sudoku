@@ -123,8 +123,10 @@
   * handler receives {type:'open'} · {type:'msg',data} · {type:'away'} · {type:'back'} · {type:'closed',message}  */
  function join(game,rawCode,meta,handler){
   const code=normCode(rawCode),KEY='sudomi-party-'+game+'-'+code;
-  let token;try{token=sessionStorage.getItem(KEY)}catch(_){}
-  if(!token){token=makeToken();try{sessionStorage.setItem(KEY,token)}catch(_){}}
+  // la llave de la silla se guarda en el dispositivo (no solo en la pestaña): si cierras la app o se cae la conexión, al volver recuperas tu silla (hasta 6 h)
+  let token;try{const v=JSON.parse(localStorage.getItem(KEY));if(v&&v.t&&Date.now()-v.at<6*3600*1000)token=v.t}catch(_){}
+  if(!token){token=makeToken()}
+  try{localStorage.setItem(KEY,JSON.stringify({t:token,at:Date.now()}))}catch(_){}
   let peer=null,conn=null,closed=false,lastRx=0,everOpen=false,looping=false,fails=0;
   const emit=e=>{try{handler(e)}catch(err){console.error('SUDOMI party:',err)}};
   function stop(){
@@ -166,7 +168,7 @@
      if(closed)break;
      fails++;
      if(!everOpen){stop();emit({type:'closed',message:friendly(err)});break}
-     if(fails>=60){stop();emit({type:'closed',message:'El anfitrión no volvió. La sala se cerró.'});break}
+     if(fails>=200){stop();emit({type:'closed',message:'El anfitrión no volvió. La sala se cerró.'});break}   // 0.2.71: unos 10 minutos de intentos (antes 3)
      await sleep(RETRY_MS);
     }
    }
@@ -183,7 +185,7 @@
   return {
    code,
    send(data){if(conn&&conn.open){try{conn.send(data);return true}catch(_){}}return false},
-   close(){if(conn&&conn.open){try{conn.send({t:'bye'})}catch(_){}}try{sessionStorage.removeItem(KEY)}catch(_){}stop()}
+   close(){if(conn&&conn.open){try{conn.send({t:'bye'})}catch(_){}}try{localStorage.removeItem(KEY)}catch(_){}stop()}
   };
  }
 

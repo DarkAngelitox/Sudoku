@@ -7,8 +7,8 @@
  let session=null,handlers=[],cursor=0,polling=false,backlog=[];
 
  const store={
-  save(){try{session?sessionStorage.setItem(KEY,JSON.stringify({session,cursor,at:Date.now()})):sessionStorage.removeItem(KEY)}catch(_){}},
-  read(){try{const v=JSON.parse(sessionStorage.getItem(KEY));return v&&v.session&&Date.now()-v.at<6*3600*1000?v:null}catch(_){return null}}
+  save(){try{session?localStorage.setItem(KEY,JSON.stringify({session,cursor,at:Date.now()})):localStorage.removeItem(KEY)}catch(_){}},
+  read(){try{const v=JSON.parse(localStorage.getItem(KEY));return v&&v.session&&Date.now()-v.at<6*3600*1000?v:null}catch(_){return null}}
  };
 
  const api=async(path,options={})=>{
@@ -54,7 +54,7 @@
   // Re-attach to a saved room after a refresh.
   resume(saved){session=saved.session;cursor=saved.cursor||0;store.save();poll();return session},
   // Forget the saved room without telling the other player.
-  forget(){try{sessionStorage.removeItem(KEY)}catch(_){}},
+  forget(){try{localStorage.removeItem(KEY)}catch(_){}},
   send:async(type,payload={})=>{if(!session)throw new Error('La sala se desconectó');return api('/api/send',{method:'POST',body:JSON.stringify({...session,type,payload})})},
   leave(){
    // Tell the other player we left on purpose, then clear everything.

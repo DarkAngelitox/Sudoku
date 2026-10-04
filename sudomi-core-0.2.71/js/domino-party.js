@@ -82,13 +82,13 @@
   env.hub.classList.remove('hidden');env.stage.classList.add('hidden');
   const seats=seatsFromRoom(),isHost=role==='host';
   env.hub.innerHTML=`<button class="games-back mode-back" id="dpBack">‹ Salir</button><div class="mode-picker wifi-picker"><span class="mode-game-icon">🁣</span><p>SALA DE DOMINÓ</p><h2>${isHost?'Comparte este código':'Esperando al anfitrión'}</h2>
-   <div class="m-code"><small>CÓDIGO DE LA SALA</small><b>${esc(P().pretty(code))}</b>${isHost?'<div><button type="button" id="dpShare">📤 Compartir enlace</button><button type="button" id="dpFriendsBtn">👥 Invitar amigos</button></div>':''}</div>
+   <div class="m-code"><small>CÓDIGO DE LA SALA</small><b>${esc(P().pretty(code))}</b>${isHost?'<div><button type="button" id="dpShare">📤 Compartir enlace</button></div>':''}</div>
    <div class="dp-seats">${[0,1,2,3].map(s=>{const x=seats[s],mine=x.human&&((isHost&&x.id==='host')||(!isHost&&s===mySeat));return `<div class="dp-seat ${x.bot?'bot':''}"><span>${esc(x.avatar)}</span><div><b>${esc(x.name)}${mine?' (tú)':''}</b><small>${s%2===0?'Equipo A':'Equipo B'}${s===2?' · compañero del anfitrión':''}${x.bot?' · IA':''}</small></div></div>`}).join('')}</div>
    ${isHost?'<button class="primary-action" id="dpStart">Empezar la partida</button><p class="m-status">Los lugares sin persona los juega la IA.</p>':'<p class="m-status">El anfitrión empezará cuando esté listo…</p>'}</div>`;
   $('#dpBack').onclick=()=>{close();menu()};
   if(isHost){
    $('#dpStart').onclick=start;
-   const sh=$('#dpShare');if(sh)sh.onclick=share;const fr=$('#dpFriendsBtn');if(fr)fr.onclick=()=>window.SudomiFriends&&SudomiFriends.invite({game:'domino4',gameName:'Dominó',room:code});
+   const sh=$('#dpShare');if(sh)sh.onclick=share;
   }
  }
  function share(){

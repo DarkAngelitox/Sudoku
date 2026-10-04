@@ -122,7 +122,7 @@
  function reset(){clearInterval(clock);clock=null;clearTimeout(sendTimer);if(net){try{net.close()}catch(_){}}net=null;S=null;V=null;seats=[];status='';roomCode='';offline=false;mode=null;busy=false;lastKey=''}
  function open(opts){ui=opts;reset();screen='menu';ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');render()}
  function close(){if(!ui)return;reset();screen='menu'}
- function leave(){const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}}
+ function leave(){try{window.SudomiFriends&&SudomiFriends.untrack()}catch(_){}const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}}
 
  /* ----- host / solo ----- */
  const publicSeats=()=>seats.map(x=>({name:x.name,kind:x.kind,away:!!x.away,avatar:x.avatar||''}));
@@ -186,7 +186,7 @@
   reset();mode='guest';roomCode=code;status='Conectando…';screen='joining';render();
   net=SudomiParty.join('stop',code,{name:myName(),avatar:myAvatar()},e=>{
    if(mode!=='guest')return;
-   if(e.type==='open')status='Conectado. Esperando al anfitrión…';
+   if(e.type==='open'){status='Conectado. Esperando al anfitrión…';try{window.SudomiFriends&&SudomiFriends.track({game:'stop',gameName:'STOP',room:code,role:'guest'})}catch(_){}}
    else if(e.type==='away')offline=true;
    else if(e.type==='back')offline=false;
    else if(e.type==='closed'){const m=e.message;reset();screen='menu';status=m}
@@ -250,13 +250,14 @@
  function renderLobby(){
   const host=mode==='host',taken=seats.filter(x=>x.kind==='human').length;
   ui.stage.innerHTML=`<div class="mini-game dos sp">${head('SALA DE ESPERA')}
-   <div class="dos-room"><span>Código de la sala</span><strong>${SudomiParty.pretty(roomCode)}</strong>${host?'<button class="arc-btn alt" id="spInvite">📤 Enviar invitación</button><button class="arc-btn alt" id="spFriends">👥 Invitar amigos</button>':''}</div>
+   <div class="dos-room"><span>Código de la sala</span><strong>${SudomiParty.pretty(roomCode)}</strong>${host?'<button class="arc-btn alt" id="spInvite">📤 Enviar invitación</button>':''}</div>
+   <div class="fr-panel" data-game="stop" data-name="STOP" data-room="${roomCode}"></div>
    <ol class="dos-seats">${seats.map((x,i)=>`<li class="${x.kind}"><i>${x.kind==='human'&&x.avatar?x.avatar:i+1}</i><b>${x.kind==='open'?'Esperando jugador…':esc(x.name)}</b><span>${i===0?'Anfitrión':x.kind==='open'?'Si nadie entra, juega la IA':'Listo'}</span></li>`).join('')}</ol>
    <p class="arc-sub center">${taken} de ${size} jugadores conectados.</p>
    ${host?'<div class="arc-actions"><button class="arc-btn big" id="spStart">Empezar partida</button></div>':'<p class="arc-wait">Esperando que el anfitrión empiece la partida…</p>'}
    ${status?`<p class="arc-wait">${esc(status)}</p>`:''}${offline?'<p class="arc-alert">Sin conexión. Reconectando…</p>':''}${rulesHTML()}</div>`;
   bindCommon();
-  if(host){$('#spFriends').onclick=()=>window.SudomiFriends&&SudomiFriends.invite({game:'stop',gameName:'STOP',room:roomCode});$('#spInvite').onclick=invite;$('#spStart').onclick=startGame}
+  if(host){$('#spInvite').onclick=invite;$('#spStart').onclick=startGame}
  }
  const chips=v=>`<div class="sp-chips">${v.names.map((n,i)=>`<span class="${(v.phase==='answer'?v.done[i]:v.voted[i])?'ok':''} ${i===v.you?'me':''}"><i>${avatar(i)}</i>${esc(n)}${(v.phase==='answer'?v.done[i]:v.voted[i])?' ✔':''}</span>`).join('')}</div>`;
  function renderGame(){

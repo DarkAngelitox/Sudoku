@@ -2484,3 +2484,13 @@ html[data-theme="dark"] .dp-roomcode{background:#14306b;color:#dbe7ff}
 .fr-b-btns .fr-go{background:#1fb35a}
 .dp-rcb{display:flex;gap:8px;grid-column:2;grid-row:1/3}
 .dos-room{flex-wrap:wrap;gap:8px}
+
+/* 0.2.71b — panel de amigos en las salas, aviso de ausentes, avisos pequeños */
+.fr-pbox{padding:10px;border-radius:14px;background:rgba(0,0,0,.05);display:grid;gap:8px;margin:8px 0}
+.fr-pbox .fr-head{margin:0}.fr-pbox .fr-list{max-height:210px;overflow:auto}
+.fr-pbox .fr-friend{grid-template-columns:36px 1fr auto;padding:6px 8px}
+.fr-pbox .fr-btn{flex:0 0 auto;padding:7px 12px;font-size:.82rem}
+.fr-note.small{font-size:.72rem;opacity:.7}
+.fr-banner.fr-small{padding:10px 14px;font-weight:800;text-align:center;font-size:.9rem}
+.dp-awaybar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:12px;background:#fff3cd;color:#5c4400;font-size:.8rem;font-weight:700}
+.dp-awaybar .arc-btn{flex:0 0 auto;padding:6px 10px;font-size:.75rem}

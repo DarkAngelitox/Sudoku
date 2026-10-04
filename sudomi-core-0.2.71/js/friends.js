@@ -2,13 +2,17 @@
  *
  * SUDOMI no tiene servidor propio ni cuentas, así que esto funciona así:
  *  · Cada persona tiene un CÓDIGO DE AMIGO (8 letras/números al azar, guardado en este dispositivo: localStorage 'sudomi-friends').
- *  · Si el usuario activa "Aparecer en línea", la app abre un buzón en el servicio de salas público (PeerJS) con el id
- *    "sudomi-friend-<código>" mientras el juego esté abierto. Ahí llegan las invitaciones y las comprobaciones de "¿estás en línea?".
- *  · Agregar un amigo = escribir su código (o abrir su enlace). Invitar = conectarse a su buzón y enviarle {t:'invite',game,room};
- *    si su juego está abierto, le sale un aviso con "Unirme". Si está cerrado, la invitación NO llega (no hay notificaciones push).
- *  · Reutiliza window.SudomiParty (party-net.js) y el módulo de pantallas SudomiScreen. Nada de esto toca el Sudoku. */
+ *  · Con "Aparecer en línea" activado (viene activado), la app abre un buzón en el servicio de salas público (PeerJS) con el id
+ *    "sudomi-friend-<código>" mientras el juego esté abierto. Ahí llegan invitaciones, solicitudes de amistad y comprobaciones de "¿estás en línea?".
+ *  · Agregar un amigo = escribir su código (o abrir su enlace). Se le avisa a su buzón ({t:'friend-add'}) y le aparece EN SU LISTA al instante;
+ *    si estaba desconectado, el aviso queda pendiente y se reenvía en cuanto aparezca en línea.
+ *  · Invitar = conectarse a su buzón y enviarle {t:'invite',game,room}; si su juego está abierto le sale un aviso con "Unirme".
+ *  · Cualquier elemento <div class="fr-panel" data-game data-name data-room> que aparezca en pantalla se llena solo con la lista de
+ *    amigos y botones "Invitar" (así todas las salas de espera comparten el mismo panel).
+ *  · "Partida en curso": los juegos online avisan con track()/untrack(); al abrir SUDOMI sale un aviso para volver a la sala.
+ *  Reutiliza window.SudomiParty (party-net.js) y SudomiScreen. Nada de esto toca el Sudoku. */
 (() => {
-  const KEY = 'sudomi-friends', ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const KEY = 'sudomi-friends', ROOM_KEY = 'sudomi-active-room', ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', MAX_AGE = 6 * 3600 * 1000;
   const $ = s => document.querySelector(s);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const clean = n => String(n || '').replace(/[<>&"']/g, '').replace(/\s+/g, ' ').trim().slice(0, 14);
@@ -17,10 +21,14 @@
   const newId = () => { const a = new Uint32Array(8); (window.crypto || window.msCrypto).getRandomValues(a); return Array.from(a).map(x => ALPHA[x % ALPHA.length]).join('') };
   const P = () => window.SudomiProfile;
   const play = n => { try { window.SudomiSound && SudomiSound.play(n) } catch (_) {} };
+  const t = s => window.SudomiI18n ? SudomiI18n.t(s) : s;
 
   function read() {
-    try { const v = JSON.parse(localStorage.getItem(KEY)); if (v && norm(v.id).length === 8) return { on: false, list: [], blocked: [], ...v, id: norm(v.id) } } catch (_) {}
-    return { id: newId(), on: false, list: [], blocked: [] };
+    try {
+      const v = JSON.parse(localStorage.getItem(KEY));
+      if (v && norm(v.id).length === 8) { const s = { on: true, list: [], blocked: [], pending: [], ...v, id: norm(v.id) }; if (!v.ver) s.on = true; s.ver = 2; return s }   // v2: "en línea" viene activado
+    } catch (_) {}
+    return { ver: 2, id: newId(), on: true, list: [], blocked: [], pending: [] };
   }
   let S = read();
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)) } catch (_) {} };
@@ -28,7 +36,8 @@
   const me = () => ({ code: S.id, name: clean(P() && P().name && P().name()), avatar: (P() && P().avatar && P().avatar()) || '' });
   const hasProfile = () => !!(P() && P().get && P().get());
   const status = {};                       // código → 'on' | 'off' | '…'
-  let inbox = null, listening = false, lastErr = '';
+  const sent = {};                         // sala+código → 'sent'
+  let inbox = null, listening = false, lastErr = '', api = null;
 
   /* ---------- lista ---------- */
   function addFriend(code, name, avatar) {
@@ -39,8 +48,9 @@
     S.blocked = S.blocked.filter(c => c !== code);
     S.list.push({ code, name: clean(name) || 'Amigo', avatar: avatar || '🙂', added: Date.now() }); save(); return true;
   }
-  function removeFriend(code) { S.list = S.list.filter(f => f.code !== code); delete status[code]; save() }
+  function removeFriend(code) { S.list = S.list.filter(f => f.code !== code); S.pending = S.pending.filter(c => c !== code); delete status[code]; save() }
   function updateFrom(m) { if (!m) return; const c = norm(m.code), f = S.list.find(x => x.code === c); if (f) { const n = clean(m.name); if (n) f.name = n; if (m.avatar) f.avatar = String(m.avatar).slice(0, 4); save() } }
+  function refreshUI() { if (api && api.body && api.body.isConnected && $('#friendsScreen') && !$('#friendsScreen').classList.contains('hidden')) draw(); fillPanels() }
 
   /* ---------- buzón (recibir) ---------- */
   async function listen() {
@@ -48,15 +58,23 @@
     listening = true;
     try { inbox = await SudomiParty.host('friend', onEvent, S.id); lastErr = '' }
     catch (e) { inbox = null; lastErr = e && e.message || 'No se pudo activar.' }
-    listening = false;
-    if ($('#friendsScreen') && !$('#friendsScreen').classList.contains('hidden')) draw();
+    listening = false; refreshUI();
   }
   function stopListening() { if (inbox) { try { inbox.close() } catch (_) {} inbox = null } }
   function onEvent(e) {
     if (e.type !== 'msg') return;
     const d = e.data || {};
     if (d.t === 'hello') { if (inbox) inbox.send(e.id, { t: 'hi', me: me() }); updateFrom(d.me); return }
+    if (d.t === 'friend-add') { if (inbox) inbox.send(e.id, { t: 'ack' }); gotAdd(d.me); return }
     if (d.t === 'invite') { if (inbox) inbox.send(e.id, { t: 'ack' }); gotInvite(d) }
+  }
+  function gotAdd(m) {
+    const code = norm(m && m.code), name = clean(m && m.name);
+    if (code.length !== 8 || code === S.id || !name || S.blocked.includes(code)) return;
+    const isNew = !S.list.some(f => f.code === code);
+    addFriend(code, name, String((m && m.avatar) || '🙂').slice(0, 4));
+    status[code] = 'on'; refreshUI();
+    if (isNew) { play('bonus'); toast(name) }
   }
   const seenInv = {};
   function gotInvite(d) {
@@ -67,6 +85,15 @@
     updateFrom(from);
     banner({ code, name, avatar: String(from.avatar || '🙂').slice(0, 4), game, room, gameName: clean(d.gameName) || 'un juego', known: S.list.some(f => f.code === code) });
   }
+  function toast(name) {                   // "X te agregó como amigo"
+    let b = $('#frToast'); if (b) b.remove();
+    b = document.createElement('div'); b.id = 'frToast'; b.className = 'fr-banner fr-small'; b.textContent = '👥 ' + name + ' ' + t('te agregó como amigo');
+    document.body.appendChild(b); setTimeout(() => { b.classList.add('out'); setTimeout(() => b.remove(), 300) }, 3500);
+  }
+  function goTo(game, room, opts) {
+    document.querySelectorAll('.ach-screen,.tut').forEach(x => x.classList.add('hidden')); document.body.classList.remove('tut-open');
+    if (window.SudomiJoinInvite) SudomiJoinInvite(game, room, opts);
+  }
   function banner(inv) {
     let b = $('#frBanner'); if (b) b.remove();
     b = document.createElement('div'); b.id = 'frBanner'; b.className = 'fr-banner'; b.setAttribute('role', 'alert');
@@ -74,15 +101,18 @@
       <div class="fr-b-btns"><button type="button" class="fr-go" id="frGo">Unirme</button><button type="button" id="frNo">Ahora no</button>${inv.known ? '' : '<button type="button" id="frAdd">+ Amigo</button>'}<button type="button" id="frBlock" aria-label="Bloquear">🚫</button></div>`;
     document.body.appendChild(b); play('bonus');
     const close = () => { b.classList.add('out'); setTimeout(() => b.remove(), 300) };
-    b.querySelector('#frGo').onclick = () => { close(); if (!inv.known) addFriend(inv.code, inv.name, inv.avatar); document.querySelectorAll('.ach-screen,.tut').forEach(x => x.classList.add('hidden')); document.body.classList.remove('tut-open'); if (window.SudomiJoinInvite) SudomiJoinInvite(inv.game, inv.room) };
+    b.querySelector('#frGo').onclick = () => { close(); if (!inv.known) { addFriend(inv.code, inv.name, inv.avatar); notifyAdd(inv.code) } goTo(inv.game, inv.room) };
     b.querySelector('#frNo').onclick = close;
-    const a = b.querySelector('#frAdd'); if (a) a.onclick = () => { addFriend(inv.code, inv.name, inv.avatar); a.remove() };
+    const a = b.querySelector('#frAdd'); if (a) a.onclick = () => { addFriend(inv.code, inv.name, inv.avatar); notifyAdd(inv.code); a.remove(); refreshUI() };
     b.querySelector('#frBlock').onclick = () => { if (!S.blocked.includes(inv.code)) S.blocked.push(inv.code); removeFriend(inv.code); save(); close() };
     setTimeout(() => { if (b.isConnected) close() }, 45000);
   }
 
   /* ---------- enviar ---------- */
-  function send(code, msg, ms) {            // → 'sent' | 'online' | 'offline' | 'error'
+  // los envíos a un mismo amigo van de uno en uno (comparten la misma "llave" de conexión; dos a la vez se pisarían)
+  const chains = {};
+  function send(code, msg, ms) { const run = () => rawSend(code, msg, ms); chains[code] = (chains[code] || Promise.resolve()).then(run, run); return chains[code] }
+  function rawSend(code, msg, ms) {         // → 'sent' | 'online' | 'offline' | 'error'
     return new Promise(res => {
       let done = false, conn = null;
       const fin = r => { if (done) return; done = true; try { conn && conn.close() } catch (_) {} res(r) };
@@ -97,16 +127,27 @@
       setTimeout(() => fin('offline'), ms || 7000);
     });
   }
+  // avisa al otro que lo agregaste (le aparece en su lista al momento); si no está en línea queda pendiente
+  async function notifyAdd(code) {
+    const r = await send(code, { t: 'friend-add', me: me() }, 7000);
+    if (r === 'sent' || r === 'online') S.pending = S.pending.filter(c => c !== code);
+    else if (!S.pending.includes(code)) S.pending.push(code);
+    save(); return r;
+  }
+  async function retryPending() {
+    for (const c of S.pending.slice()) { if (!S.list.some(f => f.code === c)) { S.pending = S.pending.filter(x => x !== c); continue } await notifyAdd(c) }
+    save();
+  }
+  let checking = false;
   async function checkAll(codes, onEach) {  // comprueba quién está en línea (3 a la vez)
     const q = codes.slice();
-    const worker = async () => { while (q.length) { const c = q.shift(); status[c] = '…'; if (onEach) onEach(c); const r = await send(c, { t: 'hello', me: me() }, 6000); status[c] = r === 'online' ? 'on' : 'off'; if (onEach) onEach(c) } };
+    const worker = async () => { while (q.length) { const c = q.shift(); status[c] = '…'; if (onEach) onEach(c); const r = await send(c, { t: 'hello', me: me() }, 6000); status[c] = r === 'online' ? 'on' : 'off'; if (onEach) onEach(c); if (status[c] === 'on' && S.pending.includes(c)) notifyAdd(c) } };
     await Promise.all([worker(), worker(), worker()]);
   }
   const base = () => location.origin && location.origin !== 'null' ? location.origin + location.pathname : location.href.split(/[?#]/)[0];
   const myLink = () => `${base()}?friend=${S.id}&n=${encodeURIComponent(me().name)}`;
 
   /* ---------- pantalla "Amigos" ---------- */
-  let api = null;
   function dot(c) { const s = status[c]; return s === 'on' ? '<i class="fr-dot on"></i>En línea' : s === 'off' ? '<i class="fr-dot"></i>Desconectado' : s === '…' ? '<i class="fr-dot wait"></i>Comprobando…' : '<i class="fr-dot"></i>—' }
   function draw() {
     if (!api || !api.body.isConnected) return;
@@ -133,16 +174,16 @@
       if (c.length !== 8) return msg('Escribe el código completo (8 caracteres).');
       if (c === S.id) return msg('Ese es tu propio código.');
       if (S.list.some(f => f.code === c)) return msg('Ya es tu amigo.');
-      addFriend(c, '', ''); draw(); checkAll([c], () => draw());
+      addFriend(c, '', ''); draw(); notifyAdd(c); checkAll([c], () => draw());
     };
     const ck = $('#frCheck'); if (ck) ck.onclick = () => checkAll(S.list.map(f => f.code), () => draw());
-    body.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm(window.SudomiI18n ? SudomiI18n.t('¿Quitar a este amigo?') : '¿Quitar a este amigo?')) { removeFriend(b.dataset.del); draw() } });
+    body.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm(t('¿Quitar a este amigo?'))) { removeFriend(b.dataset.del); draw() } });
     const ub = $('#frUnblock'); if (ub) ub.onclick = () => { S.blocked = []; save(); draw() };
   }
-  function msg(t) { const m = $('#frMsg'); if (m) m.textContent = t }
+  function msg(text) { const m = $('#frMsg'); if (m) m.textContent = text }
   function shareMine() {
     const url = myLink(), text = 'Agrégame como amigo en SUDOMI';
-    if (navigator.share) navigator.share({ title: 'SUDOMI', text: window.SudomiI18n ? SudomiI18n.t(text) : text, url }).catch(() => {});
+    if (navigator.share) navigator.share({ title: 'SUDOMI', text: t(text), url }).catch(() => {});
     else if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => msg('Enlace copiado. Pégalo en tu chat.')).catch(() => msg(url));
     else msg(url);
   }
@@ -153,25 +194,56 @@
     if (S.list.length) checkAll(S.list.map(f => f.code), () => draw());
   }
 
-  /* ---------- invitar desde un juego ---------- */
-  // opts: {game:'dos', gameName:'DOS', room:'ABCD2345', url?}
+  /* ---------- panel de invitar dentro de las salas ---------- */
+  // <div class="fr-panel" data-game="dos" data-name="DOS" data-room="ABCD2345" data-url="…"></div>
+  const lastCheck = {};
+  function panelHTML(el) {
+    const room = norm(el.dataset.room);
+    const rows = S.list.length ? S.list.map(f => {
+      const done = sent[room + f.code];
+      return `<div class="fr-friend" data-c="${f.code}"><span class="fr-av">${esc(f.avatar)}</span><div><b>${esc(f.name)}</b><small>${dot(f.code)}</small></div><button type="button" class="fr-btn" data-inv="${f.code}" ${done ? 'disabled' : ''}>${done ? '✓ Enviada' : 'Invitar'}</button></div>`;
+    }).join('') : '<p class="fr-note">Todavía no tienes amigos agregados.</p>';
+    return `<div class="fr-pbox"><div class="fr-head"><b>👥 Invitar amigos</b>${S.list.length ? '<button type="button" class="fr-mini" data-pcheck>↻</button>' : ''}</div><div class="fr-list">${rows}</div><div class="fr-row"><button type="button" class="fr-btn alt" data-pfriends>👥 Mis amigos</button>${el.dataset.url ? '<button type="button" class="fr-btn alt" data-plink>📤 Compartir enlace</button>' : ''}</div><p class="fr-note small">Tu amigo recibe el aviso solo si tiene SUDOMI abierto y "Aparecer en línea" activado.</p></div>`;
+  }
+  function bindPanel(el) {
+    const room = norm(el.dataset.room), game = el.dataset.game, gameName = el.dataset.name || '';
+    el.querySelectorAll('[data-inv]').forEach(b => b.onclick = async () => {
+      const c = b.dataset.inv; b.disabled = true; b.textContent = 'Enviando…';
+      const r = await send(c, { t: 'invite', game, gameName, room, from: me() }, 8000);
+      if (r === 'sent') { sent[room + c] = 'sent'; status[c] = 'on' } else status[c] = 'off';
+      b.textContent = r === 'sent' ? '✓ Enviada' : 'Sin conexión'; b.disabled = r === 'sent';
+      if (r !== 'sent') setTimeout(() => { if (b.isConnected) { b.textContent = 'Invitar'; b.disabled = false } }, 2500);
+    });
+    const pf = el.querySelector('[data-pfriends]'); if (pf) pf.onclick = open;
+    const pc = el.querySelector('[data-pcheck]'); if (pc) pc.onclick = () => { lastCheck[room] = Date.now(); checkAll(S.list.map(f => f.code), c => updateRow(el, c)) };
+    const pl = el.querySelector('[data-plink]'); if (pl) pl.onclick = () => { const url = el.dataset.url; if (navigator.share) navigator.share({ title: 'SUDOMI', text: gameName ? t('Juega ' + gameName + ' conmigo en SUDOMI') : t('Juega conmigo en SUDOMI'), url }).catch(() => {}); else if (navigator.clipboard) navigator.clipboard.writeText(url) };
+    if (S.list.length && (!lastCheck[room] || Date.now() - lastCheck[room] > 20000)) { lastCheck[room] = Date.now(); checkAll(S.list.map(f => f.code), c => updateRow(el, c)) }
+  }
+  function updateRow(el, c) { const row = el.querySelector(`.fr-friend[data-c="${c}"] small`); if (row && el.isConnected) row.innerHTML = dot(c) }
+  function fillPanels() {
+    document.querySelectorAll('.fr-panel:not([data-filled])').forEach(el => { el.dataset.filled = '1'; el.innerHTML = panelHTML(el); bindPanel(el) });
+  }
+  new MutationObserver(() => fillPanels()).observe(document.documentElement, { childList: true, subtree: true });
+  // compatibilidad: invitar() abre una hoja con el mismo panel
   function invite(opts) {
     if (!window.SudomiScreen) return;
-    const room = norm(opts.room), game = opts.game;
-    const sa = SudomiScreen.open('friendsInvite', '👥 Invitar amigos', (body, a) => {
-      body.innerHTML = `<p class="fr-note">${esc(`Sala ${pretty(room)} · ${opts.gameName || ''}. Tu amigo recibe el aviso solo si tiene SUDOMI abierto y "Aparecer en línea" activado.`)}</p>
-        <div class="fr-list">${S.list.length ? S.list.map(f => `<div class="fr-friend" data-c="${f.code}"><span class="fr-av">${esc(f.avatar)}</span><div><b>${esc(f.name)}</b><small>${dot(f.code)}</small></div><button type="button" class="fr-btn" data-inv="${f.code}">Invitar</button></div>`).join('') : '<p class="fr-note">Todavía no tienes amigos agregados.</p>'}</div>
-        <div class="fr-row"><button type="button" class="fr-btn alt" id="frToFriends">👥 Mis amigos</button>${opts.url ? '<button type="button" class="fr-btn alt" id="frLink">📤 Compartir enlace</button>' : ''}</div><p class="fr-note" id="frInvMsg"></p>`;
-      body.querySelectorAll('[data-inv]').forEach(b => b.onclick = async () => {
-        const c = b.dataset.inv; b.disabled = true; b.textContent = 'Enviando…';
-        const r = await send(c, { t: 'invite', game, gameName: opts.gameName, room, from: me() }, 8000);
-        b.textContent = r === 'sent' ? '✓ Enviada' : 'Sin conexión'; b.disabled = r === 'sent'; status[c] = r === 'sent' ? 'on' : 'off';
-        if (r !== 'sent') setTimeout(() => { b.textContent = 'Invitar'; b.disabled = false }, 2500);
-      });
-      const tf = body.querySelector('#frToFriends'); if (tf) tf.onclick = () => { a.close(); open() };
-      const lk = body.querySelector('#frLink'); if (lk) lk.onclick = () => { if (navigator.share) navigator.share({ title: 'SUDOMI', text: opts.gameName ? 'Juega ' + opts.gameName + ' conmigo en SUDOMI' : 'Juega conmigo en SUDOMI', url: opts.url }).catch(() => {}); else if (navigator.clipboard) navigator.clipboard.writeText(opts.url).then(() => { const m = body.querySelector('#frInvMsg'); if (m) m.textContent = 'Enlace copiado.' }) };
+    SudomiScreen.open('friendsInvite', '👥 Invitar amigos', body => {
+      body.innerHTML = `<div class="fr-panel" data-game="${esc(opts.game)}" data-name="${esc(opts.gameName || '')}" data-room="${esc(opts.room)}" ${opts.url ? `data-url="${esc(opts.url)}"` : ''}></div>`; fillPanels();
     });
-    if (S.list.length) checkAll(S.list.map(f => f.code), c => { if (sa && sa.body.isConnected) { const row = sa.body.querySelector(`.fr-friend[data-c="${c}"] small`); if (row) row.innerHTML = dot(c) } });
+  }
+
+  /* ---------- partida en curso (volver a la sala) ---------- */
+  // info: {game, gameName, room, role:'host'|'guest'}
+  function track(info) { try { localStorage.setItem(ROOM_KEY, JSON.stringify({ ...info, room: norm(info.room), ts: Date.now() })) } catch (_) {} }
+  function untrack() { try { localStorage.removeItem(ROOM_KEY) } catch (_) {} const b = $('#frRoomBanner'); if (b) b.remove() }
+  function activeRoom() { try { const v = JSON.parse(localStorage.getItem(ROOM_KEY)); return v && v.room && Date.now() - v.ts < MAX_AGE ? v : null } catch (_) { return null } }
+  function roomBanner() {
+    const v = activeRoom(); if (!v) return;
+    const b = document.createElement('div'); b.id = 'frRoomBanner'; b.className = 'fr-banner';
+    b.innerHTML = `<div class="fr-b-who"><span>🎮</span><div>${esc(`Tienes una partida en curso: ${v.gameName || v.game}`)}</div></div><div class="fr-b-btns"><button type="button" class="fr-go" id="frBack">Volver a la partida</button><button type="button" id="frDrop">Descartar</button></div>`;
+    document.body.appendChild(b);
+    b.querySelector('#frBack').onclick = () => { b.remove(); goTo(v.game, v.room, { role: v.role, back: true }) };
+    b.querySelector('#frDrop').onclick = () => { untrack() };
   }
 
   /* ---------- agregar por enlace (?friend=CÓDIGO&n=NOMBRE) ---------- */
@@ -185,7 +257,7 @@
       const w = document.createElement('div'); w.className = 'fr-banner'; w.id = 'frLinkBanner';
       w.innerHTML = `<div class="fr-b-who"><span>👥</span><div>${esc(`¿Agregar a ${name || pretty(code)} como amigo?`)}</div></div><div class="fr-b-btns"><button type="button" class="fr-go" id="frYes">Agregar</button><button type="button" id="frNo2">No</button></div>`;
       document.body.appendChild(w);
-      w.querySelector('#frYes').onclick = () => { addFriend(code, name, ''); w.remove(); open() };
+      w.querySelector('#frYes').onclick = () => { addFriend(code, name, ''); notifyAdd(code); w.remove(); open() };
       w.querySelector('#frNo2').onclick = () => w.remove();
     }, 1200);
   }
@@ -195,11 +267,16 @@
     const dd = $('#homeDropdown'); if (!dd || $('#openFriends')) return;
     const b = document.createElement('button'); b.id = 'openFriends'; b.type = 'button'; b.className = 'dropdown-option';
     b.innerHTML = '<span>👥</span><strong>Amigos</strong><small>Invita desde el juego</small>';
-    b.onclick = () => { dd.classList.add('hidden'); const t = $('#homeMenuBtn'); if (t) t.setAttribute('aria-expanded', 'false'); open() };
+    b.onclick = () => { dd.classList.add('hidden'); const tg = $('#homeMenuBtn'); if (tg) tg.setAttribute('aria-expanded', 'false'); open() };
     const ref = $('#openProfileScreen'); if (ref && ref.nextSibling) dd.insertBefore(b, ref.nextSibling); else dd.appendChild(b);
   }
-  function boot() { addMenuItem(); handleLink(); if (S.on) setTimeout(listen, 1500) }
+  function boot() {
+    addMenuItem(); handleLink(); fillPanels();
+    if (S.on) setTimeout(listen, 1500);
+    if (S.pending.length) setTimeout(retryPending, 5000);
+    setTimeout(roomBanner, 1800);
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
   window.addEventListener('sudomi-profile', () => { if (S.on) listen() });
-  window.SudomiFriends = { open, invite, list: () => S.list.slice(), myCode: () => S.id, _state: () => S, _send: send, _listen: listen };
+  window.SudomiFriends = { open, invite, track, untrack, activeRoom, list: () => S.list.slice(), myCode: () => S.id, _state: () => S, _send: send, _listen: listen, _retry: retryPending };
 })();

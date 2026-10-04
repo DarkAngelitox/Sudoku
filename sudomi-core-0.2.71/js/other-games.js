@@ -83,7 +83,7 @@ function renderHomeGames(){
  box.querySelectorAll('[data-hg]').forEach(b=>b.onclick=()=>{const id=b.dataset.hg;if(!id)return all();open();if(id==='dos'&&openDos())return;if(id==='stop'&&openStop())return;if(id==='dominopolis'&&openDominopolis())return;chooseMode(id)});
 }
 function open(){ $('#homeScreen').classList.add('hidden');$('#gameScreen').classList.add('hidden');$('#miniGamesScreen').classList.remove('hidden');stage.classList.add('hidden');hub.classList.remove('hidden');renderHub() }
-function leaveWifi(){wifi.names=[null,null];if(wifi.active&&window.SudomiLAN){SudomiLAN.leave();wifi.active=false;wifi.player=0;wifi.handler=null}try{sessionStorage.removeItem(HOST_KEY)}catch(_){}hideWifiToast()}
+function leaveWifi(){wifi.names=[null,null];if(wifi.active&&window.SudomiLAN){SudomiLAN.leave();wifi.active=false;wifi.player=0;wifi.handler=null}try{localStorage.removeItem(HOST_KEY)}catch(_){}hideWifiToast()}
 function back(){if(window.SudomiDos)SudomiDos.close();if(window.SudomiStop)SudomiStop.close();leaveWifi();stage.classList.add('hidden');hub.classList.remove('hidden');$('#miniGamesScreen').classList.add('hidden');$('#homeScreen').classList.remove('hidden');current=null;game=null;renderHub()}
 function toHub(){if(game?.dispose)game.dispose();leaveWifi();current=null;game=null;stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}
 function renderHub(){
@@ -91,15 +91,15 @@ function renderHub(){
  const resume=item?`<div class="wifi-resume"><span>📶</span><div><strong>Partida ${netInfo().label} en curso</strong><small>${item[2]} · sala ${saved.session.room}</small></div><button id="resumeWifi">Reconectar</button><button id="dropWifi" aria-label="Descartar">✕</button></div>`:'';
  hub.innerHTML=`<p class="games-intro">Elige un juego y selecciona cómo quieres jugar.</p>${resume}<div class="games-grid">${[...games].sort((a,b)=>(b[0]==='dos')-(a[0]==='dos')).map(([id,icon,name,desc])=>{const art=window.SudomiGameArt&&SudomiGameArt[id];return `<button class="game-card ${art?'has-art':''}" data-game="${id}">${art?`<div class="gc-art">${art}</div>`:''}<span>${icon}</span><strong>${name}</strong><small>${desc}</small><b>Elegir modo <i>›</i></b></button>`}).join('')}</div>`;
  hub.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>{if(b.dataset.game==='dos'&&openDos())return;if(b.dataset.game==='stop'&&openStop())return;if(b.dataset.game==='dominopolis'&&openDominopolis())return;chooseMode(b.dataset.game)});
- if(item){$('#resumeWifi').onclick=()=>resumeWifi(saved);$('#dropWifi').onclick=()=>{SudomiLAN.forget();try{sessionStorage.removeItem(HOST_KEY)}catch(_){}renderHub()}}
+ if(item){$('#resumeWifi').onclick=()=>resumeWifi(saved);$('#dropWifi').onclick=()=>{SudomiLAN.forget();try{localStorage.removeItem(HOST_KEY)}catch(_){}renderHub()}}
 }
 // 0.2.58: every game offers the same two ways to play: PVE (you against the computer) and Multijugador (people; empty seats are filled by the computer)
 function modeButtons(id){
  const pve='<button data-mode="pve"><strong>🤖 PVE: Jugador vs IA</strong><small>'+(id==='domino'?'Tú y un compañero IA contra dos rivales IA':'Juega contra la computadora')+'</small></button>';
  const local='<button data-mode="pvp"><strong>👥 Multijugador local</strong><small>'+(id==='domino'?'4 personas en un solo dispositivo: se lo pasan en cada turno':'Dos personas en un solo dispositivo: se lo pasan en cada turno')+'</small></button>';
- return pve+local+(id==='domino'?'<button data-mode="party"><strong>🌐 Multijugador · 1 a 4 jugadores</strong><small>Crea una sala o únete con un código. Si falta gente, la IA ocupa los lugares.</small></button>':netBtn());
+ return pve+local+(id==='domino'?'<button data-mode="party"><strong>🌐 Multijugador · 1 a 4 jugadores</strong><small>Crea una sala o únete con un código. Si falta gente, la IA ocupa los lugares.</small></button>':netBtn()+friendsBtn());
 }
-function chooseMode(id){const item=games.find(g=>g[0]===id),extra=games.findIndex(g=>g[0]===id)>=6,choices=id==='mines'?mineLevelsHTML()+'<button data-mode="clock"><strong>⏱ Contra el reloj</strong><small>Completa el tablero y mejora tu tiempo</small></button><button data-mode="practice"><strong>🧘 Práctica</strong><small>Juega sin cronómetro</small></button>':modeButtons(id);hub.innerHTML=`<button class="games-back mode-back" id="backToGames">‹ Todos los juegos</button><div class="mode-picker"><span class="mode-game-icon">${item[1]}</span><p>ELIGE TU PARTIDA</p><h2>${item[2]}</h2><div class="mode-choices">${choices}</div></div>`;$('#backToGames').onclick=renderHub;hub.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>b.dataset.mode==='wifi'?wifiLobby(id):b.dataset.mode==='party'?openDominoParty():launch(id,b.dataset.mode));qrOffer(id)}
+function chooseMode(id){const item=games.find(g=>g[0]===id),extra=games.findIndex(g=>g[0]===id)>=6,choices=id==='mines'?mineLevelsHTML()+'<button data-mode="clock"><strong>⏱ Contra el reloj</strong><small>Completa el tablero y mejora tu tiempo</small></button><button data-mode="practice"><strong>🧘 Práctica</strong><small>Juega sin cronómetro</small></button>':modeButtons(id);hub.innerHTML=`<button class="games-back mode-back" id="backToGames">‹ Todos los juegos</button><div class="mode-picker"><span class="mode-game-icon">${item[1]}</span><p>ELIGE TU PARTIDA</p><h2>${item[2]}</h2><div class="mode-choices">${choices}</div></div>`;$('#backToGames').onclick=renderHub;hub.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>b.dataset.mode==='wifi'?wifiLobby(id):b.dataset.mode==='friends'?(wifiLobby(id),setTimeout(()=>{const c=$('#createWifiRoom');if(c)c.click()},80)):b.dataset.mode==='party'?openDominoParty():launch(id,b.dataset.mode));qrOffer(id)}
 // 0.2.52: "Sin internet (QR)" — only for these games and only when no internet is detected (js/qr-client.js)
 const QR_GAMES=['checkers','tictactoe','connect4','dotsboxes','memory'];
 // 0.2.58: the QR option now lives INSIDE the Multijugador lobby (button '📷 Sin internet (QR)'), not as a separate mode
@@ -118,8 +118,8 @@ function wifiLobby(id,opts={}){
   const status=$('#wifiStatus');status.textContent='Creando sala…';
   try{
    const s=await SudomiLAN.create(id);
-   status.innerHTML=N.qr?'Escanea el código QR de tu amigo y luego muéstrale el tuyo.<span>Esperando que se una…</span>':`Comparte este código con el otro jugador:<strong class="wifi-room-code">${prettyRoom(s.room)}</strong>${N.online?'<button class="secondary-action" id="shareInvite">📤 Enviar invitación</button><button class="secondary-action" id="friendsInvite">👥 Invitar a un amigo</button>':''}<span>Esperando que se una…</span>`;
-   if(N.online&&!N.qr){$('#shareInvite').onclick=()=>shareInvite(id,s.room);const fb=$('#friendsInvite');if(fb)fb.onclick=()=>{if(window.SudomiFriends){const g0=games.find(x=>x[0]===id);SudomiFriends.invite({game:id,gameName:g0?g0[2]:'',room:s.room})}}}
+   status.innerHTML=N.qr?'Escanea el código QR de tu amigo y luego muéstrale el tuyo.<span>Esperando que se una…</span>':`Comparte este código con el otro jugador:<strong class="wifi-room-code">${prettyRoom(s.room)}</strong>${N.online?'<button class="secondary-action" id="shareInvite">📤 Enviar invitación</button>':''}<span>Esperando que se una…</span>${N.online?`<div class="fr-panel" data-game="${id}" data-name="${item[2]}" data-room="${s.room}"></div>`:''}`;
+   if(N.online&&!N.qr){$('#shareInvite').onclick=()=>shareInvite(id,s.room)}
    startWifiEvents(id);
   }catch(e){status.textContent=e.message}
  };
@@ -156,6 +156,7 @@ const netInfo=()=>window.SudomiLAN&&window.SudomiLAN.kind==='qr'
  :window.SudomiLAN&&window.SudomiLAN.kind==='online'
  ?{online:true,label:'Online',icon:'🌐',title:'MULTIJUGADOR ONLINE',desc:'Juega con un amigo por internet',hint:'Crea una sala y envíale el enlace o el código a tu amigo. Pueden estar en cualquier lugar.'}
  :{online:false,label:'Wi‑Fi',icon:'📶',title:'MULTIJUGADOR LOCAL',desc:'Juega desde dos teléfonos en la misma red',hint:'Ambos teléfonos deben estar conectados a la misma Wi‑Fi y abrir esta app desde la dirección local de la PC.'};
+const friendsBtn=()=>netInfo().online&&!netInfo().qr?'<button data-mode="friends"><strong>👥 Jugar con amigos</strong><small>Abre una sala y invita a tus amigos desde aquí.</small></button>':'';
 const netBtn=()=>{const n=netInfo();return `<button data-mode="wifi"><strong>${n.icon} Multijugador</strong><small>${n.desc}. Si nadie se une, puedes jugar contra la IA.</small></button>`};
 const prettyRoom=r=>r&&r.length===8?r.slice(0,4)+'-'+r.slice(4):r;
 function shareInvite(id,room){
@@ -175,14 +176,14 @@ function handleInvite(){
  joinInvite(id,room);
 }
 // 0.2.71: también lo usa la lista de amigos (js/friends.js) cuando alguien toca «Unirme» en una invitación
-function joinInvite(id,room){
+function joinInvite(id,room,opts){
  room=String(room||'').replace(/[^A-Za-z0-9]/g,'').toUpperCase();
  if(!room||!id)return false;
  if(id==='domino4'){open();openDominoParty(room);return true}   // 0.2.58: Dominó multijugador
  if(id==='mines'||!games.some(g=>g[0]===id))return false;
  if(id==='dos'){open();if(openDos())SudomiDos.join(room);return}
  if(id==='stop'){open();if(openStop())SudomiStop.join(room);return}
- if(id==='dominopolis'){open();if(openDominopolis())SudomiDominopolis.join(room);return}
+ if(id==='dominopolis'){open();if(openDominopolis())SudomiDominopolis.join(room,opts);return}
  open();wifiLobby(id,{code:room});
  setTimeout(()=>{const b=$('#joinWifiRoom');if(b)b.click()},200);
 }
@@ -197,8 +198,8 @@ function wifiSnapshot(forPlayer=1-wifi.player){
  for(const k of Object.keys(v))if(!['mode','record','wifi'].includes(k))state[k]=v[k];
  return {state};
 }
-function persistWifi(){try{if(wifi.active&&window.SudomiLAN?.session&&game)sessionStorage.setItem(HOST_KEY,JSON.stringify({room:SudomiLAN.session.room,game:current,state:fullState()}))}catch(_){}}
-function restoreWifi(room){try{const v=JSON.parse(sessionStorage.getItem(HOST_KEY));if(v&&v.room===room&&v.game===current){applyWifiSnapshot(v.state);return true}}catch(_){}return false}
+function persistWifi(){try{if(wifi.active&&window.SudomiLAN?.session&&game)localStorage.setItem(HOST_KEY,JSON.stringify({room:SudomiLAN.session.room,game:current,state:fullState()}))}catch(_){}}
+function restoreWifi(room){try{const v=JSON.parse(localStorage.getItem(HOST_KEY));if(v&&v.room===room&&v.game===current){applyWifiSnapshot(v.state);return true}}catch(_){}return false}
 function wifiToast(text,sticky){let t=document.getElementById('wifiToast');if(!t){t=document.createElement('div');t.id='wifiToast';t.className='wifi-toast';t.setAttribute('role','status');document.body.appendChild(t)}t.textContent=text;t.classList.add('show');clearTimeout(t._h);if(!sticky)t._h=setTimeout(()=>t.classList.remove('show'),4500)}
 function hideWifiToast(){const t=document.getElementById('wifiToast');if(t)t.classList.remove('show')}
 // Every tap in a card/tile game goes through here.
@@ -213,7 +214,7 @@ function resumeWifi(saved){
  const s0=saved.session,id=s0.game;
  if(!games.some(g=>g[0]===id)){SudomiLAN.forget();renderHub();return}
  SudomiLAN.resume(saved);wifi.player=s0.player;current=id;startWifiEvents(id);
- let hadState=false;try{const v=JSON.parse(sessionStorage.getItem(HOST_KEY));hadState=!!v&&v.room===s0.room&&v.game===id}catch(_){}
+ let hadState=false;try{const v=JSON.parse(localStorage.getItem(HOST_KEY));hadState=!!v&&v.room===s0.room&&v.game===id}catch(_){}
  if(!hadState&&s0.player===0){            // host whose friend had not joined yet: back to the waiting lobby
   wifiLobby(id);const st=$('#wifiStatus');if(st)st.innerHTML=`Sala recuperada. Comparte este código:<strong class="wifi-room-code">${prettyRoom(s0.room)}</strong><span>Esperando que se una…</span>`;return;
  }
