@@ -2588,6 +2588,27 @@ html[data-theme="dark"] .mc-count button{background:rgba(255,255,255,.08);color:
 .prof-dragons button .av-dragon{width:40px;height:40px;vertical-align:0}
 .prof-dragons button.on{border-color:#1f9d55;box-shadow:0 0 0 3px #1f9d55}
 .prof-big .av-dragon{width:1.1em;height:1.1em}
+/* 0.2.77: sin zoom en portada, menús y juegos (solo el Sudoku se puede ampliar); avisos del botón Amigos */
+html.no-zoom,html.no-zoom body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html.no-zoom input,html.no-zoom select,html.no-zoom textarea{font-size:max(16px,1em)}
+.home-friends{position:relative}
+.home-friends .fr-badge{position:absolute;top:-7px;right:-5px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#e0243a;color:#fff;font:900 12px/22px system-ui,sans-serif;font-style:normal;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.4),0 0 0 2px #fff}
+.home-friends.has-notif{animation:seatGlow 1.6s ease-in-out infinite}
+.fr-nlist{display:grid;gap:10px;margin:8px 0}
+.fr-nt{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border-radius:14px;background:#fff;border:1px solid #d3dbe8;color:#14233b}
+.fr-nt .fr-av{font-size:28px;line-height:1}
+.fr-nt-t{flex:1 1 150px;min-width:0}
+.fr-nt-t b{font-size:14px;line-height:1.25;display:block}
+.fr-nt-b{display:flex;gap:8px;flex:0 0 100%;justify-content:flex-end}
+.fr-nt-b button{min-height:40px;padding:8px 14px;border-radius:12px;border:2px solid #c3cde3;background:#f4f7fc;color:#14233b;font-weight:800;font-size:13px;cursor:pointer}
+.fr-nt-b button.fr-go{background:#1f9d55;border-color:#1f9d55;color:#fff}
+.fr-nt-b button:disabled{opacity:.6}
+.fr-nt.ended{background:#fff4e5;border-color:#f0b35a}
+html[data-theme="dark"] .fr-nt{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.18);color:#e8ecf6}
+html[data-theme="dark"] .fr-nt-b button{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:#e8ecf6}
+html[data-theme="dark"] .fr-nt-b button.fr-go{background:#1f9d55;border-color:#1f9d55;color:#fff}
+html[data-theme="dark"] .fr-nt.ended{background:rgba(240,179,90,.15);border-color:#f0b35a}
+@media (prefers-reduced-motion:reduce){.home-friends.has-notif{animation:none}}
 /* 0.2.76: barra «Fulano sin conexión · Invitar de nuevo» para el que se queda en la partida */
 .fr-awaybar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:10050;display:flex;align-items:center;justify-content:center;gap:10px 14px;flex-wrap:wrap;width:max-content;max-width:min(94vw,540px);padding:10px 14px;border-radius:16px;background:#14233b;color:#fff;font-size:14px;font-weight:700;box-shadow:0 8px 26px rgba(0,0,0,.4);border:2px solid #f5b800}
 .fr-awaybar>div{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}

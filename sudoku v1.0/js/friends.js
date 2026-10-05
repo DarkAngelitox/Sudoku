@@ -39,6 +39,42 @@
   const sent = {};                         // sala+código → 'sent'
   let inbox = null, listening = false, lastErr = '', api = null;
 
+  /* ---------- 0.2.77: AVISOS (invitaciones sin responder, amigos nuevos, invitaciones rechazadas) ----------
+   * Se guardan en este teléfono (localStorage 'sudomi-notifs'), hasta 5 a la vez (los más nuevos), y se ven tocando el botón «Amigos» de la portada. */
+  const NKEY = 'sudomi-notifs', NMAX = 5, N_LIFE = { invite: 6 * 3600 * 1000, added: 48 * 3600 * 1000, declined: 48 * 3600 * 1000 };
+  function readN() {
+    try {
+      const a = JSON.parse(localStorage.getItem(NKEY)); if (!Array.isArray(a)) return [];
+      return a.filter(n => n && n.id && N_LIFE[n.type] && Date.now() - n.ts < N_LIFE[n.type]).slice(0, NMAX);
+    } catch (_) { return [] }
+  }
+  const writeN = a => { try { localStorage.setItem(NKEY, JSON.stringify(a.slice(0, NMAX))) } catch (_) {} };
+  function addNotif(n) {               // misma cosa (tipo + persona + sala) = se actualiza en vez de repetirse
+    n.id = n.type + ':' + n.code + ':' + (n.room || ''); n.ts = Date.now();
+    const a = readN().filter(x => x.id !== n.id); a.unshift(n); writeN(a); homeBtn();
+  }
+  function removeNotif(id) { writeN(readN().filter(x => x.id !== id)); homeBtn() }
+  // ¿la sala sigue abierta? Nos asomamos a su puerta sin entrar (sin llave): 'alive' | 'gone' | 'unknown'
+  function probeRoom(game, room) {
+    return new Promise(async res => {
+      let done = false, p = null;
+      const fin = r => { if (done) return; done = true; try { p && p.destroy() } catch (_) {} res(r) };
+      setTimeout(() => fin('unknown'), 9000);
+      try {
+        if (!window.Peer) {
+          const cfg = window.SUDOMI_ONLINE || {}, src = (cfg.scripts || ['https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js'])[0];
+          await new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s) });
+        }
+        const cfg = window.SUDOMI_ONLINE || {};
+        p = new window.Peer({ debug: 0, config: { iceServers: cfg.iceServers || [{ urls: 'stun:stun.l.google.com:19302' }] }, ...(cfg.peerServer || {}) });
+        p.on('error', err => fin(err && err.type === 'peer-unavailable' ? 'gone' : 'unknown'));
+        p.on('open', () => {
+          const c = p.connect(`sudomi-${game}-${norm(room)}`, { reliable: true, serialization: 'json', metadata: { probe: 1 } });
+          c.on('open', () => fin('alive')); c.on('error', () => fin('unknown'));
+        });
+      } catch (_) { fin('unknown') }
+    });
+  }
   /* ---------- lista ---------- */
   function addFriend(code, name, avatar) {
     code = norm(code);
@@ -67,6 +103,15 @@
     if (d.t === 'hello') { if (inbox) inbox.send(e.id, { t: 'hi', me: me() }); updateFrom(d.me); return }
     if (d.t === 'friend-add') { if (inbox) inbox.send(e.id, { t: 'ack' }); gotAdd(d.me); return }
     if (d.t === 'invite') { if (inbox) inbox.send(e.id, { t: 'ack' }); gotInvite(d) }
+    if (d.t === 'invite-no') { if (inbox) inbox.send(e.id, { t: 'ack' }); gotDecline(d) }
+  }
+  // 0.2.77: tu amigo rechazó la invitación: puedes volver a invitarlo (se libera la marca «Invitación enviada») y te queda un aviso
+  function gotDecline(d) {
+    const from = d.from || {}, code = norm(from.code), name = clean(from.name), room = norm(d.room);
+    if (code.length !== 8 || !name || room.length !== 8) return;
+    delete sent[room + code]; updateFrom(from);
+    addNotif({ type: 'declined', code, name, avatar: String(from.avatar || '🙂').slice(0, 4), game: String(d.game || ''), gameName: clean(d.gameName) || 'un juego', room });
+    play('bad'); toast2(`${name} rechazó tu invitación`); refreshUI();
   }
   function gotAdd(m) {
     const code = norm(m && m.code), name = clean(m && m.name);
@@ -74,7 +119,7 @@
     const isNew = !S.list.some(f => f.code === code);
     addFriend(code, name, String((m && m.avatar) || '🙂').slice(0, 4));
     status[code] = 'on'; refreshUI();
-    if (isNew) { play('bonus'); toast(name) }
+    if (isNew) { play('bonus'); toast(name); addNotif({ type: 'added', code, name, avatar: String((m && m.avatar) || '🙂').slice(0, 4) }) }
   }
   const seenInv = {};
   function gotInvite(d) {
@@ -83,7 +128,9 @@
     if (S.blocked.includes(code)) return;
     if (seenInv[room] && Date.now() - seenInv[room] < 60000) return; seenInv[room] = Date.now();
     updateFrom(from);
-    banner({ code, name, avatar: String(from.avatar || '🙂').slice(0, 4), game, room, gameName: clean(d.gameName) || 'un juego', known: S.list.some(f => f.code === code) });
+    const inv = { code, name, avatar: String(from.avatar || '🙂').slice(0, 4), game, room, gameName: clean(d.gameName) || 'un juego', known: S.list.some(f => f.code === code) };
+    addNotif({ type: 'invite', code, name, avatar: inv.avatar, game, gameName: inv.gameName, room });   // queda como aviso aunque no la aceptes
+    banner(inv);
   }
   function toast(name) {                   // "X te agregó como amigo"
     let b = $('#frToast'); if (b) b.remove();
@@ -101,10 +148,14 @@
       <div class="fr-b-btns"><button type="button" class="fr-go" id="frGo">Unirme</button><button type="button" id="frNo">Ahora no</button>${inv.known ? '' : '<button type="button" id="frAdd">+ Amigo</button>'}<button type="button" id="frBlock" aria-label="Bloquear">🚫</button></div>`;
     document.body.appendChild(b); play('bonus');
     const close = () => { b.classList.add('out'); setTimeout(() => b.remove(), 300) };
-    b.querySelector('#frGo').onclick = () => { close(); if (!inv.known) { addFriend(inv.code, inv.name, inv.avatar); notifyAdd(inv.code) } goTo(inv.game, inv.room) };
+    b.querySelector('#frGo').onclick = async () => {
+      const go = b.querySelector('#frGo'); go.disabled = true; go.textContent = t('Comprobando…');
+      const ok = await acceptInvite({ type: 'invite', code: inv.code, name: inv.name, avatar: inv.avatar, game: inv.game, gameName: inv.gameName, room: inv.room, id: 'invite:' + inv.code + ':' + inv.room });
+      if (ok) close(); else { b.querySelector('.fr-b-who div').textContent = t(`Sesión terminada: la partida de ${inv.name} ya no está disponible.`); b.querySelector('.fr-b-btns').remove(); setTimeout(close, 6000) }
+    };
     b.querySelector('#frNo').onclick = close;
     const a = b.querySelector('#frAdd'); if (a) a.onclick = () => { addFriend(inv.code, inv.name, inv.avatar); notifyAdd(inv.code); a.remove(); refreshUI() };
-    b.querySelector('#frBlock').onclick = () => { if (!S.blocked.includes(inv.code)) S.blocked.push(inv.code); removeFriend(inv.code); save(); close() };
+    b.querySelector('#frBlock').onclick = () => { if (!S.blocked.includes(inv.code)) S.blocked.push(inv.code); removeFriend(inv.code); save(); removeNotif('invite:' + inv.code + ':' + inv.room); close() };
     setTimeout(() => { if (b.isConnected) close() }, 45000);
   }
 
@@ -259,6 +310,51 @@
     });
   }
 
+  /* ---------- 0.2.77: aceptar una invitación y la lista de avisos ---------- */
+  async function acceptInvite(n) {         // → true si entró; false si la sesión ya terminó
+    const r = await probeRoom(n.game, n.room);
+    if (r === 'gone') { removeNotif(n.id); return false }
+    removeNotif(n.id); delete seenInv[n.room];
+    if (!S.list.some(f => f.code === n.code)) { addFriend(n.code, n.name, n.avatar); notifyAdd(n.code) }
+    goTo(n.game, n.room);
+    return true;
+  }
+  function showNotifs() {
+    if (!window.SudomiScreen) return open();
+    SudomiScreen.open('friendsNotifs', '🔔 Avisos', (body, a) => {
+      const ended = [];
+      const card = n => {
+        const who = `<span class="fr-av">${esc(n.avatar || '🙂')}</span>`;
+        if (n.type === 'invite') return `<div class="fr-nt" data-id="${esc(n.id)}">${who}<div class="fr-nt-t"><b>${esc(`${n.name} te invita a jugar ${n.gameName}`)}</b></div><div class="fr-nt-b"><button type="button" class="fr-go" data-ac="yes">Aceptar</button><button type="button" data-ac="no">Rechazar</button></div></div>`;
+        if (n.type === 'added') return `<div class="fr-nt" data-id="${esc(n.id)}">${who}<div class="fr-nt-t"><b>${esc(`${n.name} te agregó como amigo`)}</b></div><div class="fr-nt-b"><button type="button" data-ac="ok">Entendido</button></div></div>`;
+        return `<div class="fr-nt" data-id="${esc(n.id)}">${who}<div class="fr-nt-t"><b>${esc(`${n.name} rechazó tu invitación a ${n.gameName}`)}</b></div><div class="fr-nt-b"><button type="button" data-ac="ok">Entendido</button></div></div>`;
+      };
+      const paint = () => {
+        const list = readN();
+        const gone = ended.map((m, i) => `<div class="fr-nt ended"><span class="fr-av">🚪</span><div class="fr-nt-t"><b>${esc(`Sesión terminada: la partida de ${m} ya no está disponible.`)}</b></div><div class="fr-nt-b"><button type="button" data-end="${i}">Entendido</button></div></div>`).join('');
+        body.innerHTML = `${gone || list.length ? `<div class="fr-nlist">${gone}${list.map(card).join('')}</div>` : '<p class="fr-note">No tienes avisos.</p>'}<p class="fr-note">Se guardan hasta 5 avisos.</p><div class="fr-row"><button type="button" class="fr-btn alt" id="ntFriends">👥 Mis amigos</button></div>`;
+        body.querySelector('#ntFriends').onclick = () => { a.close(); open() };
+        body.querySelectorAll('[data-end]').forEach(x => x.onclick = () => { ended.splice(+x.dataset.end, 1); paint() });
+        body.querySelectorAll('.fr-nt[data-id]').forEach(el => {
+          const n = list.find(x => x.id === el.dataset.id); if (!n) return;
+          el.querySelectorAll('[data-ac]').forEach(btn => btn.onclick = async () => {
+            const ac = btn.dataset.ac;
+            if (ac === 'ok') { removeNotif(n.id); paint(); return }
+            if (ac === 'no') {
+              removeNotif(n.id); delete seenInv[n.room]; paint();
+              send(n.code, { t: 'invite-no', game: n.game, gameName: n.gameName, room: n.room, from: me() }, 7000);   // así la otra persona puede invitar otra vez
+              return;
+            }
+            el.querySelectorAll('button').forEach(x => x.disabled = true); btn.textContent = t('Comprobando…');
+            const ok = await acceptInvite(n);
+            if (ok) a.close(); else { ended.unshift(n.name); paint() }
+          });
+        });
+      };
+      paint();
+    });
+  }
+
   /* ---------- 0.2.76: alguien se desconectó de TU partida: barra para invitarlo de nuevo ---------- */
   // info: {game, gameName, room, names:[...]}; sin nombres (o sin info) la barra se quita.
   function roomUrl(game, room) {
@@ -336,10 +432,12 @@
     if (!row) { row = document.createElement('div'); row.id = 'heroRow'; row.className = 'hero-row'; const h1 = copy.querySelector('h1'); copy.insertBefore(row, h1 || copy.firstChild) }
     const hello = $('#profHello'); if (hello && hello.parentNode !== row) row.insertBefore(hello, row.firstChild);
     let b = $('#homeFriends');
-    if (!b) { b = document.createElement('button'); b.id = 'homeFriends'; b.type = 'button'; b.className = 'home-friends'; b.onclick = () => open(); row.appendChild(b) }
+    if (!b) { b = document.createElement('button'); b.id = 'homeFriends'; b.type = 'button'; b.className = 'home-friends'; b.onclick = () => (readN().length ? showNotifs() : open()); row.appendChild(b) }
     const n = S.list.filter(f => status[f.code] === 'on').length, checked = S.list.some(f => status[f.code] === 'on' || status[f.code] === 'off');
     const sub = !S.list.length ? 'Agrega amigos' : !checked ? 'Comprobando…' : n + ' en línea';
-    b.innerHTML = `<span>👥</span><div><b>Amigos</b><small>${n ? '<i class="fr-dot on"></i>' : ''}${sub}</small></div>`;
+    const nn = readN().length;
+    b.innerHTML = `<span>👥</span><div><b>Amigos</b><small>${n ? '<i class="fr-dot on"></i>' : ''}${sub}</small></div>${nn ? `<em class="fr-badge" aria-label="${nn} avisos">${nn}</em>` : ''}`;
+    b.classList.toggle('has-notif', nn > 0);
   }
   let homeTimer = 0;
   function homePoll() {
@@ -360,5 +458,5 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
   window.addEventListener('sudomi-profile', () => { homeBtn(); if (S.on) listen() });
-  window.SudomiFriends = { open, invite, awayBar, track, untrack, activeRoom, list: () => S.list.slice(), myCode: () => S.id, _state: () => S, _send: send, _listen: listen, _retry: retryPending };
+  window.SudomiFriends = { open, invite, awayBar, notifs: readN, showNotifs, track, untrack, activeRoom, list: () => S.list.slice(), myCode: () => S.id, _state: () => S, _send: send, _listen: listen, _retry: retryPending };
 })();
