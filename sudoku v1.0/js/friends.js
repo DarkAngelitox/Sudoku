@@ -33,6 +33,8 @@
   let S = read();
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)) } catch (_) {} };
   save();
+  // 0.2.81: si SUDOMI está abierto dos veces (pestaña + app instalada, o dos pestañas), la copia vieja ya no pisa la lista de la otra
+  window.addEventListener('storage', e => { if (e.key !== KEY || !e.newValue) return; try { S = read(); refreshUI(); homeBtn() } catch (_) {} });
   const me = () => ({ code: S.id, name: clean(P() && P().name && P().name()), avatar: (P() && P().avatar && P().avatar()) || '' });
   const hasProfile = () => !!(P() && P().get && P().get());
   const status = {};                       // código → 'on' | 'off' | '…'

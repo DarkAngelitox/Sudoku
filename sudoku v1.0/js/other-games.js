@@ -485,10 +485,10 @@ function ckAnimate(mv,from){
   if(token!==ckToken||!document.body.contains(fly))return;
   if(k>=mv.path.length-1){fly.remove();real.style.visibility='';return}
   const a=pos(mv.path[k]),b=pos(mv.path[k+1]),cap=mv.caps[k];
-  const dur=cap?420:280;fly.animate([{transform:`translate(${a.x}px,${a.y}px) scale(1)`},{transform:`translate(${(a.x+b.x)/2}px,${(a.y+b.y)/2}px) scale(${cap?1.35:1.15})`,offset:.5},{transform:`translate(${b.x}px,${b.y}px) scale(1)`}],{duration:dur,easing:'ease-in-out',fill:'forwards'});
-  setTimeout(()=>{if(token!==ckToken)return;if(cap){ckSound();if(ghosts[k])ghosts[k].remove();ckMarkX(cap.i)}k++;setTimeout(step,cap?160:50)},dur);   // a timer, not the animation's own event: that one does not fire while the page is not being drawn
+  const dur=cap?420:280;fly.animate([{transform:`translate(${a.x}px,${a.y}px) scale(1)`},{transform:`translate(${(a.x+b.x)/2}px,${(a.y+b.y)/2}px) scale(${cap?1.18:1.08})`,offset:.5},{transform:`translate(${b.x}px,${b.y}px) scale(1)`}],{duration:dur,easing:'ease-in-out',fill:'forwards'});
+  setTimeout(()=>{if(token!==ckToken){if(cap)ckSound();return}if(cap){ckSound();if(ghosts[k])ghosts[k].remove();ckMarkX(cap.i)}k++;setTimeout(step,cap?90:30)},dur);   // a timer, not the animation's own event: that one does not fire while the page is not being drawn
  };
- step();
+ setTimeout(step,40);   // 0.2.81: let the freshly drawn board settle first, so the first frames are not dropped
 }
 const ckOppSide=g=>wifi.active?(wifi.player===0?'b':'r'):g.mode==='pve'?'b':(g.last?g.last.side:null);
 function ckPhotoHTML(mv,canReplay,flip){

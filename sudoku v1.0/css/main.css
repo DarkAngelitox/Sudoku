@@ -2708,7 +2708,7 @@ html[data-fx="off"] #homeScreen .home-main>*,html[data-fx="off"] #homeScreen .ga
 #miniGameStage .checker-cell.ck-trail{box-shadow:inset 0 0 0 100px #ffd400c2,inset 0 0 0 3px #ff8a00!important}
 .ck-xm{position:absolute;inset:0;z-index:5;display:grid;place-items:center;color:#e5121f;font-size:clamp(22px,8vw,44px);font-style:normal;font-weight:900;line-height:1;text-shadow:0 0 3px #fff,0 0 7px #fff,0 2px 4px #0006;pointer-events:none;animation:ckX .32s cubic-bezier(.2,.8,.3,1.5)}
 @keyframes ckX{from{opacity:0;transform:scale(2.4) rotate(-25deg)}}
-#miniGameStage .checker-piece.ck-fly{position:absolute;left:0;top:0;z-index:7;margin:0;pointer-events:none;filter:drop-shadow(0 8px 8px #0007)}
+#miniGameStage .checker-piece.ck-fly{position:absolute;left:0;top:0;z-index:7;margin:0;pointer-events:none;will-change:transform}   /* 0.2.81: no drop-shadow filter (it made the move stutter on phones) */
 #miniGameStage .checker-piece.ck-ghost{position:absolute;opacity:.9}
 .ck-photo{position:fixed;inset:0;z-index:42;display:grid;place-items:center;padding:16px;background:#091a30cc}
 .ck-photo-card{width:min(430px,100%);max-height:100%;overflow-y:auto;padding:16px;border-radius:22px;background:#fff;color:#10213b;text-align:center;box-shadow:0 24px 80px #07172b66}
@@ -2740,3 +2740,20 @@ html[data-theme="dark"] .ck-photo-btns button:first-child{background:#1f5fc4;col
 #miniGameStage .chess-board.ck-mini{width:100%;height:auto;aspect-ratio:1;pointer-events:none}
 .ck-mini .chess-cell{position:relative;display:grid;place-items:center}
 @media(prefers-reduced-motion:reduce){.ch-xm{animation:none}}
+
+/* 0.2.82: iconos de Yukiri (img/yukiri): fotos redondas que llenan el circulo; fila rosada en el editor de perfil */
+.av-dragon.av-pic{padding:0;background:#fde4ee}
+.av-dragon.av-pic img{object-fit:cover}
+.av-dragon.av-pic img[src$="yukiri2.png"]{transform:scale(1.3)}
+.av-dragon.av-pic img[src$="yukiri3.png"]{transform:scale(1.13)}
+.prof-dragons.prof-yuki{border-color:#e86a9a;background:linear-gradient(135deg,#ffe3ee,#e6f3ff)}
+.prof-dragons.prof-yuki p{color:#8a1f4d}
+.prof-dragons.prof-yuki p:after{content:" \1F338"}
+.prof-dragons.prof-yuki button{width:64px;height:64px;padding:3px;border-radius:50%}
+.prof-dragons.prof-yuki button .av-dragon{width:54px;height:54px}
+
+/* 0.2.83: Domino - botella PANDA (mas alta que la anterior) y globo de frases un poco mas largo */
+.dm-bottle,.dm-foot .dm-bottle{width:40px;height:110px}
+@media(max-width:380px){.dm-bottle,.dm-foot .dm-bottle{width:36px;height:100px}}
+.dm-bottle .b{top:22%}
+.dm-cheer{animation-duration:2.6s}

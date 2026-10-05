@@ -8,20 +8,49 @@
  const LEVEL_STEP=20,SIP_MS=1300;
  const DRUNK_SIPS=5,DRUNK_TURNS=2;      // 0.2.67: at every 5th sip the hand blurs for the next two turns of that player
  const st={level:100,at:0,sips:[0,0,0,0],drunk:[0,0,0,0]};       // drunk[p] = turns of p still to play blurred
- const CHEERS=['¡Salud! 🍻','¡Qué fría está! 🥶','¡Dale pa\'lante! 🍺','¡Eso! 🍻','¡A la tuya! 🥂'];
+ // 0.2.83: al tomar un trago sale una de las frases de la etiqueta de la botella PANDA
+ const CHEERS=['¡Nosotros somos bebedores! 🍻','¡Con el lápiz no! ✏️','¡Me encanta esta vaina! 🐼','Extra viejo… reserva familiar 🥃','Panda, desde 1888 🐼','¡Salud! 🍻'];
  const play=n=>{try{window.SudomiSound&&SudomiSound.play(n)}catch(_){}};
  /* ---- the bottle ---- */
- const BODY='M23 8h14v6h-1v34c0 8 14 14 14 28v52c0 6-4 10-10 10H20c-6 0-10-4-10-10V76c0-14 14-20 14-28V14h-1z';
+ /* 0.2.83 — la botella es «PANDA Extra Viejo» (dibujo del dueño, pasado a limpio). Dos etiquetas: clásica (ámbar) y reserva negra;
+  * se alternan cada vez que se abre otra botella (st.look). El ron baja de LIQ_TOP hasta donde empieza la etiqueta. */
+ const BODY='M96 128 C93 215 46 300 40 400 L40 622 Q40 650 70 652 L170 652 Q200 650 200 622 L200 400 C194 300 147 215 144 128 Z';
+ const LIQ_TOP=135,LIQ_SPAN=183,liqY=l=>LIQ_TOP+LIQ_SPAN*(1-l/100);
+ const LOOKS=[
+  {glass:['#6b2f08','#c4731c','#57250a'],empty:'#3a1a06',cap:['#8f1016','#d8343b'],line:'#2a1405',label:'#f7edd3',ink:'#3a1c08',brand:'#b3161b',accent:'#b3161b',onAccent:'#fff6dc',net:'#f0d27a',netO:.75,pl:'#fff',pd:'#1c1c1c'},
+  {glass:['#2a1808','#7a4c18','#1f1206'],empty:'#0b0d10',cap:['#8a6a1c','#f0d27a'],line:'#0a0a0a',label:'#17130f',ink:'#e6c66f',brand:'#f0d27a',accent:'#c9a23a',onAccent:'#17130f',net:'#e6c66f',netO:.6,pl:'#fbf6e6',pd:'#17130f'}
+ ];
+ function panda(cx,cy,r,p,stache){
+  return `<g transform="translate(${cx},${cy}) scale(${r/20})"><circle cx="-15" cy="-15" r="8" fill="${p.pd}"/><circle cx="15" cy="-15" r="8" fill="${p.pd}"/><circle r="20" fill="${p.pl}" stroke="${p.pd}" stroke-width="2"/><ellipse cx="-8" cy="-3" rx="5.5" ry="7" transform="rotate(20 -8 -3)" fill="${p.pd}"/><ellipse cx="8" cy="-3" rx="5.5" ry="7" transform="rotate(-20 8 -3)" fill="${p.pd}"/><circle cx="-7.5" cy="-3.5" r="2" fill="${p.pl}"/><circle cx="7.5" cy="-3.5" r="2" fill="${p.pl}"/><ellipse cx="0" cy="6" rx="3.6" ry="2.6" fill="${p.pd}"/>${stache?`<path d="M0 9C-4 13-10 13-13 9C-9 11-4 10 0 9C4 10 9 11 13 9C10 13 4 13 0 9Z" fill="${p.pd}"/>`:`<path d="M-5 11Q0 15 5 11" fill="none" stroke="${p.pd}" stroke-width="1.8" stroke-linecap="round"/>`}</g>`;
+ }
+ function art(){
+  const p=LOOKS[(st.look|0)%LOOKS.length],y=liqY(st.level).toFixed(1);
+  const ic=(x,inner)=>`<g transform="translate(${x},522)"><circle r="12.5" fill="${p.label}" stroke="${p.ink}" stroke-width="1.6"/>${inner}</g>`;
+  return `<svg viewBox="0 0 240 664" aria-hidden="true"><defs><clipPath id="dmBottleClip"><path d="${BODY}"/></clipPath><linearGradient id="dmGlass" x1="0" x2="1"><stop offset="0" stop-color="${p.glass[0]}"/><stop offset=".45" stop-color="${p.glass[1]}"/><stop offset="1" stop-color="${p.glass[2]}"/></linearGradient><linearGradient id="dmCap" x1="0" x2="1"><stop offset="0" stop-color="${p.cap[0]}"/><stop offset=".5" stop-color="${p.cap[1]}"/><stop offset="1" stop-color="${p.cap[0]}"/></linearGradient><pattern id="dmNet" width="54" height="96" patternUnits="userSpaceOnUse" x="13" y="128"><path d="M0 0L27 48L0 96M54 0L27 48L54 96" fill="none" stroke="${p.net}" stroke-width="2.2"/></pattern></defs>
+  <rect x="94" y="8" width="52" height="42" rx="6" fill="url(#dmCap)" stroke="${p.line}" stroke-width="3"/>
+  <rect x="96" y="50" width="48" height="62" fill="${p.label}" stroke="${p.line}" stroke-width="3"/>${panda(120,76,13,p,true)}
+  <rect x="96" y="96" width="48" height="16" fill="${p.accent}"/><text x="120" y="107.5" text-anchor="middle" font-family="Georgia,serif" font-size="5.8" font-weight="700" fill="${p.onAccent}">DESDE · 1888</text>
+  <rect x="92" y="112" width="56" height="18" rx="4" fill="url(#dmCap)" stroke="${p.line}" stroke-width="3"/>
+  <path d="${BODY}" fill="${p.empty}" opacity=".6"/>
+  <g clip-path="url(#dmBottleClip)"><rect class="dm-liq" x="0" y="${y}" width="240" height="${(664-y).toFixed(1)}" fill="url(#dmGlass)"/>
+   <rect x="40" y="436" width="160" height="196" fill="${p.label}"/><circle cx="120" cy="376" r="63" fill="${p.label}" stroke="${p.ink}" stroke-width="2"/><rect x="42" y="437" width="156" height="30" fill="${p.label}"/><circle cx="120" cy="376" r="57" fill="none" stroke="${p.accent}" stroke-width="1.6"/>
+   <line x1="40" y1="632" x2="200" y2="632" stroke="${p.ink}" stroke-width="2"/><rect x="40" y="588" width="160" height="34" fill="${p.accent}"/></g>
+  <path d="M104 150C101 225 60 300 54 400" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".28"/>
+  ${panda(120,345,19,p,false)}
+  <text x="120" y="412" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="35" letter-spacing="2" fill="${p.brand}" stroke="${p.ink}" stroke-width="1.2" paint-order="stroke">PANDA</text>
+  <text x="120" y="458" text-anchor="middle" font-family="Georgia,serif" font-size="23" font-weight="700" letter-spacing="3" fill="${p.ink}">EXTRA</text><text x="120" y="483" text-anchor="middle" font-family="Georgia,serif" font-size="23" font-weight="700" letter-spacing="3" fill="${p.ink}">VIEJO</text>
+  <text x="120" y="498" text-anchor="middle" font-family="Arial,sans-serif" font-size="7.5" font-weight="700" letter-spacing="2.2" fill="${p.brand}">RESERVA FAMILIAR</text>
+  <line x1="48" y1="522" x2="192" y2="522" stroke="${p.ink}" stroke-width="1.4"/>
+  ${ic(75,`<path d="M-2.2 -8h4.4v4l2 3v8h-8.4v-8l2-3z" fill="none" stroke="${p.ink}" stroke-width="1.5" stroke-linejoin="round"/>`)}${ic(105,`<g transform="scale(.42)">${panda(0,2,20,p,false)}</g>`)}${ic(135,`<g transform="rotate(40)"><rect x="-2" y="-8" width="4" height="12" fill="none" stroke="${p.ink}" stroke-width="1.4"/><path d="M-2 4L0 9L2 4" fill="${p.ink}" stroke="${p.ink}" stroke-width="1.2" stroke-linejoin="round"/></g>`)}${ic(165,`<circle cx="-3.6" cy="-2.5" r="1.4" fill="${p.ink}"/><circle cx="3.6" cy="-2.5" r="1.4" fill="${p.ink}"/><path d="M-5.5 2.5Q0 8 5.5 2.5" fill="none" stroke="${p.ink}" stroke-width="1.6" stroke-linecap="round"/>`)}
+  <text x="120" y="556" text-anchor="middle" font-family="'Segoe Script','Brush Script MT',cursive" font-size="14.5" fill="${p.ink}">Nosotros somos</text><text x="120" y="578" text-anchor="middle" font-family="'Segoe Script','Brush Script MT',cursive" font-size="19" font-weight="700" fill="${p.brand}">¡Bebedores!</text>
+  <text x="120" y="604" text-anchor="middle" font-family="Georgia,serif" font-size="12.5" font-weight="700" font-style="italic" fill="${p.onAccent}">¡Con el lápiz no!</text><text x="120" y="616" text-anchor="middle" font-family="Arial,sans-serif" font-size="6.6" letter-spacing="1" fill="${p.onAccent}">ME ENCANTA ESTA VAINA</text>
+  <rect x="30" y="128" width="180" height="530" fill="url(#dmNet)" clip-path="url(#dmBottleClip)" opacity="${p.netO}"/>
+  <path d="${BODY}" fill="none" stroke="${p.line}" stroke-width="4" stroke-linejoin="round"/></svg>`;
+ }
  function bottle(viewer){
-  const y=(128-68*st.level/100).toFixed(1),el=(Date.now()-st.at)/1000,sipping=el<SIP_MS/1000;
+  const el=(Date.now()-st.at)/1000,sipping=el<SIP_MS/1000;
   return `<button type="button" class="dm-bottle${sipping?' sip':''}${st.level<=0?' empty':''}" style="${sipping?`animation-delay:-${el.toFixed(2)}s`:''}" aria-label="${st.level<=0?'Abrir otra botella':'Tomar un trago'}" title="${st.level<=0?'Abrir otra botella':'Tomar un trago'}">
-  <svg viewBox="0 0 60 142" aria-hidden="true"><defs><clipPath id="dmBottleClip"><path d="${BODY}"/></clipPath><linearGradient id="dmGlass" x1="0" x2="1"><stop offset="0" stop-color="#1c7a3c"/><stop offset=".45" stop-color="#46c46f"/><stop offset="1" stop-color="#14592b"/></linearGradient></defs>
-  <path d="${BODY}" fill="#0e3d1d" opacity=".55"/>
-  <g clip-path="url(#dmBottleClip)"><rect class="dm-liq" x="0" y="${y}" width="60" height="${142-y}" fill="url(#dmGlass)"/><rect x="0" y="${Math.max(0,y-2)}" width="60" height="3" fill="#d9ffe4" opacity="${st.level>0?.55:0}"/></g>
-  <path d="${BODY}" fill="none" stroke="#bfe8cb" stroke-width="1.6" opacity=".8"/>
-  <path d="M15 80v44" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".35"/><path d="M27 16v26" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".3"/>
-  <rect x="22" y="3" width="16" height="7" rx="2" fill="#d4a017"/>
-  <rect x="12" y="86" width="36" height="30" rx="3" fill="#fff6dc"/><text x="30" y="99" text-anchor="middle" font-size="7.5" font-weight="900" fill="#0b4fb3" font-family="system-ui,sans-serif">SUDOMI</text><text x="30" y="109" text-anchor="middle" font-size="4.6" font-weight="800" fill="#d6293e" font-family="system-ui,sans-serif">BIEN FRÍA</text></svg>
+  ${art()}
   <i class="b b1"></i><i class="b b2"></i><i class="b b3"></i></button>`;
  }
  const sips=p=>st.sips[p]||0;
@@ -36,7 +65,7 @@
  function cheer(text){
   const seat=document.querySelector('#miniGameStage .dm-seat.bottom');if(!seat)return;
   seat.querySelectorAll('.dm-cheer').forEach(e=>e.remove());
-  const c=document.createElement('div');c.className='dm-cheer';c.textContent=text;seat.appendChild(c);setTimeout(()=>c.remove(),1800);
+  const c=document.createElement('div');c.className='dm-cheer';c.textContent=text;seat.appendChild(c);setTimeout(()=>c.remove(),2600);
  }
  function updateSeat(viewer){
   const who=document.querySelector('#miniGameStage .dm-seat.bottom .dm-who');if(!who)return;
@@ -48,15 +77,15 @@
   const wrap=b.closest('.arc-domino'),viewer=wrap?+wrap.dataset.dv||0:0;
   if(Date.now()-st.at<SIP_MS-200&&st.level>0)return;                       // one sip at a time
   if(st.level<=0){
-   st.level=100;st.at=Date.now();play('pop');cheer('¡Otra botella! 🍾');
+   st.level=100;st.at=Date.now();st.look=(st.look|0)+1;play('pop');cheer('¡Otra botella! 🍾');
    b.classList.remove('empty');b.setAttribute('aria-label','Tomar un trago');
-   const liq=b.querySelector('.dm-liq');if(liq){liq.setAttribute('y',60);liq.setAttribute('height',82)}
+   const sv=b.querySelector('svg');if(sv)sv.outerHTML=art();   // la otra etiqueta, llena
    return;
   }
   st.level=Math.max(0,st.level-LEVEL_STEP);st.at=Date.now();st.sips[viewer]=sips(viewer)+1;
   play('glug');
   b.classList.remove('sip');void b.offsetWidth;b.classList.add('sip');b.style.animationDelay='';
-  const liq=b.querySelector('.dm-liq'),y=128-68*st.level/100;if(liq){liq.setAttribute('y',y);liq.setAttribute('height',142-y)}
+  const liq=b.querySelector('.dm-liq'),y=liqY(st.level);if(liq){liq.setAttribute('y',y);liq.setAttribute('height',664-y)}
   setTimeout(()=>{if(b.isConnected&&st.level<=0){b.classList.add('empty');b.setAttribute('aria-label','Abrir otra botella')}},SIP_MS);
   cheer(st.level<=0?'¡Se acabó! 🍾 Toca para abrir otra':CHEERS[Math.floor(Math.random()*CHEERS.length)]);
   updateSeat(viewer);

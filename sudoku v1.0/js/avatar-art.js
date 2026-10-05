@@ -15,6 +15,13 @@
     { id: '🐉🗡', name: 'Dragón de frente', img: FILE(6) },
     { id: '🐉🛡', name: 'Dragón en pie', img: FILE(7) }
   ];
+  // 0.2.82: iconos solo para el nombre «Yukiri» / «Yukiry» (carpeta img/yukiri/). No salen en la fila de dragones.
+  const YUKI = [
+    { id: '🌸🗡', name: 'Yukiri: espadachina', img: 'img/yukiri/yukiri1.png', pic: 1 },
+    { id: '🌸🌈', name: 'Yukiri: espada en alto', img: 'img/yukiri/yukiri2.png', pic: 1 },
+    { id: '🌸🌿', name: 'Yukiri: pradera', img: 'img/yukiri/yukiri3.png', pic: 1 }
+  ];
+  const DRAGON_LIST = LIST.slice(); YUKI.forEach(y => LIST.push(y));
   // nombres antiguos (0.2.72–0.2.77): se siguen reconociendo y muestran el dragón más parecido, pero ya no se ofrecen
   const LEGACY = { '🐉🔩': FILE(3) };
   const BY_ID = Object.fromEntries(LIST.map(d => [d.id, d]));
@@ -32,7 +39,7 @@
     const frag = document.createDocumentFragment(), parts = v.split(RX);   // con grupo de captura: los textos y los dragones se alternan
     parts.forEach(txt => {
       if (!txt) return;
-      if (IDS.includes(txt)) { const s = document.createElement('span'); s.className = 'av-dragon'; s.setAttribute('role', 'img'); s.setAttribute('aria-label', nameOf(txt)); s.innerHTML = html(txt); frag.appendChild(s) }
+      if (IDS.includes(txt)) { const s = document.createElement('span'); s.className = 'av-dragon' + (BY_ID[txt] && BY_ID[txt].pic ? ' av-pic' : ''); s.setAttribute('role', 'img'); s.setAttribute('aria-label', nameOf(txt)); s.innerHTML = html(txt); frag.appendChild(s) }
       else frag.appendChild(document.createTextNode(txt));
     });
     p.replaceChild(frag, node);
@@ -51,5 +58,5 @@
       .observe(document.body, { childList: true, subtree: true, characterData: true });
   }
   if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
-  window.SudomiAvatarArt = { DRAGON: IDS[0], ids: IDS, list: LIST.map(d => ({ id: d.id, name: d.name })), html, has: id => IDS.includes(id) };
+  window.SudomiAvatarArt = { DRAGON: IDS[0], ids: IDS, list: DRAGON_LIST.map(d => ({ id: d.id, name: d.name })), yuki: YUKI.map(d => ({ id: d.id, name: d.name })), html, has: id => IDS.includes(id) && !YUKI.some(y => y.id === id), hasYuki: id => YUKI.some(y => y.id === id) };
 })();
