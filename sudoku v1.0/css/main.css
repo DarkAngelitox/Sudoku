@@ -2588,6 +2588,11 @@ html[data-theme="dark"] .mc-count button{background:rgba(255,255,255,.08);color:
 .prof-dragons button .av-dragon{width:40px;height:40px;vertical-align:0}
 .prof-dragons button.on{border-color:#1f9d55;box-shadow:0 0 0 3px #1f9d55}
 .prof-big .av-dragon{width:1.1em;height:1.1em}
+/* 0.2.76: barra «Fulano sin conexión · Invitar de nuevo» para el que se queda en la partida */
+.fr-awaybar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:10050;display:flex;align-items:center;justify-content:center;gap:10px 14px;flex-wrap:wrap;width:max-content;max-width:min(94vw,540px);padding:10px 14px;border-radius:16px;background:#14233b;color:#fff;font-size:14px;font-weight:700;box-shadow:0 8px 26px rgba(0,0,0,.4);border:2px solid #f5b800}
+.fr-awaybar>div{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.fr-awaybar button{min-height:40px;padding:8px 14px;border-radius:12px;border:2px solid rgba(255,255,255,.35);background:transparent;color:#fff;font:inherit;font-size:13px;cursor:pointer}
+.fr-awaybar button.fr-go{background:#f5b800;border-color:#f5b800;color:#2a1b00}
 /* 0.2.75: Domino: elegir el lado tocando la imagen de la ficha de cada extremo */
 .d-side{flex-direction:row;gap:14px}
 .d-side>span{flex:0 0 100%;text-align:center}

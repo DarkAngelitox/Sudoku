@@ -83,7 +83,15 @@ function renderHomeGames(){
  box.querySelectorAll('[data-hg]').forEach(b=>b.onclick=()=>{const id=b.dataset.hg;if(!id)return all();open();chooseMode(id)});
 }
 function open(){ $('#homeScreen').classList.add('hidden');$('#gameScreen').classList.add('hidden');$('#miniGamesScreen').classList.remove('hidden');stage.classList.add('hidden');hub.classList.remove('hidden');renderHub() }
-function leaveWifi(){wifi.names=[null,null];if(wifi.active&&window.SudomiLAN){SudomiLAN.leave();wifi.active=false;wifi.player=0;wifi.handler=null}try{localStorage.removeItem(HOST_KEY)}catch(_){}hideWifiToast()}
+// 0.2.76: cuando el otro se desconecta (o sale por error), barra con «Invitar de nuevo» / «Compartir enlace» para que vuelva a la misma partida
+function awayBarHook(on){
+ if(!window.SudomiFriends||!SudomiFriends.awayBar)return;
+ const s=window.SudomiLAN&&SudomiLAN.session;
+ if(!on||!s||SudomiLAN.kind!=='online'||!current){SudomiFriends.awayBar(null);return}
+ const it=games.find(g=>g[0]===current),nm=(wifi.names[1-wifi.player]||{}).name||'Tu amigo';
+ SudomiFriends.awayBar({game:current,gameName:it?it[2]:'',room:s.room,names:[nm]});
+}
+function leaveWifi(){try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}wifi.names=[null,null];if(wifi.active&&window.SudomiLAN){SudomiLAN.leave();wifi.active=false;wifi.player=0;wifi.handler=null}try{localStorage.removeItem(HOST_KEY)}catch(_){}hideWifiToast()}
 function back(){if(window.SudomiDos)SudomiDos.close();if(window.SudomiStop)SudomiStop.close();leaveWifi();stage.classList.add('hidden');hub.classList.remove('hidden');$('#miniGamesScreen').classList.add('hidden');$('#homeScreen').classList.remove('hidden');current=null;game=null;renderHub()}
 function toHub(){if(game?.dispose)game.dispose();leaveWifi();current=null;game=null;stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}
 function renderHub(){
@@ -229,9 +237,9 @@ function startWifiEvents(id){
   if(e.type==='state'&&wifi.active){hideWifiToast();applyWifiSnapshot(e.payload);persistWifi();render();return}
   if(e.type==='action'&&wifi.active&&wifi.player===0&&game&&isExtra()){SudomiExtraGames.apply(current,game,1,e.payload?.act);publishWifi();render();return}
   if(e.type==='sync-request'&&wifi.active&&game&&(!isExtra()||wifi.player===0)){wifiSend('state',wifiSnapshot());return}   // the other phone came back: send it the current board
-  if(e.type==='peer-away'&&wifi.active){wifiToast('El otro jugador perdió la conexión. Esperando que vuelva…',true);return}
-  if(e.type==='peer-back'&&wifi.active){wifiToast('¡El otro jugador volvió!');sendProfile();if(game&&(!isExtra()||wifi.player===0))wifiSend('state',wifiSnapshot());return}
-  if(e.type==='peer-left'&&wifi.active){wifiToast('El otro jugador salió de la partida.',true);return}
+  if(e.type==='peer-away'&&wifi.active){wifiToast('El otro jugador perdió la conexión. Esperando que vuelva…',true);awayBarHook(true);return}
+  if(e.type==='peer-back'&&wifi.active){wifiToast('¡El otro jugador volvió!');awayBarHook(false);sendProfile();if(game&&(!isExtra()||wifi.player===0))wifiSend('state',wifiSnapshot());return}
+  if(e.type==='peer-left'&&wifi.active){wifiToast('El otro jugador salió de la partida.',true);awayBarHook(true);return}
   if(e.type==='win-ack'&&wifi.active&&game){acknowledgedWin=game;disarmWinTap();render()}
  };
  SudomiLAN.on(wifi.handler)
@@ -272,6 +280,10 @@ function joinInvite(id,room,opts){
  setTimeout(()=>{const b=$('#joinWifiRoom');if(b)b.click()},200);
 }
 window.SudomiJoinInvite=joinInvite;
+// 0.2.76: partida de 2 jugadores guardada en este teléfono: la portada ofrece «Volver a la partida» (js/friends.js)
+window.SudomiSavedGame=()=>{const s=window.SudomiLAN&&!SudomiLAN.session?SudomiLAN.saved:null,it=s&&games.find(g=>g[0]===s.session.game);return it?{game:it[0],gameName:it[2],room:s.session.room,role:s.session.player===0?'host':'guest'}:null};
+window.SudomiResumeSaved=()=>{const s=window.SudomiLAN&&SudomiLAN.saved;if(!s)return false;open();resumeWifi(s);return true};
+window.SudomiDropSaved=()=>{try{SudomiLAN.forget();localStorage.removeItem(HOST_KEY)}catch(_){}};
 const HOST_KEY='sudomi-lan-state';
 const isExtra=(id=current)=>games.findIndex(g=>g[0]===id)>=6;
 function fullState(){const state={};for(const k of Object.keys(game))if(!['mode','record','wifi'].includes(k))state[k]=game[k];return {state,scores:game.record?.scores||null,starter:game.record?.starter}}
@@ -303,7 +315,7 @@ function resumeWifi(saved){
   wifiLobby(id);const st=$('#wifiStatus');if(st)st.innerHTML=`Sala recuperada. Comparte este código:<strong class="wifi-room-code">${prettyRoom(s0.room)}</strong><span>Esperando que se una…</span>`;return;
  }
  launch(id,'wifi');restoreWifi(s0.room);render();
- wifiToast('Reconectado a la partida.');
+ wifiToast('Reconectado a la partida.');sendProfile();
  if(s0.player===0)wifiSend('state',wifiSnapshot());else wifiSend('sync-request',{});
 }
 function applyWifiSnapshot(packet){if(!game||!packet?.state)return;for(const [k,v] of Object.entries(packet.state))game[k]=v;if(packet.scores&&game.record)game.record.scores=packet.scores;if(packet.starter!==undefined&&game.record)game.record.starter=packet.starter}

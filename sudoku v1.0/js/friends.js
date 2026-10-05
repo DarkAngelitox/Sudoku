@@ -259,18 +259,50 @@
     });
   }
 
+  /* ---------- 0.2.76: alguien se desconectó de TU partida: barra para invitarlo de nuevo ---------- */
+  // info: {game, gameName, room, names:[...]}; sin nombres (o sin info) la barra se quita.
+  function roomUrl(game, room) {
+    let net = ''; try { if (sessionStorage.getItem('sudomi-net') === 'online') net = '&net=online' } catch (_) {}
+    return `${base()}?game=${encodeURIComponent(game)}&room=${norm(room)}${net}`;
+  }
+  function awayBar(info) {
+    let b = $('#frAwayBar');
+    if (!info || !info.names || !info.names.length || !info.room) { if (b) b.remove(); return }
+    const key = info.game + ':' + info.room + ':' + info.names.join('|');
+    if (b && b.dataset.k === key) return;
+    if (!b) { b = document.createElement('div'); b.id = 'frAwayBar'; b.className = 'fr-awaybar'; b.setAttribute('role', 'status'); document.body.appendChild(b) }
+    b.dataset.k = key;
+    b.innerHTML = `<span>${esc('📴 ' + info.names.join(', ') + ' sin conexión')}</span><div><button type="button" class="fr-go" id="frAwayInv">Invitar de nuevo</button><button type="button" id="frAwayShare">📤 Compartir enlace</button></div>`;
+    b.querySelector('#frAwayInv').onclick = () => invite({ game: info.game, gameName: info.gameName || '', room: info.room, url: roomUrl(info.game, info.room) });
+    b.querySelector('#frAwayShare').onclick = () => {
+      const url = roomUrl(info.game, info.room), text = t('Juega conmigo en SUDOMI');
+      if (navigator.share) navigator.share({ title: 'SUDOMI', text, url }).catch(() => {});
+      else if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => toast2('Enlace copiado. Pégalo en tu chat.')).catch(() => toast2(url));
+      else toast2(url);
+    };
+  }
+  function toast2(text) {
+    let x = $('#frToast2'); if (x) x.remove();
+    x = document.createElement('div'); x.id = 'frToast2'; x.className = 'fr-banner fr-small'; x.textContent = t(text);
+    document.body.appendChild(x); setTimeout(() => { x.classList.add('out'); setTimeout(() => x.remove(), 300) }, 3500);
+  }
+
   /* ---------- partida en curso (volver a la sala) ---------- */
   // info: {game, gameName, room, role:'host'|'guest'}
   function track(info) { try { localStorage.setItem(ROOM_KEY, JSON.stringify({ ...info, room: norm(info.room), ts: Date.now() })) } catch (_) {} }
   function untrack() { try { localStorage.removeItem(ROOM_KEY) } catch (_) {} const b = $('#frRoomBanner'); if (b) b.remove() }
   function activeRoom() { try { const v = JSON.parse(localStorage.getItem(ROOM_KEY)); return v && v.room && Date.now() - v.ts < MAX_AGE ? v : null } catch (_) { return null } }
   function roomBanner() {
-    const v = activeRoom(); if (!v) return;
+    let v = activeRoom(), sv = null;
+    if (!v && window.SudomiSavedGame) sv = SudomiSavedGame();     // 0.2.76: también las partidas de 2 jugadores (Ajedrez, Damas…) guardadas en este teléfono
+    if (!v && !sv) return;
+    if (!v) v = sv;
+    if ($('#frRoomBanner')) return;
     const b = document.createElement('div'); b.id = 'frRoomBanner'; b.className = 'fr-banner';
     b.innerHTML = `<div class="fr-b-who"><span>🎮</span><div>${esc(`Tienes una partida en curso: ${v.gameName || v.game}`)}</div></div><div class="fr-b-btns"><button type="button" class="fr-go" id="frBack">Volver a la partida</button><button type="button" id="frDrop">Descartar</button></div>`;
     document.body.appendChild(b);
-    b.querySelector('#frBack').onclick = () => { b.remove(); goTo(v.game, v.room, { role: v.role, back: true }) };
-    b.querySelector('#frDrop').onclick = () => { untrack() };
+    b.querySelector('#frBack').onclick = () => { b.remove(); if (sv) { document.querySelectorAll('.ach-screen,.tut').forEach(x => x.classList.add('hidden')); document.body.classList.remove('tut-open'); SudomiResumeSaved() } else goTo(v.game, v.room, { role: v.role, back: true }) };
+    b.querySelector('#frDrop').onclick = () => { if (sv && window.SudomiDropSaved) SudomiDropSaved(); untrack() };
   }
 
   /* ---------- agregar por enlace (?friend=CÓDIGO&n=NOMBRE) ---------- */
@@ -328,5 +360,5 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
   window.addEventListener('sudomi-profile', () => { homeBtn(); if (S.on) listen() });
-  window.SudomiFriends = { open, invite, track, untrack, activeRoom, list: () => S.list.slice(), myCode: () => S.id, _state: () => S, _send: send, _listen: listen, _retry: retryPending };
+  window.SudomiFriends = { open, invite, awayBar, track, untrack, activeRoom, list: () => S.list.slice(), myCode: () => S.id, _state: () => S, _send: send, _listen: listen, _retry: retryPending };
 })();

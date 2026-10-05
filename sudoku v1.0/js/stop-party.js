@@ -119,7 +119,7 @@
  const $=sel=>ui.stage.querySelector(sel);
  window.addEventListener('sudomi-profile',()=>{if(ui&&screen==='menu')render()});
 
- function reset(){clearInterval(clock);clock=null;clearTimeout(sendTimer);if(net){try{net.close()}catch(_){}}net=null;S=null;V=null;seats=[];status='';roomCode='';offline=false;mode=null;busy=false;lastKey=''}
+ function reset(){try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}clearInterval(clock);clock=null;clearTimeout(sendTimer);if(net){try{net.close()}catch(_){}}net=null;S=null;V=null;seats=[];status='';roomCode='';offline=false;mode=null;busy=false;lastKey=''}
  function open(opts){ui=opts;reset();screen='menu';ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');render()}
  function close(){if(!ui)return;reset();screen='menu'}
  function leave(){try{window.SudomiFriends&&SudomiFriends.untrack()}catch(_){}const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}}
@@ -128,9 +128,11 @@
  const publicSeats=()=>seats.map(x=>({name:x.name,kind:x.kind,away:!!x.away,avatar:x.avatar||''}));
  const awaySeats=()=>seats.map((x,i)=>x.kind==='human'&&x.away?i:-1).filter(i=>i>=0);
  function pushLobby(){seats.forEach(x=>{if(x.id&&x.id!=='host')net.send(x.id,{t:'lobby',seats:publicSeats(),size,code:roomCode})})}
+ // 0.2.76: si alguien se desconecta, el anfitrión ve una barra con «Invitar de nuevo» (js/friends.js)
+ function syncAway(){try{if(window.SudomiFriends&&SudomiFriends.awayBar)SudomiFriends.awayBar(net&&mode==='host'&&S?{game:'stop',gameName:'STOP',room:roomCode,names:seats.filter(x=>x.kind==='human'&&x.away).map(x=>x.name)}:null)}catch(_){}}
  function pushState(){
   if(net&&mode==='host')seats.forEach((x,i)=>{if(x.id&&x.id!=='host'&&!x.away)net.send(x.id,{t:'state',v:viewFor(S,i),seats:publicSeats()})});
-  V=viewFor(S,0);screen='game';render();
+  V=viewFor(S,0);screen='game';syncAway();render();
  }
  function startClock(){clearInterval(clock);clock=setInterval(()=>{if(!S||S.phase==='result')return;tick(S,awaySeats());pushState()},1000)}
  function startGame(){
@@ -156,7 +158,11 @@
   if(e.type==='join'){
    let i=seats.findIndex(x=>x.id===e.id);
    if(i>=0)seats[i].away=false;
-   else if(S){net.reject(e.id,'La partida ya empezó.');return}
+   else if(S){   // 0.2.76: un teléfono nuevo (o sin su llave) puede ocupar el lugar de quien se desconectó
+    i=seats.findIndex(x=>x.kind==='human'&&x.away&&x.id!=='host');
+    if(i<0){net.reject(e.id,'La partida ya empezó.');return}
+    seats[i].id=e.id;seats[i].away=false;
+   }
    else{
     i=seats.findIndex(x=>x.kind==='open');
     if(i<0){net.reject(e.id,'La sala ya está llena.');return}

@@ -26,6 +26,7 @@
   alive=false;clearTimeout(botTimer);
   try{if(net&&net.close)net.close()}catch(_){}
   net=null;role=null;game=null;room={humans:[],started:false};
+  awayBar();try{window.SudomiFriends&&SudomiFriends.untrack()}catch(_){}
  }
  /* ---------- menu ---------- */
  function menu(msg){
@@ -61,23 +62,38 @@
   if(!alive||role!=='host')return;
   if(e.type==='join'){
    const meta=e.meta||{};
-   const known=room.humans.find(h=>h.id===e.id);
+   let known=room.humans.find(h=>h.id===e.id);
+   if(!known&&room.started){const gh=room.humans.find(h=>h.gone&&h.orig);if(gh){gh.id=e.id;known=gh}}   // 0.2.76: un teléfono nuevo ocupa el lugar de quien se desconectó
    if(!known){
     if(room.started){net.reject(e.id,'La partida ya empezó.');return}
     if(room.humans.length>=4){net.reject(e.id,'La sala está llena (4 jugadores).');return}
     room.humans.push({id:e.id,name:String(meta.name||'Jugador').slice(0,14),avatar:meta.avatar||'👤'});
    }
-   if(room.started){sendState(e.id)}else{lobbyView();broadcastLobby()}
+   if(known&&known.gone&&game)restoreSeat(known);
+   if(room.started){sendState(e.id);publish()}else{lobbyView();broadcastLobby()}
   }else if(e.type==='leave'){
    const i=room.humans.findIndex(h=>h.id===e.id);if(i<0)return;
    if(!room.started){room.humans.splice(i,1);lobbyView();broadcastLobby()}
-   else{const seat=seatOfId(e.id);if(seat>=0&&game){game.seats[seat]={name:game.seats[seat].name+' (IA)',avatar:game.seats[seat].avatar,bot:true};room.humans[i].gone=true;toast(`${game.seats[seat].name} salió: lo reemplaza la IA.`);publish();scheduleBot()}}
+   else{const seat=seatOfId(e.id);if(seat>=0&&game){const o=game.seats[seat];room.humans[i].seat=seat;room.humans[i].orig={name:o.name,avatar:o.avatar};game.seats[seat]={name:o.name+' (IA)',avatar:o.avatar,bot:true};room.humans[i].gone=true;toast(`${o.name} salió: lo reemplaza la IA.`);awayBar();publish();scheduleBot()}}
   }else if(e.type==='msg'&&e.data&&e.data.t==='act'&&game){
    const seat=seatOfId(e.id);if(seat<0)return;
    X().apply('domino',game,seat,e.data.act);publish();scheduleBot();
   }
  }
  const seatOfId=id=>game?game.seats.findIndex(s=>s.id===id):-1;
+ // 0.2.76: quien se desconecta en plena partida la IA lo reemplaza; si vuelve (o entra otro con el enlace), recupera su lugar
+ function restoreSeat(h){
+  const s=h.seat;if(s==null||!game||!h.orig)return;
+  game.seats[s]={name:h.orig.name,avatar:h.orig.avatar,human:true,id:h.id};h.gone=false;
+  toast(`${h.orig.name} volvió a la partida.`);awayBar();scheduleBot();
+ }
+ function awayBar(){
+  try{
+   if(!window.SudomiFriends||!SudomiFriends.awayBar)return;
+   const names=role==='host'&&game?room.humans.filter(h=>h.gone&&h.orig).map(h=>h.orig.name):[];
+   SudomiFriends.awayBar(names.length?{game:'domino4',gameName:'Dominó',room:code,names}:null);
+  }catch(_){}
+ }
  function lobbyView(){
   env.hub.classList.remove('hidden');env.stage.classList.add('hidden');
   const seats=seatsFromRoom(),isHost=role==='host';
@@ -128,7 +144,7 @@
   status('Conectando…');
   net=P().join('domino4',c,{name:me.name,avatar:me.avatar},e=>{
    if(!alive||role!=='guest')return;
-   if(e.type==='open'){status('Conectado. Esperando al anfitrión…')}
+   if(e.type==='open'){status('Conectado. Esperando al anfitrión…');try{window.SudomiFriends&&SudomiFriends.track({game:'domino4',gameName:'Dominó',room:c,role:'guest'})}catch(_){}}
    else if(e.type==='closed'){const m=e.message||'La sala se cerró.';close();menu(m)}
    else if(e.type==='away'){toast('Se perdió la conexión… reintentando.',true)}
    else if(e.type==='back'){toast('¡Conexión recuperada!')}
