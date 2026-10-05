@@ -1,0 +1,60 @@
+SUDOMI - Todos los derechos reservados / All rights reserved
+
+Copyright (c) 2026 SUDOMI (darkangelitox). Todos los derechos reservados.
+
+ESPAÑOL
+
+Este software, incluyendo su código fuente, diseño, textos, dibujos, nombres
+(SUDOMI, Dominópolis, Colmado Andry y demás), personajes y reglas de los juegos
+originales, es propiedad de su autor y está protegido por las leyes de derechos
+de autor.
+
+El código se publica en este repositorio únicamente para que la aplicación
+pueda funcionar en internet (GitHub Pages) y para que las personas puedan
+jugarla. Publicarlo NO significa que sea de uso libre.
+
+Sin permiso previo y por escrito del autor, NO está permitido:
+  - copiar, reproducir o redistribuir total o parcialmente este software;
+  - modificarlo, crear obras derivadas o publicarlo bajo otro nombre;
+  - usarlo, total o parcialmente, en otro proyecto, aplicación o sitio web,
+    sea gratuito o comercial;
+  - quitar o alterar este aviso de derechos de autor.
+
+Sí está permitido jugar la aplicación, instalarla en tu dispositivo y compartir
+su enlace con otras personas.
+
+Para pedir permiso o reportar un uso indebido, contacta al autor a través de su
+perfil de GitHub: https://github.com/darkangelitox
+
+EL SOFTWARE SE ENTREGA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO. EL AUTOR NO ES
+RESPONSABLE DE DAÑOS DERIVADOS DE SU USO.
+
+------------------------------------------------------------------------------
+
+ENGLISH
+
+This software, including its source code, design, texts, artwork, names
+(SUDOMI, Dominópolis, Colmado Andry and others), characters and the rules of
+the original games, is owned by its author and protected by copyright law.
+
+The code is published in this repository only so that the app can run on the
+web (GitHub Pages) and people can play it. Publishing it does NOT make it free
+to use.
+
+Without prior written permission from the author, you may NOT:
+  - copy, reproduce or redistribute this software, in whole or in part;
+  - modify it, create derivative works or publish it under another name;
+  - use it, in whole or in part, in another project, app or website, whether
+    free or commercial;
+  - remove or alter this copyright notice.
+
+You MAY play the app, install it on your device and share its link with others.
+
+To request permission or report misuse, contact the author through their
+GitHub profile: https://github.com/darkangelitox
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. THE AUTHOR IS
+NOT LIABLE FOR ANY DAMAGES ARISING FROM ITS USE.
+
+Third-party components keep their own licenses (for example the PeerJS library
+loaded from a public CDN).

@@ -7,9 +7,11 @@
  const AVATARS=['🦊','🐼','🦉','🐯','🐸','🐵','🦄','🐙','🐶','🐱','🐰','🐨','🦁','🐧','🐢','🦜'];
  const esc=t=>String(t).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
  const clean=n=>String(n||'').replace(/\s+/g,' ').trim().slice(0,14);
- const DRAGON='🐲👑';   // avatar especial: solo se puede elegir si el nombre es Madeline (el dibujo lo pone js/avatar-art.js)
+ // avatares especiales: los dragones. Solo se pueden elegir si el nombre es Madeline (los dibujos los pone js/avatar-art.js)
+ const DRAGONS=()=>window.SudomiAvatarArt&&SudomiAvatarArt.list?SudomiAvatarArt.list:[{id:'🐲👑',name:'Dragón con corona'}];
+ const isDragon=a=>DRAGONS().some(d=>d.id===a);
  const isMadeline=n=>/^madel(ine|in)$/i.test(clean(n).normalize('NFD').replace(/[\u0300-\u036f]/g,''));
- const okAvatar=(a,name)=>AVATARS.includes(a)||(a===DRAGON&&isMadeline(name));
+ const okAvatar=(a,name)=>AVATARS.includes(a)||(isDragon(a)&&isMadeline(name));
  function read(){
   try{
    const p=JSON.parse(localStorage.getItem(KEY));
@@ -46,10 +48,12 @@
   const input=box.querySelector('#profName'),big=box.querySelector('.prof-big'),label=box.querySelector('.prof-preview b');
   const grid=box.querySelector('#profAvatars');
   const bindAv=b=>b.onclick=()=>{chosen=b.dataset.av;big.textContent=chosen;box.querySelectorAll('[data-av]').forEach(x=>x.classList.toggle('on',x===b))};
-  const syncSpecial=()=>{   // el dragón con corona aparece solo si el nombre es Madeline
-   const has=grid.querySelector('[data-av="'+DRAGON+'"]'),want=isMadeline(input.value);
-   if(want&&!has){const b=document.createElement('button');b.type='button';b.dataset.av=DRAGON;b.className='prof-special'+(chosen===DRAGON?' on':'');b.setAttribute('aria-label','Dragón con corona');b.textContent=DRAGON;grid.insertBefore(b,grid.firstChild);bindAv(b)}
-   else if(!want&&has){has.remove();if(chosen===DRAGON){chosen=AVATARS[0];big.textContent=chosen;grid.querySelector('[data-av]').classList.add('on')}}
+  const syncSpecial=()=>{   // los dragones aparecen solo si el nombre es Madeline
+   const has=grid.querySelector('.prof-dragons'),want=isMadeline(input.value);
+   if(want&&!has){
+    const row=document.createElement('div');row.className='prof-dragons';row.innerHTML='<p>Solo para ti</p>'+DRAGONS().map(d=>`<button type="button" data-av="${d.id}" class="${d.id===chosen?'on':''}" aria-label="${esc(d.name)}" title="${esc(d.name)}">${d.id}</button>`).join('');
+    grid.insertBefore(row,grid.firstChild);row.querySelectorAll('[data-av]').forEach(bindAv)}
+   else if(!want&&has){has.remove();if(isDragon(chosen)){chosen=AVATARS[0];big.textContent=chosen;const f=grid.querySelector('[data-av]');if(f)f.classList.add('on')}}
   };
   input.oninput=()=>{label.textContent=clean(input.value)||'Tu nombre';syncSpecial()};
   box.querySelectorAll('[data-av]').forEach(bindAv);syncSpecial();
@@ -100,7 +104,7 @@
   safeName:()=>profile?esc(profile.name):'',
   avatar:()=>profile?profile.avatar:'',
   avatars:AVATARS.slice(),
-  validAvatar:a=>AVATARS.includes(a)||a===DRAGON,
+  validAvatar:a=>AVATARS.includes(a)||isDragon(a),
   edit,ensure
  };
 })();
