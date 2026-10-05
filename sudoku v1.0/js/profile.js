@@ -12,10 +12,12 @@
  const isDragon=a=>window.SudomiAvatarArt&&SudomiAvatarArt.has?SudomiAvatarArt.has(a):DRAGONS().some(d=>d.id===a);
  const isMadeline=n=>/^madel(ine|in)$/i.test(clean(n).normalize('NFD').replace(/[\u0300-\u036f]/g,''));
  // 0.2.82: iconos de Yukiri, solo si el nombre es Yukiri o Yukiry (mayúsculas o minúsculas)
- const YUKIS=()=>window.SudomiAvatarArt&&SudomiAvatarArt.yuki?SudomiAvatarArt.yuki:[];
- const isYukiAv=a=>YUKIS().some(d=>d.id===a);
- const isYukiri=n=>/^yukir[iy]$/i.test(clean(n).normalize('NFD').replace(/[̀-ͯ]/g,''));
- const okAvatar=(a,name)=>AVATARS.includes(a)||(isDragon(a)&&isMadeline(name))||(isYukiAv(a)&&isYukiri(name));
+ // 0.2.84: lo mismo para Maicolino / Maicolinno (logo SUDOMI). Para otro nombre: una línea más aquí y su conjunto en js/avatar-art.js
+ const SPECIAL=[{set:'yuki',rx:/^yukir[iy]$/i},{set:'maico',rx:/^maicolinn?o$/i}];
+ const plain=n=>clean(n).normalize('NFD').replace(/[̀-ͯ]/g,'');
+ const setList=s=>(window.SudomiAvatarArt&&SudomiAvatarArt.sets&&SudomiAvatarArt.sets[s])||[];
+ const inSet=(s,a)=>setList(s).some(d=>d.id===a);
+ const okAvatar=(a,name)=>AVATARS.includes(a)||(isDragon(a)&&isMadeline(name))||SPECIAL.some(s=>s.rx.test(plain(name))&&inSet(s.set,a));
  function read(){
   try{
    const p=JSON.parse(localStorage.getItem(KEY));
@@ -58,11 +60,13 @@
     const row=document.createElement('div');row.className='prof-dragons';row.innerHTML='<p>Solo para ti</p>'+DRAGONS().map(d=>`<button type="button" data-av="${d.id}" class="${d.id===chosen?'on':''}" aria-label="${esc(d.name)}" title="${esc(d.name)}">${d.id}</button>`).join('');
     grid.insertBefore(row,grid.firstChild);row.querySelectorAll('[data-av]').forEach(bindAv)}
    else if(!want&&has){has.remove();if(isDragon(chosen)){chosen=AVATARS[0];big.textContent=chosen;const f=grid.querySelector('[data-av]');if(f)f.classList.add('on')}}
-   const hasY=grid.querySelector('.prof-yuki'),wantY=isYukiri(input.value)&&YUKIS().length>0;   // 0.2.82: lo mismo para Yukiri
-   if(wantY&&!hasY){
-    const row=document.createElement('div');row.className='prof-dragons prof-yuki';row.innerHTML='<p>Solo para ti</p>'+YUKIS().map(d=>`<button type="button" data-av="${d.id}" class="${d.id===chosen?'on':''}" aria-label="${esc(d.name)}" title="${esc(d.name)}">${d.id}</button>`).join('');
-    grid.insertBefore(row,grid.firstChild);row.querySelectorAll('[data-av]').forEach(bindAv)}
-   else if(!wantY&&hasY){hasY.remove();if(isYukiAv(chosen)){chosen=AVATARS[0];big.textContent=chosen;const f=grid.querySelector('[data-av]');if(f)f.classList.add('on')}}
+   SPECIAL.forEach(s=>{   // 0.2.82 / 0.2.84: lo mismo para Yukiri y para Maicolino
+    const cls='prof-set-'+s.set,hasY=grid.querySelector('.'+cls),wantY=s.rx.test(plain(input.value))&&setList(s.set).length>0;
+    if(wantY&&!hasY){
+     const row=document.createElement('div');row.className='prof-dragons prof-yuki '+cls;row.innerHTML='<p>Solo para ti</p>'+setList(s.set).map(d=>`<button type="button" data-av="${d.id}" class="${d.id===chosen?'on':''}" aria-label="${esc(d.name)}" title="${esc(d.name)}">${d.id}</button>`).join('');
+     grid.insertBefore(row,grid.firstChild);row.querySelectorAll('[data-av]').forEach(bindAv)}
+    else if(!wantY&&hasY){hasY.remove();if(inSet(s.set,chosen)){chosen=AVATARS[0];big.textContent=chosen;const f=grid.querySelector('[data-av]');if(f)f.classList.add('on')}}
+   });
   };
   input.oninput=()=>{label.textContent=clean(input.value)||'Tu nombre';syncSpecial()};
   box.querySelectorAll('[data-av]').forEach(bindAv);syncSpecial();

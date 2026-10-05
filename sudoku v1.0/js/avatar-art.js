@@ -21,7 +21,11 @@
     { id: '🌸🌈', name: 'Yukiri: espada en alto', img: 'img/yukiri/yukiri2.png', pic: 1 },
     { id: '🌸🌿', name: 'Yukiri: pradera', img: 'img/yukiri/yukiri3.png', pic: 1 }
   ];
-  const DRAGON_LIST = LIST.slice(); YUKI.forEach(y => LIST.push(y));
+  // 0.2.84: logo SUDOMI solo para el nombre «Maicolino» / «Maicolinno» (carpeta img/maicolino/)
+  const MAICO = [{ id: '🎩🎲', name: 'Logo SUDOMI', img: 'img/maicolino/logo.png', pic: 1 }];
+  const SETS = { yuki: YUKI, maico: MAICO };   // conjuntos con nombre propio; js/profile.js decide qué nombre abre cada uno
+  const DRAGON_LIST = LIST.slice(); Object.values(SETS).forEach(set => set.forEach(y => LIST.push(y)));
+  const inSet = id => Object.values(SETS).some(set => set.some(y => y.id === id));
   // nombres antiguos (0.2.72–0.2.77): se siguen reconociendo y muestran el dragón más parecido, pero ya no se ofrecen
   const LEGACY = { '🐉🔩': FILE(3) };
   const BY_ID = Object.fromEntries(LIST.map(d => [d.id, d]));
@@ -58,5 +62,5 @@
       .observe(document.body, { childList: true, subtree: true, characterData: true });
   }
   if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
-  window.SudomiAvatarArt = { DRAGON: IDS[0], ids: IDS, list: DRAGON_LIST.map(d => ({ id: d.id, name: d.name })), yuki: YUKI.map(d => ({ id: d.id, name: d.name })), html, has: id => IDS.includes(id) && !YUKI.some(y => y.id === id), hasYuki: id => YUKI.some(y => y.id === id) };
+  window.SudomiAvatarArt = { DRAGON: IDS[0], ids: IDS, list: DRAGON_LIST.map(d => ({ id: d.id, name: d.name })), yuki: YUKI.map(d => ({ id: d.id, name: d.name })), html, sets: Object.fromEntries(Object.entries(SETS).map(([k, v]) => [k, v.map(d => ({ id: d.id, name: d.name }))])), has: id => IDS.includes(id) && !inSet(id), hasYuki: id => YUKI.some(y => y.id === id) };
 })();

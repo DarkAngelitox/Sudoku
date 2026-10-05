@@ -2757,3 +2757,8 @@ html[data-theme="dark"] .ck-photo-btns button:first-child{background:#1f5fc4;col
 @media(max-width:380px){.dm-bottle,.dm-foot .dm-bottle{width:36px;height:100px}}
 .dm-bottle .b{top:22%}
 .dm-cheer{animation-duration:2.6s}
+
+/* 0.2.84: fila dorada del logo SUDOMI (perfil Maicolino) */
+.prof-dragons.prof-set-maico{border-color:#c9a23a;background:linear-gradient(135deg,#1c2238,#3a3320)}
+.prof-dragons.prof-set-maico p{color:#f0d27a}
+.prof-dragons.prof-set-maico p:after{content:" \1F3A9"}
