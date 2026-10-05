@@ -18,13 +18,13 @@
   const COLORS = [['#d62027', 'Rojo'], ['#0b3d91', 'Azul'], ['#1f9d55', 'Verde'], ['#e0a800', 'Amarillo'], ['#7a3fc9', 'Morado'], ['#e8731a', 'Naranja'], ['#e0529c', 'Rosado'], ['#12a3a3', 'Turquesa']];
   const STYLES = ['cauta', 'eq', 'agr'];
   const CELL = 100 / 11;
-  const TILT = 40, ZOOM_IN = 1.12;   // 0.2.74: antes 1.35; así se ve el paisaje de fondo alrededor del tablero
+  const TILT = 40, ZOOM_IN = 1.3;   // 0.2.78: la partida empieza alejada (zoom 1) para que se vea el paisaje; el botón 🔍 acerca la cámara
   const ART = ['🏁', '⛪', '❓', '🏘️', '💸', '🚌', '🏖️', '🏪', '🌊', '🤿', '🚓', '🐋', '💡', '🌴', '🏄', '🚌', '⛰️', '❓', '🏞️', '🍓', '🌴', '⚾', '🏪', '⛳', '⛪', '🚌', '🏙️', '🚡', '🚰', '🌸', '👮', '🏝️', '🛥️', '🏪', '🏨', '🚌', '❓', '🏛️', '💎', '🌆'];
   const TCOL = { go: '#e0a800', jail: '#4b5a78', free: '#2f9e6b', gojail: '#3a4a8a', card: '#7a55d9', tax: '#b34a4a', rail: '#c9a23a', util: '#4f9aa8' };
   let SP = 1;
   const sleep = ms => new Promise(r => setTimeout(r, ms * SP));
 
-  let ui = null, g = null, token = 0, busy = false, rz = 0, tilt = TILT, zoom = ZOOM_IN, camAt = 0;
+  let ui = null, g = null, token = 0, busy = false, rz = 0, tilt = TILT, zoom = 1, camAt = 0;
   let setup = { n: 2, mode: 'normal', tok: 'guagua', color: '#d62027', size: 4 };
   let xpDone = -1, tokVis = [], sheet = null, lastDice = [1, 1], hubTile = 0, hubCard = null, cardResolve = null, bld = {}, aiTimer = null;
   let awayFlags = [], netMode = 'solo', net = null, seats = [], me = 0, roomCode = '', started = false, status = '', offline = false, joinCode = '', q = Promise.resolve();
@@ -315,7 +315,7 @@
   function resumeSolo() {
     const s = getSave(); if (!s) return;
     netMode = 'solo'; me = 0; seats = []; started = true; g = s.g; setup.mode = s.mode || g.mode;
-    token++; busy = false; rz = 0; tilt = TILT; zoom = ZOOM_IN; tokVis = g.players.map(p => p.pos); sheet = null; lastDice = g.dice[0] ? g.dice : [1, 1]; hubCard = null; cardResolve = null; bld = {}; hubTile = g.players[g.turn].pos; camAt = hubTile; q = Promise.resolve();
+    token++; busy = false; rz = 0; tilt = TILT; zoom = 1; tokVis = g.players.map(p => p.pos); sheet = null; lastDice = g.dice[0] ? g.dice : [1, 1]; hubCard = null; cardResolve = null; bld = {}; hubTile = g.players[g.turn].pos; camAt = hubTile; q = Promise.resolve();
     renderGame();
   }
   function afterRun() { saveGame(); busy = false; hubCard = null; tokVis = g.players.map(p => p.pos); refresh(); setDice(g.dice[0] ? g.dice : lastDice); step() }
@@ -374,7 +374,7 @@
   /* ---------- partida nueva ---------- */
   function newGameFrom(list) {
     g = D.create({ players: list, mode: setup.mode });
-    token++; busy = false; rz = 0; tilt = TILT; zoom = ZOOM_IN; tokVis = g.players.map(p => p.pos); sheet = null; lastDice = [1, 1]; hubCard = null; cardResolve = null; bld = {}; hubTile = 0; camAt = g.players[g.turn].pos; q = Promise.resolve();
+    token++; busy = false; rz = 0; tilt = TILT; zoom = 1; tokVis = g.players.map(p => p.pos); sheet = null; lastDice = [1, 1]; hubCard = null; cardResolve = null; bld = {}; hubTile = 0; camAt = g.players[g.turn].pos; q = Promise.resolve();
   }
   function aiPlayers(count, usedC, usedT) {
     const taken = (typeof seats !== 'undefined' ? seats : []).map(s => s.name), names = aiNameList().filter(n => !taken.includes(n)).sort(() => Math.random() - .5), out = [];
@@ -420,7 +420,7 @@
     roomCode = snap.code; me = 0; started = true; setup.mode = snap.mode || 'normal';
     seats = snap.seats.map((s, i) => Object.assign({}, s, { away: s.kind === 'human' && s.id !== 'host' }));   // todos los demás aparecen "ausentes" hasta que se reconecten
     g = snap.g; g.ev = [];
-    token++; busy = false; rz = 0; tilt = TILT; zoom = ZOOM_IN; tokVis = g.players.map(p => p.pos); sheet = null; lastDice = g.dice[0] ? g.dice : [1, 1]; hubCard = null; cardResolve = null; bld = {}; hubTile = g.players[g.turn].pos; camAt = hubTile; q = Promise.resolve();
+    token++; busy = false; rz = 0; tilt = TILT; zoom = 1; tokVis = g.players.map(p => p.pos); sheet = null; lastDice = g.dice[0] ? g.dice : [1, 1]; hubCard = null; cardResolve = null; bld = {}; hubTile = g.players[g.turn].pos; camAt = hubTile; q = Promise.resolve();
     track(); renderGame();
   }
   function track() { try { window.SudomiFriends && SudomiFriends.track({ game: 'dominopolis', gameName: 'Dominópolis', room: roomCode, role: netMode === 'host' ? 'host' : 'guest' }) } catch (_) {} }
@@ -503,7 +503,7 @@
     afterRun();
   }
   function newGuestView() {
-    token++; rz = 0; tilt = TILT; zoom = ZOOM_IN; sheet = null; lastDice = [1, 1]; hubCard = null; cardResolve = null; bld = {}; hubTile = 0; tokVis = g.players.map(p => p.pos); camAt = g.players[g.turn].pos;
+    token++; rz = 0; tilt = TILT; zoom = 1; sheet = null; lastDice = [1, 1]; hubCard = null; cardResolve = null; bld = {}; hubTile = 0; tokVis = g.players.map(p => p.pos); camAt = g.players[g.turn].pos;
     renderGame();
   }
   function leaveNet() {
@@ -536,7 +536,9 @@
 
   /* ---------- pantallas ---------- */
   function renderGame() {
-    ui.stage.innerHTML = `<div class="mini-game dp">${head('TABLERO')}<div class="dp-off" id="dpOff" style="display:none">Sin conexión con el anfitrión… reconectando</div><div class="dp-awaybar" id="dpAway" style="display:none"></div><div class="dp-hud" id="dpHud"></div><div class="dp-stage" id="dpStage">${boardHTML()}</div><div class="dp-tools"><button class="game-restart" id="dpRotL" aria-label="Girar a la izquierda">⟲</button><button class="game-restart" id="dpRotR" aria-label="Girar a la derecha">⟳</button><button class="game-restart" id="dpTilt" aria-label="Cambiar vista">3D</button><button class="game-restart" id="dpZoom" aria-label="Acercar o ver todo">🔍</button><button class="game-restart" id="dpSpeed" aria-label="Velocidad">⏩</button></div><div class="dp-panel" id="dpPanel"></div></div>`;
+    ui.stage.innerHTML = `<div class="mini-game dp">${head('TABLERO')}<div class="dp-off" id="dpOff" style="display:none">Sin conexión con el anfitrión… reconectando</div><div class="dp-awaybar" id="dpAway" style="display:none"></div><div class="dp-hud" id="dpHud"></div><div class="dp-stage" id="dpStage">${boardHTML()}</div><div class="dp-tools"><button class="game-restart" id="dpRotL" aria-label="Girar a la izquierda">⟲</button><button class="game-restart" id="dpRotR" aria-label="Girar a la derecha">⟳</button><button class="game-restart" id="dpTilt" aria-label="Cambiar vista">3D</button><button class="game-restart" id="dpZoom" aria-label="Acercar o ver todo">🔍</button><button class="game-restart" id="dpBgBtn" aria-label="Cambiar fondo">🖼</button><button class="game-restart" id="dpSpeed" aria-label="Velocidad">⏩</button></div><div class="dp-panel" id="dpPanel"></div></div>`;
+    if (window.SudomiDpBg) SudomiDpBg.apply($('#dpStage'));       // 0.2.79: fondo elegido por este jugador
+    { const bb = $('#dpBgBtn'); if (bb) bb.onclick = () => { if (!window.SudomiDpBg) return; const n = SudomiDpBg.next(); toast('Fondo: ' + SudomiDpBg.name(n)) } }
     $('#dpExit').onclick = leave; $('#dpRules').onclick = rulesSheet;
     $('#dpRotL').onclick = () => { rz -= 90; setCam() }; $('#dpRotR').onclick = () => { rz += 90; setCam() };
     $('#dpTilt').onclick = () => { tilt = tilt ? 0 : TILT; setCam() };
@@ -579,6 +581,7 @@
        ${status ? `<p class="dp-note bad">${esc(status)}</p>` : ''}<div class="dp-hero">🏙️<b>Compra la ciudad</b><span>Malecón, Zona Colonial, Punta Cana… ¡y que no te cobren alquiler!</span></div>
        <div class="dp-opt"><b>Tu ficha</b><div class="dp-seg tok" data-k="tok">${tokBtns(setup.tok, [], 'tok')}</div></div>
        <div class="dp-opt"><b>Tu color</b><div class="dp-colors" data-k="color">${swatches(setup.color, [], 'color')}</div></div>
+       ${bgPick()}
        <div class="dp-opt"><b>Duración</b><div class="dp-seg" data-k="mode"><button class="${setup.mode === 'normal' ? 'on' : ''}" data-pick="mode" data-v="normal">Normal</button><button class="${setup.mode === 'rapido' ? 'on' : ''}" data-pick="mode" data-v="rapido">Rápido (30 turnos)</button></div></div>
        ${getSave() ? '<button class="arc-btn dp-big" id="dpResume">▶ Continuar partida guardada</button>' : ''}${getHostSave() && !busyNet ? `<button class="arc-btn" id="dpResumeHost">${esc(`▶ Reanudar mi sala online (${SudomiParty.pretty(getHostSave().code)})`)}</button>` : ''}<div class="dp-opt dp-box"><b>🤖 Contra la máquina</b><div class="dp-seg" data-k="n">${[2, 3, 4].map(n => `<button class="${setup.n === n ? 'on' : ''}" data-pick="n" data-v="${n}">Tú + ${n - 1} IA</button>`).join('')}</div><button class="arc-btn dp-big" id="dpStart">▶ Jugar</button></div>
       </div></div>`;
@@ -587,8 +590,11 @@
       const k = b.dataset.pick, v = b.dataset.v; setup[k] = ['n', 'size'].includes(k) ? +v : v;
       ui.stage.querySelectorAll(`[data-pick="${k}"]`).forEach(x => x.classList.toggle('on', x === b));
     });
+    if (window.SudomiDpBg) SudomiDpBg.bindPicker(ui.stage);
     $('#dpStart').onclick = startSolo; const rs = $('#dpResume'); if (rs) rs.onclick = resumeSolo; const rh = $('#dpResumeHost'); if (rh) rh.onclick = resumeHost;
   }
+  // 0.2.79: selector de fondo (debajo de «Tu color»), mismo tamaño que las fichas
+  const bgPick = () => window.SudomiDpBg ? `<div class="dp-opt"><b>Fondo</b><div class="dp-seg bgs">${SudomiDpBg.pickerHTML()}</div></div>` : '';
   function removeSeat(i) { if (netMode !== 'host' || started || !seats[i] || seats[i].kind !== 'open' || seats.length <= 2) return; seats.splice(i, 1); setup.size = seats.length; pushLobby(); renderLobby() }
   // sala de espera única (js/lobby.js) + los controles propios de Dominópolis (ficha, color, duración)
   function renderLobby() {
@@ -596,6 +602,7 @@
     const host = netMode === 'host', mine = seats[me] || {}, humans = seats.filter(s => s.kind === 'human').length, free = seats.length - humans;
     const extra = `<div class="dp-opt"><b>Tu ficha</b><div class="dp-seg tok">${tokBtns(mine.token, usedToks(me), 'ptok')}</div></div>
        <div class="dp-opt"><b>Tu color <small>(no se pueden repetir)</small></b><div class="dp-colors">${swatches(mine.color, usedColors(me), 'pcolor')}</div></div>
+       ${bgPick()}
        ${host ? `<div class="dp-opt"><b>Duración</b><div class="dp-seg"><button class="${setup.mode === 'normal' ? 'on' : ''}" data-m="normal">Normal</button><button class="${setup.mode === 'rapido' ? 'on' : ''}" data-m="rapido">Rápido (30 turnos)</button></div></div>` : ''}`;
     ui.stage.innerHTML = `<div class="mini-game dp">${head('SALA ONLINE')}<div id="lbRoot"></div></div>`;
     $('#dpExit').onclick = leave; $('#dpRules').onclick = rulesSheet;
@@ -611,6 +618,7 @@
           else { net.send(Object.assign({ t: 'pick' }, upd)) }
         });
         root.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { setup.mode = b.dataset.m; renderLobby() });
+        if (window.SudomiDpBg) SudomiDpBg.bindPicker(root);
       }
     });
   }

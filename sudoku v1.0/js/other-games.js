@@ -20,7 +20,7 @@ const games=[
  ['rummy','🎴','Rummy','Forma combinaciones con tus cartas.'],
  ['slide','🧩','Fichas deslizantes','Desliza columnas, voltea fichas y completa tu set.'],
  ['dos','🌪','DOS','Quédate sin cartas. De 1 a 8 jugadores, con IA y salas online.'],
- ['dominopolis','🏙️','Dominópolis','Compra, construye y cobra alquiler. De 2 a 4 jugadores contra la IA.']   // 0.2.20: runs on its own (js/dos-game.js), not through SudomiExtraGames
+ ['dominopolis','🏙️','Dominópolis','Compra, construye y cobra alquiler. De 2 a 8 jugadores, con IA y salas online.']   // 0.2.20: runs on its own (js/dos-game.js), not through SudomiExtraGames
 ];
 // 0.2.30: difficulty buttons shown above the Minesweeper modes (the choice is remembered on this device)
 function mineLevelsHTML(){const best=mineBest();return `<div class="mine-levels" role="group" aria-label="Dificultad">${Object.entries(MINE_LEVELS).map(([k,L])=>`<button type="button" data-ml="${k}" class="${k===minesLevel?'on':''}"><b>${L.label}</b><small>${L.n}×${L.n} · ${L.mines} 💣${best[k]?` · ⏱ ${clockText(best[k])}`:''}</small></button>`).join('')}</div>`}

@@ -9,7 +9,7 @@
  const clean=n=>String(n||'').replace(/\s+/g,' ').trim().slice(0,14);
  // avatares especiales: los dragones. Solo se pueden elegir si el nombre es Madeline (los dibujos los pone js/avatar-art.js)
  const DRAGONS=()=>window.SudomiAvatarArt&&SudomiAvatarArt.list?SudomiAvatarArt.list:[{id:'🐲👑',name:'Dragón con corona'}];
- const isDragon=a=>DRAGONS().some(d=>d.id===a);
+ const isDragon=a=>window.SudomiAvatarArt&&SudomiAvatarArt.has?SudomiAvatarArt.has(a):DRAGONS().some(d=>d.id===a);
  const isMadeline=n=>/^madel(ine|in)$/i.test(clean(n).normalize('NFD').replace(/[\u0300-\u036f]/g,''));
  const okAvatar=(a,name)=>AVATARS.includes(a)||(isDragon(a)&&isMadeline(name));
  function read(){
