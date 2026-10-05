@@ -18,7 +18,7 @@
   const COLORS = [['#d62027', 'Rojo'], ['#0b3d91', 'Azul'], ['#1f9d55', 'Verde'], ['#e0a800', 'Amarillo'], ['#7a3fc9', 'Morado'], ['#e8731a', 'Naranja'], ['#e0529c', 'Rosado'], ['#12a3a3', 'Turquesa']];
   const STYLES = ['cauta', 'eq', 'agr'];
   const CELL = 100 / 11;
-  const TILT = 40, ZOOM_IN = 1.35;
+  const TILT = 40, ZOOM_IN = 1.12;   // 0.2.74: antes 1.35; así se ve el paisaje de fondo alrededor del tablero
   const ART = ['🏁', '⛪', '❓', '🏘️', '💸', '🚌', '🏖️', '🏪', '🌊', '🤿', '🚓', '🐋', '💡', '🌴', '🏄', '🚌', '⛰️', '❓', '🏞️', '🍓', '🌴', '⚾', '🏪', '⛳', '⛪', '🚌', '🏙️', '🚡', '🚰', '🌸', '👮', '🏝️', '🛥️', '🏪', '🏨', '🚌', '❓', '🏛️', '💎', '🌆'];
   const TCOL = { go: '#e0a800', jail: '#4b5a78', free: '#2f9e6b', gojail: '#3a4a8a', card: '#7a55d9', tax: '#b34a4a', rail: '#c9a23a', util: '#4f9aa8' };
   let SP = 1;

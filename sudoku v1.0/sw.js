@@ -5,7 +5,7 @@
  * PUBLISH. The page then offers an "Actualizar" button (see js/pwa.js) instead of reloading in the middle of a game.
  * Cross-origin requests (the PeerJS library, the PeerJS signalling service) and /api/ calls always go to the network.
  */
-const VERSION = '0.2.74';
+const VERSION = '0.2.75';
 const CACHE = 'sudomi-' + VERSION;
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest',

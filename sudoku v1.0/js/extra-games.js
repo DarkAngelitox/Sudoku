@@ -557,7 +557,10 @@ const slIcon=(g,t)=>t.w?'★':slTheme(g,t.s).icons[t.t];
 function slAllowed(g,p,t){
  const all=[0,1,2,3,4,5];if(t.w)return all;
  const at=all.filter(c=>g.cols[p][c].some(x=>x.up&&!x.w&&x.s===t.s&&x.t===t.t));
- return at.length?at:all;
+ if(at.length)return at;
+ // 0.2.75: una columna con una pieza boca arriba solo recibe piezas iguales; una pieza nueva solo va en columnas sin otras piezas boca arriba
+ const free=all.filter(c=>!g.cols[p][c].some(x=>x.up&&!x.w));
+ return free.length?free:all;
 }
 function applySlide(g,p,a){
  if(g.over||(p!==0&&p!==1))return;
@@ -640,21 +643,27 @@ const dtile=(t,cls='')=>`<span class="dtile${cls?' '+cls:''}">${half(t[0])}<u></
  * end grows to the right and, when it reaches the edge, turns DOWN and comes back along the next row (snake); the left end is the same picture turned
  * 180°, so it turns UP. Every tile is drawn as a small SVG, so the whole chain (28 tiles) always fits; tapping a tile shows it large (js/domino-table.js). */
 const DU=14;
-function dSnake(m){
- const out=[];let x=8,r=6,h=1;
+// 0.2.75: los dobles van en vertical (cruzados a la fila): ocupan 1 casilla de largo y 2 de alto, centrados en la fila. dbl(i) dice si la ficha i de este tramo es doble.
+function dSnake(m,x0,dbl){
+ const out=[];let x=x0==null?8:x0,r=6,h=1,prevD=false;
  for(let i=0;i<m;i++){
-  const fit=h>0?x+2<=DU:x-2>=0;
-  if(fit){if(h>0){out.push({x,y:r,w:2,h:1,d:[1,0]});x+=2}else{out.push({x:x-2,y:r,w:2,h:1,d:[-1,0]});x-=2}}
-  else{const col=h>0?x-1:x;out.push({x:col,y:r+1,w:1,h:2,d:[0,1]});x=h>0?col:col+1;r+=2;h=-h}
+  const d=!!(dbl&&dbl(i)),L=d?1:2,fit=h>0?x+L<=DU:x-L>=0;
+  if(fit){
+   if(h>0){out.push(d?{x,y:r-.5,w:1,h:2,d:[1,0]}:{x,y:r,w:2,h:1,d:[1,0]});x+=L}
+   else{out.push(d?{x:x-1,y:r-.5,w:1,h:2,d:[-1,0]}:{x:x-2,y:r,w:2,h:1,d:[-1,0]});x-=L}
+   prevD=d;
+  }
+  else{const col=h>0?x-1:x;out.push({x:col,y:r+1+(prevD?.5:0),w:1,h:2,d:[0,1]});x=h>0?col:col+1;r+=2;h=-h;prevD=false}
  }
  return out;
 }
 function dLayout(g){
  const n=g.row.length,items=[];if(!n)return {items,rows:DU};
  const mid=Math.min(Math.max(g.mid|0,0),n-1);
- items.push({k:mid,x:6,y:6,w:2,h:1,d:[1,0],inn:g.row[mid][0],out:g.row[mid][1]});
- dSnake(n-1-mid).forEach((c,i)=>{const k=mid+1+i;items.push({...c,k,inn:g.row[k][0],out:g.row[k][1]})});
- dSnake(mid).forEach((c,i)=>{const k=mid-1-i;items.push({k,x:DU-c.x-c.w,y:12-c.y-(c.h-1),w:c.w,h:c.h,d:[-c.d[0],-c.d[1]],inn:g.row[k][1],out:g.row[k][0]})});
+ const isD=k=>g.row[k]&&g.row[k][0]===g.row[k][1],od=isD(mid);
+ items.push(od?{k:mid,x:6.5,y:5.5,w:1,h:2,d:[1,0],inn:g.row[mid][0],out:g.row[mid][1]}:{k:mid,x:6,y:6,w:2,h:1,d:[1,0],inn:g.row[mid][0],out:g.row[mid][1]});
+ dSnake(n-1-mid,od?7.5:8,i=>isD(mid+1+i)).forEach((c,i)=>{const k=mid+1+i;items.push({...c,k,inn:g.row[k][0],out:g.row[k][1]})});
+ dSnake(mid,od?7.5:8,i=>isD(mid-1-i)).forEach((c,i)=>{const k=mid-1-i;items.push({k,x:DU-c.x-c.w,y:12-c.y-(c.h-1),w:c.w,h:c.h,d:[-c.d[0],-c.d[1]],inn:g.row[k][1],out:g.row[k][0]})});
  const top=Math.min(0,...items.map(t=>t.y));if(top<0)items.forEach(t=>{t.y-=top});   // extreme case (almost every tile on one end): the board grows a little instead of clipping
  const rows=Math.max(DU,...items.map(t=>t.y+t.h));
  return {items,rows};
@@ -667,7 +676,7 @@ function dSvg(p,q,vert){
 function dBoard(g){
  const {items,rows}=dLayout(g),last=g.row.length-1;
  const tiles=items.map(t=>{
-  const vert=t.d[0]===0;
+  const vert=t.h>t.w;
   const [p,q]=vert?(t.d[1]>0?[t.inn,t.out]:[t.out,t.inn]):(t.d[0]>0?[t.inn,t.out]:[t.out,t.inn]);
   const pop=(g.fx[0]==='L'&&t.k===0)||(g.fx[0]==='R'&&t.k===last);
   return `<button type="button" class="dmt${pop?' pop':''}" data-p="${p}" data-q="${q}" style="left:${(t.x/DU*100).toFixed(3)}%;top:${(t.y/rows*100).toFixed(3)}%;width:${(t.w/DU*100).toFixed(3)}%;height:${(t.h/rows*100).toFixed(3)}%" aria-label="Ficha ${p}-${q}. Toca para verla grande">${dSvg(p,q,vert)}</button>`;
@@ -678,7 +687,7 @@ function drawDomino(g,ctx,I){
  const me=I.viewer,h=g.hands[me]||[],e=dEnds(g),playing=g.phase==='play'&&!g.over,reveal=g.phase==='handend'||g.over,myTeam=dTeam(me);
  const row=g.row.length?dBoard(g):`<div class="dm-board empty" style="aspect-ratio:1"><span class="arc-hint">La mesa está vacía: ${I.mine&&playing?'juega la ficha indicada para empezar.':'espera la primera ficha.'}</span></div>`;
  const sideChoice=I.mine&&playing&&e&&g.sel>=0&&h[g.sel]
-  ?`<div class="d-side"><span>¿Dónde la colocas?</span><button class="arc-btn" data-a="play" data-i="${g.sel}" data-side="L">◀ Izquierda (${e[0]})</button><button class="arc-btn" data-a="play" data-i="${g.sel}" data-side="R">Derecha (${e[1]}) ▶</button></div>`:'';
+  ?`<div class="d-side"><span>¿Dónde la colocas?</span><button type="button" class="d-sidebtn L" data-a="play" data-i="${g.sel}" data-side="L" aria-label="Poner la ficha junto a la ficha ${g.row[0][0]}-${g.row[0][1]}, extremo ${e[0]}">${dSvg(g.row[0][0],g.row[0][1],false)}</button><button type="button" class="d-sidebtn R" data-a="play" data-i="${g.sel}" data-side="R" aria-label="Poner la ficha junto a la ficha ${g.row[g.row.length-1][0]}-${g.row[g.row.length-1][1]}, extremo ${e[1]}">${dSvg(g.row[g.row.length-1][0],g.row[g.row.length-1][1],false)}</button></div>`:'';
  const hand=h.map((t,i)=>{const ok=I.mine&&playing&&dFits(g,t);return `<button class="dbtn ${ok?'ok':'no'}${g.sel===i?' picked':''}" data-a="play" data-i="${i}" ${ok?'':'disabled'} aria-label="Ficha ${t[0]}-${t[1]}">${dtile(t)}</button>`}).join('');
  // the table: avatar + name + tile count for every seat (you at the bottom, your partner in front of you), the chain in the middle, a bottle (js/domino-table.js)
  const DM=window.SudomiDomino,seatOf=k=>(me+k)%4;
@@ -872,7 +881,8 @@ function drawSlide(g,ctx,I){
  const reveal=!!g.over,canIns=I.mine&&g.phase==='play'&&!!g.hand&&!g.over,allowed=canIns?slAllowed(g,me,g.hand):[];
  const board=(p,mineBoard)=>`<div class="sl-board ${mineBoard?'mine':'opp'}">${g.cols[p].map((col,c)=>`<div class="sl-col${slColDone(col,g.sets[p])?' done':''}${g.fx.includes(p+':'+c)?' hit':''}${mineBoard&&canIns&&allowed.length===1&&allowed[0]===c?' only':''}">${mineBoard?(canIns?`<button type="button" class="sl-ins" data-a="insert" data-c="${c}" ${allowed.includes(c)?'':'disabled'} aria-label="Poner la ficha en la columna ${c+1}">▼</button>`:'<span class="sl-ins off"></span>'):''}${col.map(t=>slTile(g,t,reveal)).join('')}</div>`).join('')}</div>`;
  const tag=p=>{const th=slTheme(g,g.sets[p]);return `<div class="sl-tag p${p}${g.turn===p&&!g.over?' turn':''}"><b>Jugador ${p+1}${ctx.wifi&&ctx.player===p?' · tú':''}</b><span>${th.name} ${th.icons.slice(0,3).join('')}</span><i>${slDoneCount(g,p)}/6 columnas</i></div>`};
- const lock=canIns&&allowed.length===1?`Ya tienes esa pieza: solo puede ir en la columna marcada.`:'Toca una flecha ▼ de tu lado para ponerla encima de esa columna.';
+ const twinHere=canIns&&g.cols[me].some(col=>col.some(x=>x.up&&!x.w&&!g.hand.w&&x.s===g.hand.s&&x.t===g.hand.t));
+ const lock=canIns&&allowed.length===1?(twinHere?`Ya tienes esa pieza: solo puede ir en la columna marcada.`:`Solo cabe en la columna marcada: en cada columna solo van piezas iguales.`):'Toca una flecha ▼ de tu lado para ponerla encima de esa columna.';
  const hand=g.hand&&!g.over?`<div class="sl-hand${canIns?' mine':''}"><span class="sl-hl">${canIns?'Tu ficha:':`Ficha de Jugador ${g.turn+1}:`}</span>${slTile(g,g.hand,true)}<p>${canIns?lock:'Espera su jugada…'}</p></div>`:'';
  return `${msg(g)}<div class="arc-felt sl-table">${tag(opp)}${board(opp,false)}${hand||'<div class="sl-hand"></div>'}${board(me,true)}${tag(me)}</div>`;
 }
