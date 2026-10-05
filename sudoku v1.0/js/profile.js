@@ -13,7 +13,7 @@
  const isMadeline=n=>/^madel(ine|in)$/i.test(clean(n).normalize('NFD').replace(/[\u0300-\u036f]/g,''));
  // 0.2.82: iconos de Yukiri, solo si el nombre es Yukiri o Yukiry (mayúsculas o minúsculas)
  // 0.2.84: lo mismo para Maicolino / Maicolinno (logo SUDOMI). Para otro nombre: una línea más aquí y su conjunto en js/avatar-art.js
- const SPECIAL=[{set:'yuki',rx:/^yukir[iy]$/i},{set:'maico',rx:/^maicolinn?o$/i}];
+ const SPECIAL=[{set:'yuki',rx:/^yukir[iy]$/i},{set:'maico',rx:/^maicolinn?o$/i},{set:'pollo',rx:/^pollo[ -]?chan$/i}];   // 0.2.88: Pollo Chan / Pollo-Chan
  const plain=n=>clean(n).normalize('NFD').replace(/[̀-ͯ]/g,'');
  const setList=s=>(window.SudomiAvatarArt&&SudomiAvatarArt.sets&&SudomiAvatarArt.sets[s])||[];
  const inSet=(s,a)=>setList(s).some(d=>d.id===a);

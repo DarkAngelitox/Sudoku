@@ -20,7 +20,8 @@ const games=[
  ['rummy','🎴','Rummy','Forma combinaciones con tus cartas.'],
  ['slide','🧩','Fichas deslizantes','Desliza columnas, voltea fichas y completa tu set.'],
  ['dos','🌪','DOS','Quédate sin cartas. De 1 a 8 jugadores, con IA y salas online.'],
- ['dominopolis','🏙️','Dominópolis','Compra, construye y cobra alquiler. De 2 a 8 jugadores, con IA y salas online.']   // 0.2.20: runs on its own (js/dos-game.js), not through SudomiExtraGames
+ ['dominopolis','🏙️','Dominópolis','Compra, construye y cobra alquiler. De 2 a 8 jugadores, con IA y salas online.'],   // 0.2.20: runs on its own (js/dos-game.js), not through SudomiExtraGames
+ ['parchis','🎲','Parchís','Saca tus fichas, da la vuelta y llévalas al centro. De 2 a 4 jugadores.']   // 0.2.86: js/parchis.js (por ahora sin salas online)
 ];
 // 0.2.30: difficulty buttons shown above the Minesweeper modes (the choice is remembered on this device)
 function mineLevelsHTML(){const best=mineBest();return `<div class="mine-levels" role="group" aria-label="Dificultad">${Object.entries(MINE_LEVELS).map(([k,L])=>`<button type="button" data-ml="${k}" class="${k===minesLevel?'on':''}"><b>${L.label}</b><small>${L.n}×${L.n} · ${L.mines} 💣${best[k]?` · ⏱ ${clockText(best[k])}`:''}</small></button>`).join('')}</div>`}
@@ -31,6 +32,7 @@ function openDos(){if(!window.SudomiDos)return false;current=null;game=null;Sudo
 // 0.2.58: Dominó for 1–4 people has its own room screens (js/domino-party.js); `pending` is a room code from an invitation link
 function openDominoParty(pending,create){if(!window.SudomiDominoParty)return false;current=null;game=null;SudomiDominoParty.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()},back:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');chooseMode('domino')},toast:(t,s)=>wifiToast(t,s)},pending,create);return true}
 function openDominopolis(){if(!window.SudomiDominopolis)return false;current=null;game=null;SudomiDominopolis.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}});return true}
+function openParchis(mode,code){if(!window.SudomiParchis)return false;current=null;game=null;SudomiParchis.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}},mode,code);return true}
 function openStop(){if(!window.SudomiStop)return false;current=null;game=null;SudomiStop.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()},legacy:()=>launch('stop','pvp')});return true}
 let current=null, game=null, wifi={active:false,player:0,handler:null,names:[null,null]}, acknowledgedWin=null, localWinListener=null;
 /* 0.2.25 — player profiles in two-player online games: each phone sends {name, avatar} to the other one,
@@ -92,7 +94,7 @@ function awayBarHook(on){
  SudomiFriends.awayBar({game:current,gameName:it?it[2]:'',room:s.room,names:[nm]});
 }
 function leaveWifi(){try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}wifi.names=[null,null];if(wifi.active&&window.SudomiLAN){SudomiLAN.leave();wifi.active=false;wifi.player=0;wifi.handler=null}try{localStorage.removeItem(HOST_KEY)}catch(_){}hideWifiToast()}
-function back(){if(window.SudomiDos)SudomiDos.close();if(window.SudomiStop)SudomiStop.close();leaveWifi();stage.classList.add('hidden');hub.classList.remove('hidden');$('#miniGamesScreen').classList.add('hidden');$('#homeScreen').classList.remove('hidden');current=null;game=null;renderHub()}
+function back(){if(window.SudomiDos)SudomiDos.close();if(window.SudomiParchis)SudomiParchis.close();if(window.SudomiStop)SudomiStop.close();leaveWifi();stage.classList.add('hidden');hub.classList.remove('hidden');$('#miniGamesScreen').classList.add('hidden');$('#homeScreen').classList.remove('hidden');current=null;game=null;renderHub()}
 function toHub(){if(game?.dispose)game.dispose();leaveWifi();current=null;game=null;stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}
 function renderHub(){
  const saved=window.SudomiLAN&&!SudomiLAN.session?SudomiLAN.saved:null,item=saved&&games.find(g=>g[0]===saved.session.game);
@@ -113,6 +115,7 @@ function modeButtons(id){
  const local=NO_LOCAL.includes(id)?'':'<button data-mode="pvp"><strong>👥 En este dispositivo</strong><small>'+(id==='domino'?'4 personas en un solo dispositivo: se lo pasan en cada turno':'Dos personas en un solo dispositivo: se lo pasan en cada turno')+'</small></button>';
  const multi='<button data-mode="online"><strong>🌐 Multijugador</strong><small>'+(VARIABLE_GAMES.includes(id)?'Elige cuántos juegan, crea la sala e invita a tus amigos.':'Crea una sala e invita a tus amigos. Si nadie llega, juega la IA.')+'</small></button>';
  const join='<div class="mc-join"><label for="mcCode">¿Te invitaron? Escribe el código de la sala</label><div><input id="mcCode" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD-2345"><button type="button" id="mcJoin">Unirme</button></div><p id="mcMsg"></p></div>';
+ if(id==='parchis')return '<button data-mode="pve"><strong>🤖 Contra la máquina</strong><small>Tú contra 1, 2 o 3 jugadores de la computadora</small></button><button data-mode="pvp"><strong>👥 En este dispositivo</strong><small>De 2 a 4 personas en un solo dispositivo: se lo pasan en cada turno</small></button><button data-mode="online"><strong>🌐 Multijugador</strong><small>Elige cuántos juegan, crea la sala e invita a tus amigos.</small></button>'+join;   // 0.2.87: con salas online (js/parchis.js)
  return pve+local+multi+join;
 }
 function chooseMode(id){
@@ -126,6 +129,7 @@ function chooseMode(id){
 }
 function enterMode(id,mode){
  if(mode==='clock'||mode==='practice')return launch(id,mode);
+ if(id==='parchis'){openParchis(mode);return}
  if(mode==='pve'){
   if(id==='dos'&&openDos()){SudomiDos.solo();return}
   if(id==='stop'&&openStop()){SudomiStop.solo();return}
@@ -150,6 +154,7 @@ function startMulti(id,n){
  friendLobby(id);
 }
 function joinByCode(id,code){
+ if(id==='parchis'){openParchis('join',code);return}
  if(id==='dos'&&openDos()){SudomiDos.join(code);return}
  if(id==='stop'&&openStop()){SudomiStop.join(code);return}
  if(id==='dominopolis'&&openDominopolis()){SudomiDominopolis.join(code);return}
@@ -274,6 +279,7 @@ function joinInvite(id,room,opts){
  if(id==='domino4'){open();openDominoParty(room);return true}   // 0.2.58: Dominó multijugador
  if(id==='mines'||!games.some(g=>g[0]===id))return false;
  if(id==='dos'){open();if(openDos())SudomiDos.join(room);return}
+ if(id==='parchis'){open();openParchis('join',room);return}
  if(id==='stop'){open();if(openStop())SudomiStop.join(room);return}
  if(id==='dominopolis'){open();if(openDominopolis())SudomiDominopolis.join(room,opts);return}
  open();wifiLobby(id,{code:room});

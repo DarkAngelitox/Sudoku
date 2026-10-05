@@ -22,8 +22,17 @@
     { id: '🌸🌿', name: 'Yukiri: pradera', img: 'img/yukiri/yukiri3.png', pic: 1 }
   ];
   // 0.2.84: logo SUDOMI solo para el nombre «Maicolino» / «Maicolinno» (carpeta img/maicolino/)
-  const MAICO = [{ id: '🎩🎲', name: 'Logo SUDOMI', img: 'img/maicolino/logo.png', pic: 1 }];
-  const SETS = { yuki: YUKI, maico: MAICO };   // conjuntos con nombre propio; js/profile.js decide qué nombre abre cada uno
+  // 0.2.89: el logo se rehízo redondo, dibujado en SVG (logo.svg), y se agregó la cara con rizos (cara.png, recorte redondo)
+  const MAICO = [
+    { id: '🎩🎲', name: 'Logo SUDOMI', img: 'img/maicolino/logo.svg', pic: 1 },
+    { id: '🎩💎', name: 'Maicolino', img: 'img/maicolino/cara.png', pic: 1 }
+  ];
+  // 0.2.88: fotos solo para el nombre «Pollo Chan» / «Pollo-Chan» (carpeta img/pollo/)
+  const POLLO = [
+    { id: '🐔✏', name: 'Pollo Chan: dibujo', img: 'img/pollo/pollo1.png', pic: 1 },
+    { id: '🐔🔥', name: 'Pollo Chan: gallo', img: 'img/pollo/pollo2.png', pic: 1 }
+  ];
+  const SETS = { yuki: YUKI, maico: MAICO, pollo: POLLO };   // conjuntos con nombre propio; js/profile.js decide qué nombre abre cada uno
   const DRAGON_LIST = LIST.slice(); Object.values(SETS).forEach(set => set.forEach(y => LIST.push(y)));
   const inSet = id => Object.values(SETS).some(set => set.some(y => y.id === id));
   // nombres antiguos (0.2.72–0.2.77): se siguen reconociendo y muestran el dragón más parecido, pero ya no se ofrecen

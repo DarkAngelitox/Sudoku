@@ -2762,3 +2762,77 @@ html[data-theme="dark"] .ck-photo-btns button:first-child{background:#1f5fc4;col
 .prof-dragons.prof-set-maico{border-color:#c9a23a;background:linear-gradient(135deg,#1c2238,#3a3320)}
 .prof-dragons.prof-set-maico p{color:#f0d27a}
 .prof-dragons.prof-set-maico p:after{content:" \1F3A9"}
+/* 0.2.88: fila roja y negra de Pollo Chan */
+.prof-dragons.prof-set-pollo{border-color:#b3161b;background:linear-gradient(135deg,#1a0a0a,#5a0f12)}
+.prof-dragons.prof-set-pollo p{color:#ffd9d9}
+.prof-dragons.prof-set-pollo p:after{content:" \1F414"}
+
+/* 0.2.85: guia de instalacion en iPhone con capturas reales (img/instalar): la foto arriba, a todo el ancho, y el texto debajo */
+.pg-card li.pg-photo{grid-template-columns:1fr;gap:8px}
+.pg-photo .pg-pic{height:auto;padding:0;background:#0b1626}
+.pg-pic img.pg-shot{width:100%;height:auto;border-radius:11px}
+
+/* 0.2.86: PARCHIS (js/parchis.js). Las variables --pc-bg/cell/line/num/safe/nest las pone el tema; las lineas de color no cambian */
+.pc{--pc-bg:#fff;--pc-cell:#fff;--pc-line:#111;--pc-num:#111;--pc-safe:#6b3500;--pc-nest:#fff}
+.pc-board{position:relative;width:min(100%,560px);aspect-ratio:1;margin:0 auto;border-radius:8px;overflow:hidden;box-shadow:0 8px 22px #0005;--pc-u:16px;touch-action:manipulation}
+.pc-svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.pc-marks text{font:700 .5px system-ui,Arial,sans-serif;fill:var(--pc-num)}
+.pc-av{position:absolute;width:23.2%;height:23.2%;margin:-11.6% 0 0 -11.6%;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:var(--pc-nest);font-size:calc(var(--pc-u)*3);line-height:1;pointer-events:none}
+.pc-av span{display:grid;place-items:center;width:100%;height:100%}
+.pc-av .av-dragon{width:100%;height:100%;padding:0;vertical-align:0}
+.pc-av.turn{box-shadow:0 0 0 3px #fff,0 0 0 6px var(--pc-c),0 0 18px 6px #ffd54a;animation:pcTurn 1.1s ease-in-out infinite alternate}
+.pc-piece{position:absolute;width:5.6%;height:5.6%;margin:-2.8% 0 0 -2.8%;padding:0;border-radius:50%;border:2px solid #fff;background:radial-gradient(circle at 34% 30%,#ffffffb0,#fff0 46%),var(--pc-c);box-shadow:0 0 0 1px #0009,0 2px 3px #0008;transition:left .16s linear,top .16s linear;z-index:2;-webkit-tap-highlight-color:transparent}
+.pc-piece:disabled{opacity:1}
+.pc-piece::after{content:"";position:absolute;inset:-7px;border-radius:50%}
+.pc-piece.can{z-index:4;cursor:pointer;animation:pcCan .6s ease-in-out infinite alternate}
+.pc-piece.home{width:4.4%;height:4.4%;margin:-2.2% 0 0 -2.2%}
+@keyframes pcCan{to{transform:scale(1.28);box-shadow:0 0 0 2px #111,0 0 0 5px #ffe14a,0 2px 6px #000a}}
+@keyframes pcTurn{to{box-shadow:0 0 0 3px #fff,0 0 0 6px var(--pc-c),0 0 26px 10px #ffd54a}}
+.pc-seats{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:0 0 10px}
+.pc-seat{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:#fff;color:#10213b;border:2px solid #dbe3ef;font-size:12.5px;font-weight:800}
+.pc-seat u{width:13px;height:13px;border-radius:50%;background:var(--pc-c);border:1.5px solid #0007;text-decoration:none}
+.pc-seat b,.pc-seat i{display:inline;font-style:normal;font-weight:800}.pc-seat i{opacity:.7;font-size:11.5px}
+.pc-seat.turn{border-color:var(--pc-c);box-shadow:0 0 0 3px #ffd54a}
+.pc-hud{display:flex;align-items:center;gap:12px;margin:12px auto 0;max-width:560px}
+.pc-dice{flex:none;width:68px;height:68px;border-radius:16px;border:3px solid #0006;background:var(--pc-c,#fff);color:var(--pc-ink,#111);font-size:46px;line-height:1;display:grid;place-items:center;padding:0 0 4px;cursor:pointer;box-shadow:0 5px 0 #0004}
+.pc-dice:disabled{opacity:.85;cursor:default}
+.pc-dice.go{animation:pcDice .55s ease-in-out infinite alternate}
+@keyframes pcDice{to{transform:translateY(-4px) rotate(-6deg);box-shadow:0 9px 0 #0003,0 0 0 4px #ffd54a}}
+.pc-say{display:grid;gap:2px;min-width:0;text-align:left}.pc-say b{display:block;font-size:15px;line-height:1.25}.pc-say small{display:block;font-size:12.5px;opacity:.75;min-height:1.2em}
+.pc-foot{display:flex;gap:8px;justify-content:center;margin-top:12px}.pc-foot .ghost{background:transparent;color:inherit;border:2px solid #9aa9c0;box-shadow:none}
+.pc-menu{display:grid;gap:12px;max-width:480px;margin:0 auto}
+.pc-hero{display:grid;justify-items:center;gap:2px;font-size:40px;text-align:center}.pc-hero b{display:block;font-size:20px}.pc-hero span{display:block;font-size:13px;opacity:.8}
+.pc-opt{display:grid;gap:6px}.pc-opt>b{display:block;font-size:13px}
+.pc-seg{display:flex;flex-wrap:wrap;gap:6px}
+.pc-seg button{flex:1 1 0;min-width:86px;padding:9px 8px;border-radius:12px;border:2px solid #cfd8e6;background:#fff;color:#10213b;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.pc-seg button.on{border-color:#0b3d91;box-shadow:0 0 0 2px #0b3d91}
+.pc-sw{width:16px;height:16px;border-radius:4px;border:2px solid #111;flex:none}
+.pc-mini{width:min(72%,300px);box-shadow:0 4px 12px #0004}
+.pc-big{font-size:17px;padding:13px}
+.pc-sheet{position:fixed;inset:0;z-index:70;background:#0009;display:flex;align-items:center;justify-content:center;padding:16px}
+.pc-sheet-in{max-width:440px;max-height:100%;overflow:auto;background:#fff;color:#10213b;border-radius:18px;padding:16px 18px;text-align:left}
+.pc-sheet-in h3{margin:0 0 8px}.pc-sheet-in ul{margin:0 0 12px;padding-left:18px;display:grid;gap:6px;font-size:14px;line-height:1.4}.pc-sheet-in b{display:inline}
+/* 0.2.87: dos dados que ruedan sobre el tablero, interruptor «Parchis guerra» y avisos de la sala online */
+.pc-die{position:absolute;width:10.4%;height:10.4%;margin:-5.2% 0 0 -5.2%;padding:1.2%;box-sizing:border-box;border-radius:20%;border:2px solid #111;background:linear-gradient(145deg,#fff,#e3e6ee);box-shadow:0 3px 0 #0006,0 6px 10px #0006;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);z-index:6;-webkit-tap-highlight-color:transparent}
+.pc-die.hidden{display:none}
+.pc-die:disabled{opacity:1}
+.pc-die i{margin:14%;border-radius:50%}
+.pc-die i.on{background:#111;box-shadow:inset 0 1px 1px #fff5}
+.pc-die.used{opacity:.38;box-shadow:none}
+.pc-die.pickable{cursor:pointer}
+.pc-die.sel{box-shadow:0 0 0 3px #ffd54a,0 0 0 5px #111,0 6px 10px #0006}
+.pc-dice{grid-template-rows:auto auto;gap:0;padding:4px 0 6px;font-size:34px}
+.pc-dice span{display:block;line-height:1}.pc-dice small{display:block;font-size:11px;font-weight:900;letter-spacing:.3px;line-height:1}
+.pc-av.away{filter:grayscale(1);opacity:.6}
+.pc-switch{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;border:2px solid #cfd8e6;background:#fff;color:#10213b;cursor:pointer}
+.pc-switch input{position:absolute;opacity:0;width:0;height:0}
+.pc-switch i{flex:none;position:relative;width:46px;height:26px;border-radius:999px;background:#c5cedc;transition:background .15s}
+.pc-switch i::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0006;transition:transform .15s}
+.pc-switch input:checked+i{background:#d62027}.pc-switch input:checked+i::after{transform:translateX(20px)}
+.pc-switch input:focus-visible+i{outline:3px solid #ffb300;outline-offset:2px}
+.pc-switch span{display:grid;gap:1px;text-align:left}.pc-switch b{display:block;font-size:14px}.pc-switch small{display:block;font-size:12px;opacity:.75}
+.pc-switch small.dev{opacity:1;color:#b35b00;font-weight:800}
+.pc-hint{display:block;font-size:12px;opacity:.75}
+.pc-note{margin:0;padding:8px 12px;border-radius:12px;font-size:13px;font-weight:700}.pc-note.bad{background:#ffe3e3;color:#8f1016}
+html[data-fx="off"] .pc-piece.can,html[data-fx="off"] .pc-av.turn,html[data-fx="off"] .pc-dice.go{animation:none}
+@media(prefers-reduced-motion:reduce){.pc-piece.can,.pc-av.turn,.pc-dice.go{animation:none}.pc-piece{transition:none}}

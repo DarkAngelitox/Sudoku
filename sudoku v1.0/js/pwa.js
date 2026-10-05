@@ -26,11 +26,17 @@
  let guideEl=null;
  const SHARE='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3.5M8 7l4-4 4 4M7 10.5H5.8A1.8 1.8 0 0 0 4 12.3v6.9A1.8 1.8 0 0 0 5.8 21h12.4a1.8 1.8 0 0 0 1.8-1.8v-6.9a1.8 1.8 0 0 0-1.8-1.8H17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
  const PLUS='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v8M8 12h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+ const SHOT=(n,alt)=>`<img class="pg-shot" src="img/instalar/ios${n}.jpg" alt="${alt}" loading="lazy" decoding="async">`;
  const STEPS=[
-  ['Toca el botón Compartir','Está en la barra de Safari. Si no lo ves, toca primero el botón •••.',
-   `<div class="pg-bar"><i>‹</i><i>›</i><i class="pg-hot">${SHARE}</i><i>▢</i><i>⧉</i></div>`],
-  ['Elige «Añadir a pantalla de inicio»','Desliza la lista hacia arriba hasta encontrarla.',
-   `<div class="pg-sheet"><span>Copiar</span><span>Añadir a marcadores</span><span class="pg-hot">Añadir a pantalla de inicio<i>${PLUS}</i></span></div>`],
+  // 0.2.85: los cuatro primeros pasos son capturas reales del iPhone del dueño (img/instalar/): todo desenfocado menos la opción que hay que tocar
+  ['Toca el botón ≡ de Safari','Está en la barra de abajo, junto a la dirección. Si en tu iPhone ya ves el botón Compartir (un cuadro con una flecha), tócalo y pasa al paso 3.',
+   SHOT(1,'El botón de menú de Safari, abajo a la izquierda')],
+  ['Toca «Compartir»','En el menú que se abre. En inglés dice «Share».',
+   SHOT(2,'La opción Compartir del menú')],
+  ['Toca «Ver más»','Es la flecha hacia abajo, al final de la fila de botones. En inglés: «View More».',
+   SHOT(3,'El botón Ver más, la flecha hacia abajo')],
+  ['Elige «Añadir a pantalla de inicio»','Está en la lista de abajo. En inglés: «Add to Home Screen».',
+   SHOT(4,'La opción Añadir a pantalla de inicio')],
   ['Toca «Añadir»','Está arriba a la derecha. Deja el nombre SUDOMI.',
    `<div class="pg-add"><div class="pg-addbar"><span>Cancelar</span><b>Añadir a inicio</b><span class="pg-hot">Añadir</span></div><div class="pg-app"><img src="icons/icon-192.png" alt=""><span>SUDOMI</span></div></div>`],
   ['¡Listo!','Abre SUDOMI desde su icono, como cualquier otra app.',
@@ -41,7 +47,7 @@
  function openGuide(){
   closeGuide();
   const el=document.createElement('div');el.className='pwa-guide';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-label','Cómo instalar SUDOMI');
-  el.innerHTML=`<div class="pg-card"><button class="pg-x" type="button" aria-label="Cerrar">✕</button><p class="pg-kicker">INSTALAR EN IPHONE</p><h2>Añade SUDOMI a tu pantalla de inicio</h2><ol>${STEPS.map(([t,d,pic],i)=>`<li><div class="pg-pic">${pic}</div><div class="pg-copy"><b><em>${i+1}</em>${t}</b><span>${d}</span></div></li>`).join('')}</ol><button class="pg-done" type="button">Cerrar</button></div>`;
+  el.innerHTML=`<div class="pg-card"><button class="pg-x" type="button" aria-label="Cerrar">✕</button><p class="pg-kicker">INSTALAR EN IPHONE</p><h2>Añade SUDOMI a tu pantalla de inicio</h2><ol>${STEPS.map(([t,d,pic],i)=>`<li class="${pic.includes('pg-shot')?'pg-photo':''}"><div class="pg-pic">${pic}</div><div class="pg-copy"><b><em>${i+1}</em>${t}</b><span>${d}</span></div></li>`).join('')}</ol><button class="pg-done" type="button">Cerrar</button></div>`;
   document.body.appendChild(el);guideEl=el;
   el.onclick=e=>{if(e.target===el)closeGuide()};
   el.querySelector('.pg-x').onclick=el.querySelector('.pg-done').onclick=closeGuide;

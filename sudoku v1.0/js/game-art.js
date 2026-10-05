@@ -21,7 +21,12 @@ window.SudomiGameArt=(()=>{
 
  const art={
   // 0.2.79: Dominópolis — playa dominicana, ciudad y una fila de casillas de colores
-  dominopolis:svg('#4fb6f2',
+  parchis:svg('#f4f1e6',   // 0.2.86
+  r(0,0,70,49,'#ff0000')+r(130,0,70,49,'#003399')+r(0,91,70,49,'#00dd00')+r(130,91,70,49,'#ffcc00')+c(35,24,17,'#fff')+c(165,24,17,'#fff')+c(35,116,17,'#fff')+c(165,116,17,'#fff')
+  +r(88,0,24,58,'#ff0000')+r(112,58,88,24,'#003399')+r(88,82,24,58,'#ffcc00')+r(0,58,88,24,'#00dd00')
+  +'<polygon points="70,49 130,49 100,70" fill="#ff0000"/><polygon points="130,49 130,91 100,70" fill="#003399"/><polygon points="130,91 70,91 100,70" fill="#ffcc00"/><polygon points="70,91 70,49 100,70" fill="#00dd00"/>'
+  +r(142,96,34,34,'#fff',7,'stroke="#111" stroke-width="2" transform="rotate(-12 159 113)"')+c(151,105,3.2,'#111')+c(167,121,3.2,'#111')+c(159,113,3.2,'#111')),
+ dominopolis:svg('#4fb6f2',
     r(0,0,200,70,'#6cc4f5')+c(162,26,15,'#ffe27a')+c(162,26,23,'#ffe27a','opacity=".28"')+
     `<g fill="#fff" opacity=".92"><ellipse cx="40" cy="22" rx="22" ry="7"/><ellipse cx="56" cy="17" rx="14" ry="6"/><ellipse cx="108" cy="12" rx="18" ry="5"/></g>`+
     r(0,66,200,74,'#1b8fc4')+r(0,66,200,4,'#fff','opacity=".5"')+
