@@ -80,11 +80,16 @@
   ui.stage.innerHTML=`<div class="mini-game mz">${head()}<div class="mz-menu">${net.status?`<p class="pc-note bad">${esc(net.status)}</p>`:''}
    <div class="pc-hero">🀄<b>${NAME}</b><span>Carrera de parejas: cada quien con su tablero de ${T.length} fichas. Fallar te bloquea ${LOCK/1000} segundos. Gana quien termine primero.</span></div>
    <div class="mz-sample"><span>${face(0)}</span><span>${face(5)}</span><i>→</i><span>${face(15)}</span><span>${face(18)}</span><i>→</i><span>${face(33)}</span><span>${face(34)}</span><small>De muy distintas a muy parecidas</small></div>
-   <button class="arc-btn pc-big" id="mzStart">${online?'🌐 Crear sala':'▶ Jugar'}</button></div></div>`;
+   <button class="arc-btn pc-big" id="mzStart">${online?'🌐 Crear sala':'▶ Jugar'}</button>${online?'':`<button class="arc-btn ghost pc-big" id="mzSolo">⏱ Solitario contra el reloj${bestSolo()?' · récord '+clock(bestSolo()):''}</button>`}</div></div>`;
   net.status='';$('#mzRules').onclick=()=>sheet(rulesHTML());
-  $('#mzStart').onclick=online?createRoom:startLocal;
+  $('#mzStart').onclick=online?createRoom:()=>startLocal(false);const so=$('#mzSolo');if(so)so.onclick=()=>startLocal(true);
  }
- function startLocal(){
+ // 0.3.12: SOLITARIO — el mismo tablero sin rival, contra el reloj; se guarda tu mejor tiempo en localStorage 'sudomi-mahjong-best'
+ const bestSolo=()=>{try{return Math.max(0,+localStorage.getItem('sudomi-mahjong-best')||0)}catch(_){return 0}};
+ let lastSolo=false;
+ function startLocal(solo){
+  lastSolo=!!solo;
+  if(solo){begin(deal(),[{name:myName(),avatar:myAvatar()},{name:'Tu récord',avatar:'⏱',solo:true}],0);return}
   const ai=[['Maestra Li','🐼'],['Don Fichas','🦉'],['La Rápida','🦊']][Math.random()*3|0];
   begin(deal(),[{name:myName(),avatar:myAvatar()},{name:ai[0],avatar:ai[1],ai:true}],0);
  }
@@ -112,7 +117,7 @@
  function draw(){
   if(!S||!els.length)return;
   els.forEach((e,i)=>{const g=S.gone[i],f=!g&&free(i,S.gone);e.classList.toggle('gone',g);e.classList.toggle('free',f);e.classList.toggle('blocked',!g&&!f);e.classList.toggle('sel',S.sel===i);e.disabled=g});
-  ui.stage.querySelectorAll('.mz-p').forEach(b=>{const p=+b.dataset.p;b.querySelector('i').textContent=(S.seats[p].away?'📴 ':'')+S.done[p]+'/'+PAIRS;b.querySelector('s').style.width=(S.done[p]/PAIRS*100)+'%'});
+  ui.stage.querySelectorAll('.mz-p').forEach(b=>{const p=+b.dataset.p;b.querySelector('i').textContent=S.seats[p].solo?(bestSolo()?clock(bestSolo()):'—'):(S.seats[p].away?'📴 ':'')+S.done[p]+'/'+PAIRS;b.querySelector('s').style.width=(S.done[p]/PAIRS*100)+'%'});
  }
  function tap(i){
   if(!S||!S.started||S.over||S.waitFin||S.gone[i]||Date.now()<S.lockUntil)return;
@@ -145,14 +150,20 @@
  // quien manda la partida (solo o anfitrión) declara al ganador
  function decide(w,ms){if(!S||S.over)return;toGuest({t:'over',w,ms});finish(w,ms)}
  function finish(w,ms){
-  if(!S||S.over)return;S.over=true;S.winner=w;try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:'mahjong',won:w===S.me}}))}catch(_){}S.waitFin=false;clearInterval(tick);S.sel=-1;draw();
+  const solo=!!(S&&S.seats[1-S.me]&&S.seats[1-S.me].solo);let record=false;
+  if(solo&&S&&!S.over){const b0=bestSolo();if(!b0||ms<b0){record=true;try{localStorage.setItem('sudomi-mahjong-best',String(ms))}catch(_){}}}
+  if(!S||S.over)return;S.over=true;S.winner=w;if(!solo)try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:'mahjong',won:w===S.me}}))}catch(_){}S.waitFin=false;clearInterval(tick);S.sel=-1;draw();
   const mine=w===S.me,lk=$('#mzLock');if(lk)lk.classList.add('hidden');const bd=$('#mzBoard');if(bd)bd.classList.add('over');
   if($('#mzClock'))$('#mzClock').textContent='⏱ '+clock(ms);
   setAlert(mine?`🏆 ¡Ganaste! Terminaste en ${clock(ms)}`:`💀 Ganó ${S.seats[w].name} · te faltaron ${PAIRS-S.done[S.me]} parejas`,mine?'win':'danger');
   play(mine?'win':'bad');if(mine){try{window.SudomiFX&&SudomiFX.confetti&&SudomiFX.confetti()}catch(_){}}
   const c=$('#mzCtrl');if(!c)return;
   c.innerHTML=net.role==='guest'?'<p class="mz-hint">Esperando a que el anfitrión empiece otra partida…</p>':'<button class="arc-btn pc-big" type="button" id="mzAgain">↻ Jugar otra vez</button>';
-  const b=$('#mzAgain');if(b)b.onclick=()=>net.role==='host'?startOnline():startLocal();
+  const b=$('#mzAgain');if(b)b.onclick=()=>net.role==='host'?startOnline():startLocal(lastSolo);
+  // 0.3.11: pantalla de resultado común (js/result.js)
+  if(window.SudomiResult)SudomiResult.show($('.mz'),{kind:mine?'win':'lose',game:'DUELO MAHJONG',title:solo?(record?'¡Nuevo récord!':'¡Tablero despejado!'):mine?'¡Ganaste la carrera!':'Ganó '+S.seats[w].name,sub:solo?('Tu tiempo: '+clock(ms)+(record?'':' · récord '+clock(bestSolo()))):mine?'Terminaste en '+clock(ms):`Te faltaron ${PAIRS-S.done[S.me]} parejas`,
+   again:net.role==='guest'?null:()=>net.role==='host'?startOnline():startLocal(lastSolo),exit:()=>{const u=ui;close();u.stage.innerHTML='';u.exit()},
+   share:mine?`Despejé el Duelo Mahjong de SUDOMI en ${clock(ms)}. ¡Juega conmigo!`:'Jugué Duelo Mahjong en SUDOMI. ¡Juega conmigo!'});
  }
 
  /* ================= sala online (2 jugadores) ================= */

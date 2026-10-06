@@ -32,6 +32,7 @@
   'Transporte':'avión|autobús|ambulancia|avioneta|barco|bicicleta|bote|camión|carro|canoa|crucero|concho|carreta|dirigible|furgoneta|ferry|guagua|góndola|helicóptero|hidroavión|jeep|lancha|limusina|metro|motocicleta|monopatín|nave espacial|patineta|patines|planeador|remolque|submarino|scooter|taxi|tren|teleférico|tranvía|trineo|ultraligero|velero'
  };
  const CATS=Object.keys(WORDS);
+ const isKnown=(cat,a)=>!!WORDS[cat]&&WORDS[cat].split('|').some(x=>norm(x)===norm(a));
  const LETTERS='ABCDEFGHIJLMNOPRSTUV'.split('');
  const ANSWER_TIME=160,VOTE_TIME=60;       // 0.2.64: 160 s per round; STOP ends the round at once and needs all 10 boxes filled; the one who says STOP loses 20 per wrong answer
  const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();
@@ -299,8 +300,8 @@
    const L=v.letter.toLowerCase();
    body=`<div class="stop-top small"><div class="stop-letter">${v.letter}</div>${timer(VOTE_TIME)}</div>
     <p class="arc-msg">${v.voted[me]?'✔ Listo. Esperando a los demás…':'Toca las respuestas que <b>no aceptas</b> (❌). Cuando termines, toca <b>Listo</b>.'}</p>${chips(v)}
-    <div class="sp-vote">${v.cats.map((c,q)=>`<section><h4>${esc(c)}</h4>${v.names.map((n,p)=>{const a=v.answers[p][q],bad=a&&norm(a)[0]!==L,mine=v.myMarks.includes(p+':'+q),cnt=v.markCount[p][q];
-      return `<button class="sp-ans ${!a?'empty':''} ${bad?'bad':''} ${mine?'no':''}" data-p="${p}" data-q="${q}" ${p===me||!a||bad||v.voted[me]?'disabled':''}><i>${avatar(p)}</i><b>${a?esc(a):'—'}</b>${bad?'<em>no empieza con '+v.letter+'</em>':cnt?`<em>❌ ${cnt}</em>`:''}</button>`}).join('')}</section>`).join('')}</div>
+    <div class="sp-vote">${v.cats.map((c,q)=>`<section><h4>${esc(c)}</h4>${v.names.map((n,p)=>{const a=v.answers[p][q],bad=a&&norm(a)[0]!==L,mine=v.myMarks.includes(p+':'+q),cnt=v.markCount[p][q],known=a&&!bad&&isKnown(c,a);
+      return `<button class="sp-ans ${!a?'empty':''} ${bad?'bad':''} ${mine?'no':''}" data-p="${p}" data-q="${q}" ${p===me||!a||bad||v.voted[me]?'disabled':''}><i>${avatar(p)}</i><b>${a?esc(a):'—'}</b>${known?'<u class="sp-ok" title="Está en el diccionario del juego">✓</u>':''}${bad?'<em>no empieza con '+v.letter+'</em>':cnt?`<em>❌ ${cnt}</em>`:''}</button>`}).join('')}</section>`).join('')}</div>
     ${v.voted[me]?'':'<div class="arc-actions"><button class="arc-btn big" id="spReady">Listo</button></div>'}`;
   }else{
    const order=v.names.map((_,i)=>i).sort((a,b)=>v.totals[b]-v.totals[a]||v.points[b]-v.points[a]);

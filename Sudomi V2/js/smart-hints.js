@@ -18,6 +18,49 @@
  const where=i=>{const [r,c]=rc(i);return `fila ${r+1}, columna ${c+1}`};
  const cands=(b,i)=>{let m=0x1ff;for(const p of PEERS[i])if(b[p])m&=~(1<<(b[p]-1));return m};
  const list=m=>{const o=[];for(let n=1;n<=9;n++)if(m&(1<<(n-1)))o.push(n);return o};
+ const bits=m=>{let k=0;while(m){k+=m&1;m>>=1}return k};
+ // después de descartar candidatos (m = candidatos de cada casilla), ¿queda algún número único?
+ function singleAfter(b,m){
+  for(let i=0;i<81;i++)if(!b[i]&&bits(m[i])===1)return {cell:i,digit:list(m[i])[0]};
+  for(const u of UNITS)for(let n=1;n<=9;n++){if(u.cells.some(i=>b[i]===n))continue;const spots=u.cells.filter(i=>!b[i]&&(m[i]&(1<<(n-1))));if(spots.length===1)return {cell:spots[0],digit:n}}
+  return null;
+ }
+ function advanced(b,sol){
+  const base=b.map((v,i)=>v?0:cands(b,i));
+  // candidatos encerrados: en un cuadro, un número solo cabe en una fila (o columna) -> se descarta en el resto de esa fila (o columna)
+  for(let k=0;k<9;k++){const box=UNITS[k];
+   for(let n=1;n<=9;n++){
+    if(box.cells.some(i=>b[i]===n))continue;const bit=1<<(n-1),spots=box.cells.filter(i=>!b[i]&&(base[i]&bit));
+    if(spots.length<2||spots.length>3)continue;
+    for(const kind of ['row','col']){
+     const at=i=>kind==='row'?rc(i)[0]:rc(i)[1];if(!spots.every(i=>at(i)===at(spots[0])))continue;
+     const line=UNITS.find(u=>u.kind===kind&&u.n===at(spots[0])),elim=line.cells.filter(i=>!b[i]&&!box.cells.includes(i)&&(base[i]&bit));
+     if(!elim.length)continue;const m=base.slice();elim.forEach(i=>{m[i]&=~bit});
+     const s=singleAfter(b,m);if(s&&sol[s.cell]===s.digit)return {type:'locked',cell:s.cell,digit:s.digit,box,line,n,spots,elim};
+    }
+   }
+  }
+  // 0.3.21: lo mismo al revés (reclamo): en una fila o columna, un número solo cabe dentro de un cuadro -> se descarta en el resto de ese cuadro
+  for(const line of UNITS.filter(u=>u.kind!=='box')){
+   for(let n=1;n<=9;n++){
+    if(line.cells.some(i=>b[i]===n))continue;const bit=1<<(n-1),spots=line.cells.filter(i=>!b[i]&&(base[i]&bit));
+    if(spots.length<2||spots.length>3||!spots.every(i=>boxOf(i)===boxOf(spots[0])))continue;
+    const box=UNITS[boxOf(spots[0])],elim=box.cells.filter(i=>!b[i]&&!line.cells.includes(i)&&(base[i]&bit));
+    if(!elim.length)continue;const m=base.slice();elim.forEach(i=>{m[i]&=~bit});
+    const s=singleAfter(b,m);if(s&&sol[s.cell]===s.digit)return {type:'claim',cell:s.cell,digit:s.digit,box,line,n,spots,elim};
+   }
+  }
+  // pareja desnuda: dos casillas de una unidad con los mismos dos candidatos -> esos dos números se descartan en las demás casillas de la unidad
+  for(const u of UNITS){
+   const two=u.cells.filter(i=>!b[i]&&bits(base[i])===2);
+   for(let x=0;x<two.length;x++)for(let y=x+1;y<two.length;y++){
+    if(base[two[x]]!==base[two[y]])continue;const pm=base[two[x]],elim=u.cells.filter(i=>!b[i]&&i!==two[x]&&i!==two[y]&&(base[i]&pm));
+    if(!elim.length)continue;const m=base.slice();elim.forEach(i=>{m[i]&=~pm});
+    const s=singleAfter(b,m);if(s&&sol[s.cell]===s.digit)return {type:'pair',cell:s.cell,digit:s.digit,unit:u,pair:[two[x],two[y]],digits:list(pm),elim};
+   }
+  }
+  return null;
+ }
  function find(g,noNaked){
   const b=g.board,sol=g.solution;
   const wrong=b.findIndex((v,i)=>v&&v!==sol[i]);
@@ -36,6 +79,8 @@
     if(spots.length===1)return {type:'hidden',cell:spots[0],digit:n,unit:u};
    }
   }
+  // 0.3.10 (V2): dos técnicas más antes de rendirse. Las dos DESCARTAN candidatos y, con eso, aparece un número único.
+  const adv=advanced(b,sol);if(adv)return adv;
   // 3. nothing direct: point at the freest cell
   const pick=(sel!==null&&!b[sel])?sel:empty.reduce((a,i)=>list(cands(b,i)).length<list(cands(b,a)).length?i:a,empty[0]);
   return {type:'hard',cell:pick,digit:sol[pick],cand:list(cands(b,pick))};
@@ -59,6 +104,24 @@
    const blockers=[];for(const i of u.cells){if(b[i]||i===s.cell)continue;const p=PEERS[i].find(j=>b[j]===s.digit&&!u.cells.includes(j));if(p!==undefined&&!blockers.includes(p))blockers.push(p)}
    out.hl.target=[s.cell];out.hl.block=blockers;
    out.text=`El ${s.digit} solo puede ir en la ${where(s.cell)} dentro ${u.kind==="box"?"del cuadro "+BOXN[u.n]:"de la "+(u.kind==="row"?"fila ":"columna ")+(u.n+1)}. En las demás casillas libres de ${u.kind==='box'?'ese cuadro':'esa '+(u.kind==='row'?'fila':'columna')} no cabe porque ya hay un ${s.digit} en su fila o columna (marcados en azul).`;out.place=`Colocar el ${s.digit}`;return out;
+  }
+  if(s.type==='locked'){
+   const ln=unitName(s.line),bx=unitName(s.box);
+   if(stage===1){out.hl.unit=s.box.cells.filter(i=>!b[i]);out.text=`Mira ${bx}. Dentro de ese cuadro, el ${s.n} solo cabe en ${ln}. Piensa qué descarta eso en el resto de ${ln}.`;out.more='Ver la explicación';return out}
+   out.hl.unit=s.spots;out.hl.block=s.elim;out.hl.target=[s.cell];
+   out.text=`Técnica: candidatos encerrados. En ${bx}, el ${s.n} solo puede ir en ${ln} (casillas en amarillo). Entonces el ${s.n} no puede estar en las otras casillas de ${ln} (en azul). Con ese descarte, en la ${where(s.cell)} solo queda el ${s.digit}.`;out.place=`Colocar el ${s.digit}`;return out;
+  }
+  if(s.type==='claim'){
+   const ln=unitName(s.line),bx=unitName(s.box).replace(/^el /,'l ');   // «dentro de» + «el cuadro…» = «dentro del cuadro…»
+   if(stage===1){out.hl.unit=s.line.cells.filter(i=>!b[i]);out.text=`Mira ${ln}. En esa ${s.line.kind==='row'?'fila':'columna'}, el ${s.n} solo cabe dentro de${bx}. Piensa qué descarta eso en el resto de ese cuadro.`;out.more='Ver la explicación';return out}
+   out.hl.unit=s.spots;out.hl.block=s.elim;out.hl.target=[s.cell];
+   out.text=`Técnica: reclamo. En ${ln}, el ${s.n} solo puede ir dentro de${bx} (casillas en amarillo). Entonces el ${s.n} no puede estar en las otras casillas de ese cuadro (en azul). Con ese descarte, en la ${where(s.cell)} solo queda el ${s.digit}.`;out.place=`Colocar el ${s.digit}`;return out;
+  }
+  if(s.type==='pair'){
+   const un=unitName(s.unit),[x,y]=s.digits;
+   if(stage===1){out.hl.unit=s.unit.cells.filter(i=>!b[i]);out.text=`Mira ${un}. Hay dos casillas que solo pueden llevar los mismos dos números: una pareja. Piensa qué les quita eso a las demás.`;out.more='Ver la explicación';return out}
+   out.hl.unit=s.pair;out.hl.block=s.elim;out.hl.target=[s.cell];
+   out.text=`Técnica: pareja. En ${un}, las dos casillas en amarillo solo pueden llevar el ${x} y el ${y}, así que entre las dos se los reparten. Eso quita el ${x} y el ${y} de las demás casillas (en azul). Con ese descarte, en la ${where(s.cell)} solo queda el ${s.digit}.`;out.place=`Colocar el ${s.digit}`;return out;
   }
   // hard
   out.hl.unit=[s.cell];

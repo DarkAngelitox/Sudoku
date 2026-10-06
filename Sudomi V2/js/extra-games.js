@@ -52,7 +52,7 @@ const dTeam=p=>p%2;
 const dName=(g,p)=>(g.seats&&g.seats[p]&&g.seats[p].name)||`Jugador ${p+1}`;
 function newDomino(g,keep){
  const all=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)all.push([a,b]);shuffle(all);
- g.n=4;g.hands=[0,1,2,3].map(i=>all.slice(i*7,i*7+7));g.row=[];g.mid=0;g.sel=-1;g.passes=0;g.phase='play';g.summary=null;g.stock=[];g.first=null;g.over=false;g.winner=null;g.lastPlayer=-1;g.blocker=-1;
+ g.n=4;g.hands=[0,1,2,3].map(i=>all.slice(i*7,i*7+7));g.row=[];g.mid=0;g.sel=-1;g.passes=0;g.phase='play';g.summary=null;g.stock=[];g.first=null;g.over=false;g.winner=null;g.lastPlayer=-1;g.blocker=-1;g.bonus=[0,0];g.bonusLog=[];g.corrido='';
  g.score=keep?keep.score.slice():[0,0];g.handNo=keep?keep.handNo:1;
  if(!g.seats)g.seats=[0,1,2,3].map(i=>({name:`Jugador ${i+1}`}));
  if(keep&&keep.opener!=null){g.turn=keep.opener;g.message=`${dName(g,g.turn)} abre la mano ${g.handNo}.`}
@@ -71,7 +71,10 @@ const dFits=(g,t)=>{
  const e=dEnds(g);return t[0]===e[0]||t[1]===e[0]||t[0]===e[1]||t[1]===e[1];
 };
 const dPlayable=(g,p)=>g.hands[p].some(t=>dFits(g,t));
-function dHandEnd(g,winnerSeat,blocked){
+const DOM_BONUS=25;   // 0.3.14: premios dominicanos (capicúa y pase corrido); se suman al terminar la mano
+function dHandEnd(g,winnerSeat,blocked,capicua){
+ g.bonus=g.bonus||[0,0];g.bonusLog=g.bonusLog||[];
+ if(capicua&&winnerSeat>=0){g.bonus[dTeam(winnerSeat)]+=DOM_BONUS;g.bonusLog.push(`¡Capicúa de ${dName(g,winnerSeat)}! (+${DOM_BONUS})`)}
  const pips=g.hands.map(h=>h.reduce((s,t)=>s+dTotal(t),0)),all=pips.reduce((a,b)=>a+b,0);
  let team=-1,pts=0,txt;
  if(!blocked){team=dTeam(winnerSeat);pts=all;txt=`¡Dominó! ${dName(g,winnerSeat)} se quedó sin fichas.`;g.nextOpener=winnerSeat}
@@ -82,15 +85,23 @@ function dHandEnd(g,winnerSeat,blocked){
   else{const w=pb<pn?b:nx;team=dTeam(w);pts=pb+pn;txt=`🔒 ¡Tranque de ${dName(g,b)}! Se comparan solo ${dName(g,b)} (${pb}) y ${dName(g,nx)} (${pn}): gana ${dName(g,w)}.`;g.nextOpener=w}
  }
  if(team>=0)g.score[team]+=pts;
- g.summary={team,pts,pips,blocked,text:txt};g.phase='handend';g.fx=[];g.curtain=false;
- g.message=`${txt}${team>=0?` El equipo ${team?'B':'A'} suma ${pts}.`:''}`;
+ const prem=g.bonusLog.length?` Premios: ${g.bonusLog.join(' · ')}.`:'';
+ g.score[0]+=g.bonus[0];g.score[1]+=g.bonus[1];txt+=prem;
+ g.summary={team,pts,pips,blocked,text:txt,bonus:g.bonus.slice()};g.phase='handend';g.fx=[];g.curtain=false;
+ g.message=`${txt}${team>=0?` El equipo ${team?'B':'A'} suma ${pts}${g.bonus[team]?' + '+g.bonus[team]+' de premio':''}.`:''}`;
  if(g.score[0]>=DOM_TARGET||g.score[1]>=DOM_TARGET){
   g.over=true;g.winTeam=g.score[0]>=g.score[1]?0:1;g.winner=g.winTeam;
   g.message=`${txt} ¡El equipo ${g.winTeam?'B':'A'} gana la partida: ${g.score[0]} a ${g.score[1]}!`;
  }
 }
 // A pass: one more in a row (four = the table is blocked) and the turn goes to the next seat.
-function dPass(g,p){g.passes++;if(g.passes>=4){dHandEnd(g,-1,true);return false}g.turn=(p+1)%4;return true}
+// 0.3.14: PASE CORRIDO = después de tu ficha pasan los otros tres y te vuelve a tocar (y tú sí puedes jugar): premio para tu pareja
+function dPass(g,p){
+ g.passes++;if(g.passes>=4){dHandEnd(g,-1,true);return false}
+ g.turn=(p+1)%4;
+ if(g.passes===3&&g.lastPlayer>=0&&g.turn===g.lastPlayer&&dPlayable(g,g.turn)){const tm=dTeam(g.turn);g.bonus=g.bonus||[0,0];g.bonus[tm]+=DOM_BONUS;g.bonusLog=(g.bonusLog||[]).concat(`Pase corrido de ${dName(g,g.turn)} (+${DOM_BONUS})`);g.corrido=dName(g,g.turn)}
+ return true;
+}
 // After every change: the computer players pass by themselves when they cannot move; a person has to press the "Pasar" button.
 function dSettle(g){
  if(!g.over&&g.phase==='play'&&g.row.length&&[0,1,2,3].every(p=>!dPlayable(g,p))){dHandEnd(g,-1,true);return}
@@ -99,6 +110,7 @@ function dSettle(g){
   passed.push(g.turn);if(!dPass(g,g.turn))return;
  }
  if(passed.length)g.message+=` ${passed.map(p=>dName(g,p)).join(' y ')} ${passed.length>1?'pasaron':'pasó'}.`;
+ if(g.corrido&&!g.over&&g.phase==='play'){g.message+=` ¡Pase corrido de ${g.corrido}! +${DOM_BONUS} de premio.`;g.corrido=''}
 }
 function applyDomino(g,p,a){
  if(g.over)return;
@@ -120,19 +132,34 @@ function applyDomino(g,p,a){
   if((side==='L'&&!fitL)||(side==='R'&&!fitR))return;
   if(side!=='L'&&side!=='R')side=fitR?'R':'L';
  }
+ // 0.3.14: CAPICÚA = ganar la mano con una ficha (que no sea doble) que encaja en los DOS extremos de la mesa
+ const cap=!!e&&h.length===1&&e[0]!==e[1]&&t[0]!==t[1]&&((t[0]===e[0]&&t[1]===e[1])||(t[0]===e[1]&&t[1]===e[0]));
  h.splice(a.i,1);
  if(!e){g.row.push([t[0],t[1]]);g.mid=0;g.first=null}                      // g.mid = index of the opening tile (the table layout snakes out from it in both directions)
  else if(side==='L'){g.row.unshift(t[1]===e[0]?[t[0],t[1]]:[t[1],t[0]]);g.mid=(g.mid|0)+1}
  else g.row.push(t[0]===e[1]?[t[0],t[1]]:[t[1],t[0]]);
  g.sel=-1;g.fx=[e?side:'R'];g.passes=0;g.lastPlayer=p;g.ts=(g.ts|0)+1;
- if(!h.length){dHandEnd(g,p,false);return}
+ if(!h.length){dHandEnd(g,p,false,cap);return}
  g.turn=(p+1)%4;g.message=`${dName(g,p)} jugó ${t[0]}|${t[1]}.`;dSettle(g);dCurtain(g);
 }
 
 /* =====================================================================
  * MEMORIA DE ANIMALES — a match keeps the turn, a miss passes it.
  * ===================================================================== */
-const ANIMALS=['🐶','🐱','🦊','🐼','🐸','🦁','🐢','🦉'];
+// 0.3.15 (V2, Fase 5): los animales están DIBUJADOS (antes eran emojis, que se ven distintos en cada teléfono). El valor de la ficha es el nombre.
+const ANIMALS=['perro','gato','zorro','panda','rana','león','tortuga','búho'];
+const EYES=(x1,x2,y,c)=>`<circle cx="${x1}" cy="${y}" r="2.200" fill="${c||'#1c2a3f'}"/><circle cx="${x2}" cy="${y}" r="2.200" fill="${c||'#1c2a3f'}"/>`;
+const MEM_ART={
+ perro:`<ellipse cx="8" cy="19" rx="5" ry="10" fill="#7a4a21"/><ellipse cx="32" cy="19" rx="5" ry="10" fill="#7a4a21"/><circle cx="20" cy="21" r="13" fill="#c98a4b"/><ellipse cx="20" cy="27" rx="7" ry="5.500" fill="#f3dcc0"/>${EYES(15,25,19)}<ellipse cx="20" cy="24.500" rx="2.600" ry="1.900" fill="#1c2a3f"/><path d="M18 29h4v3a2 2 0 0 1-4 0z" fill="#e2566b"/>`,
+ gato:`<path d="M8 17L9 4l9 7zM32 17L31 4l-9 7z" fill="#8d95a6"/><circle cx="20" cy="22" r="13" fill="#aab1c0"/>${EYES(15,25,20,'#2e7d32')}<path d="M18.500 25h3l-1.500 2z" fill="#e2566b"/><path d="M20 27v2M9 25h6M9 28l6-1M31 25h-6M31 28l-6-1" stroke="#1c2a3f" stroke-width=".9" stroke-linecap="round" fill="none"/>`,
+ zorro:`<path d="M7 18L8 3l10 9zM33 18L32 3l-10 9z" fill="#e8742a"/><path d="M6 17c4-6 24-6 28 0-2 12-9 19-14 19S8 29 6 17z" fill="#f08a3c"/><path d="M11 24c3 1 6 5 9 12 3-7 6-11 9-12-2 8-6 12-9 12s-7-4-9-12z" fill="#fff"/>${EYES(14.500,25.500,20)}<circle cx="20" cy="33" r="2" fill="#1c2a3f"/>`,
+ panda:`<circle cx="9" cy="9" r="5.500" fill="#1c2a3f"/><circle cx="31" cy="9" r="5.500" fill="#1c2a3f"/><circle cx="20" cy="22" r="14" fill="#fff" stroke="#d5dce8" stroke-width=".8"/><ellipse cx="14" cy="20" rx="4" ry="5" fill="#1c2a3f" transform="rotate(20 14 20)"/><ellipse cx="26" cy="20" rx="4" ry="5" fill="#1c2a3f" transform="rotate(-20 26 20)"/>${EYES(14.500,25.500,20,'#fff')}<ellipse cx="20" cy="26.500" rx="2.400" ry="1.700" fill="#1c2a3f"/><path d="M17 30c2 2 4 2 6 0" stroke="#1c2a3f" stroke-width="1" fill="none" stroke-linecap="round"/>`,
+ rana:`<circle cx="12" cy="11" r="6" fill="#43a047"/><circle cx="28" cy="11" r="6" fill="#43a047"/><ellipse cx="20" cy="23" rx="15" ry="12" fill="#4caf50"/><circle cx="12" cy="11" r="3.600" fill="#fff"/><circle cx="28" cy="11" r="3.600" fill="#fff"/>${EYES(12,28,11)}<path d="M10 25c6 6 14 6 20 0" stroke="#1b5e20" stroke-width="1.800" fill="none" stroke-linecap="round"/><circle cx="9" cy="24" r="2" fill="#f48fb1" opacity=".7"/><circle cx="31" cy="24" r="2" fill="#f48fb1" opacity=".7"/>`,
+ león:`<circle cx="20" cy="20" r="17" fill="#a85f1c"/><g fill="#8a4a12"><circle cx="20" cy="3.500" r="3"/><circle cx="32" cy="8" r="3"/><circle cx="36.500" cy="20" r="3"/><circle cx="32" cy="32" r="3"/><circle cx="20" cy="36.500" r="3"/><circle cx="8" cy="32" r="3"/><circle cx="3.500" cy="20" r="3"/><circle cx="8" cy="8" r="3"/></g><circle cx="20" cy="21" r="11" fill="#f2b84b"/>${EYES(15.500,24.500,19)}<path d="M18 23.500h4l-2 2.500z" fill="#7a3b10"/><path d="M20 26v1.500m0 0c-1.500 2-3.500 2-4.500 .5m4.500-.5c1.500 2 3.500 2 4.500 .5" stroke="#7a3b10" stroke-width="1" fill="none" stroke-linecap="round"/>`,
+ tortuga:`<ellipse cx="9" cy="30" rx="4" ry="3" fill="#7cb342"/><ellipse cx="31" cy="30" rx="4" ry="3" fill="#7cb342"/><circle cx="33" cy="20" r="5.500" fill="#8bc34a"/><circle cx="35" cy="18.500" r="1.300" fill="#1c2a3f"/><path d="M4 28a14 14 0 0 1 28 0z" fill="#2e7d32"/><path d="M11 28l3-9h8l3 9M14 19l4-4 4 4M18 28v-9" stroke="#a5d6a7" stroke-width="1.300" fill="none" stroke-linejoin="round"/>`,
+ búho:`<path d="M9 9l-2-6 7 3zM31 9l2-6-7 3z" fill="#6d4c41"/><ellipse cx="20" cy="22" rx="14" ry="15" fill="#8d6e63"/><ellipse cx="20" cy="28" rx="8" ry="8" fill="#d7ccc8"/><circle cx="13.500" cy="16" r="6" fill="#fff"/><circle cx="26.500" cy="16" r="6" fill="#fff"/><circle cx="13.500" cy="16" r="3" fill="#ffb300"/><circle cx="26.500" cy="16" r="3" fill="#ffb300"/>${EYES(13.500,26.500,16)}<path d="M18 20h4l-2 4z" fill="#ef6c00"/>`
+};
+const memArt=v=>MEM_ART[v]?`<svg viewBox="0 0 40 40" aria-hidden="true">${MEM_ART[v]}</svg>`:v;
 function newMemory(g){
  g.tiles=shuffle(ANIMALS.flatMap(v=>[v,v])).map((v,i)=>({v,id:i,gone:false,owner:-1}));
  g.open=[];g.pairs=[0,0];g.locked=false;g.message='Voltea dos fichas iguales.';
@@ -460,10 +487,22 @@ function newRummy(g){
  g.melds=[[],[]];g.drawn=false;g.fromDiscard=null;g.sel=[];g.reshuffles=0;
  g.message='Roba una carta, baja combinaciones si puedes y descarta una.';
 }
+// 0.3.19: el Rummy se juega A PUNTOS en varias manos. Quien gana una mano suma las cartas sueltas del rival (o la diferencia, si se acabó
+// el mazo); el primero en llegar a RUMMY_TARGET gana la partida. g.rscore = marcador, g.rhand = número de mano.
+const RUMMY_TARGET=100;
+function rHandEnd(g,w,pts,why){
+ g.rscore=g.rscore||[0,0];if(w>=0)g.rscore[w]+=pts;
+ const sc=`${g.rscore[0]} a ${g.rscore[1]}`;
+ if(w>=0&&g.rscore[w]>=RUMMY_TARGET){win(g,w,`${why} · marcador final ${sc}`);return}
+ const keep=g.rscore.slice(),hand=(g.rhand||1)+1;
+ newRummy(g);g.rscore=keep;g.rhand=hand;g.turn=w>=0?1-w:g.turn;
+ g.message=`${why}${w>=0?` Jugador ${w+1} suma ${pts}.`:' Nadie suma.'} Marcador: ${sc} (se juega a ${RUMMY_TARGET}). Mano ${hand}: empieza el Jugador ${g.turn+1}.`;
+}
 function rEndDeadwood(g,why){
  const d=g.hands.map(h=>h.reduce((s,c)=>s+rPoints(c),0)),w=sideWinner(d[1],d[0]);   // fewer leftover points wins
- win(g,w,`${why} · cartas sueltas: J1 ${d[0]} / J2 ${d[1]}${w<0?' · empate':''}`);
+ rHandEnd(g,w,Math.abs(d[0]-d[1]),`${why} (cartas sueltas: J1 ${d[0]} / J2 ${d[1]}).`);
 }
+const rOut=(g,p)=>rHandEnd(g,p,g.hands[1-p].reduce((s,c)=>s+rPoints(c),0),`¡Rummy! El Jugador ${p+1} se quedó sin cartas.`);
 function applyRummy(g,p,a){
  if(g.over||p!==g.turn)return;
  const h=g.hands[p];
@@ -494,7 +533,7 @@ function applyRummy(g,p,a){
    const ids=new Set(cs.map(c=>c.id));g.hands[p]=h.filter(c=>!ids.has(c.id));
    g.melds[p].push({id:uid(),kind,cards:kind==='run'?sortRun(cs):cs});g.fx=cs.map(c=>c.id);g.sel=[];
    g.message=`Jugador ${p+1} bajó ${kind==='run'?'una escalera':'un grupo'}.`;
-   if(!g.hands[p].length)win(g,p,`¡Rummy! Jugador ${p+1} se quedó sin cartas · rival suma ${g.hands[1-p].reduce((s,c)=>s+rPoints(c),0)}`);
+   if(!g.hands[p].length)rOut(g,p);
    break;
   }
   case 'lay':{
@@ -505,7 +544,7 @@ function applyRummy(g,p,a){
    if(rKind(cs)!==meld.kind){g.message='Esa carta no encaja en esa bajada.';return}
    meld.cards=meld.kind==='run'?sortRun(cs):cs;g.hands[p]=h.filter(c=>c.id!==card.id);g.fx=[card.id];g.sel=[];
    g.message='Carta agregada a la bajada.';
-   if(!g.hands[p].length)win(g,p,`¡Rummy! Jugador ${p+1} se quedó sin cartas · rival suma ${g.hands[1-p].reduce((s,c)=>s+rPoints(c),0)}`);
+   if(!g.hands[p].length)rOut(g,p);
    break;
   }
   case 'discard':{
@@ -513,7 +552,7 @@ function applyRummy(g,p,a){
    const c=h[a.i];
    if(c.id===g.fromDiscard){g.message='No puedes devolver la carta que acabas de tomar del descarte.';return}
    h.splice(a.i,1);g.discard.push(c);g.drawn=false;g.fromDiscard=null;g.sel=[];g.fx=[c.id];
-   if(!h.length)win(g,p,`¡Rummy! Jugador ${p+1} se quedó sin cartas · rival suma ${g.hands[1-p].reduce((s,x)=>s+rPoints(x),0)}`);
+   if(!h.length)rOut(g,p);
    else{pass(g);g.message=`Turno del Jugador ${g.turn+1}: roba una carta.`}
    break;
   }
@@ -711,7 +750,7 @@ function drawMemory(g,ctx,I){
   const up=t.gone||g.open.includes(i),cls=['mcard'];
   if(up)cls.push('up');if(t.gone)cls.push('own'+t.owner);if(g.fx.includes(i))cls.push(t.gone?'pairpop':'flip');
   const dis=!I.mine||up||g.locked||g.open.length>=2;
-  return `<button class="${cls.join(' ')}" data-a="tile" data-i="${i}" ${dis?'disabled':''} aria-label="${up?t.v:'Ficha oculta'}"><span class="mc-back">?</span><span class="mc-face">${up&&t.v?t.v:''}</span></button>`;
+  return `<button class="${cls.join(' ')}" data-a="tile" data-i="${i}" ${dis?'disabled':''} aria-label="${up?t.v:'Ficha oculta'}"><span class="mc-back">?</span><span class="mc-face">${up&&t.v?memArt(t.v):''}</span></button>`;
  }).join('');
  const cont=g.locked&&I.mine?`<button class="arc-btn pulse" data-a="continue">Ocultar y pasar turno</button><small class="arc-sub">Se ocultan solas en unos segundos.</small>`:'';
  return `${msg(g)}<div class="mem-grid">${cards}</div><div class="arc-actions">${cont}</div>`;
@@ -898,7 +937,7 @@ const infoFor={
  blackjack:g=>[0,1].map(p=>g.over?`${score21(g.hands[p])} pts`:g.stood[p]?'plantado':pl(g.hands[p].length,'carta')),
  poker:g=>[0,1].map(p=>g.over?pokerName(rankPoker(g.hands[p])):g.stage==='swap'&&g.turn>p?'ya cambió':'5 cartas'),
  escoba:g=>[0,1].map(p=>`${g.total[p]} pts · 🧹${g.escobas[p]}`),
- rummy:g=>[0,1].map(p=>`${pl(g.hands[p].length,'carta')} · ${pl(g.melds[p].length,'bajada')}`),
+ rummy:g=>[0,1].map(p=>`${g.rscore?g.rscore[p]:0} pts · ${pl(g.hands[p].length,'carta')}`),
  slide:g=>[0,1].map(p=>g.phase==='play'||g.over?`${slDoneCount(g,p)}/6 columnas`:'—')
 };
 const drawers={slide:drawSlide,domino:drawDomino,memory:drawMemory,dotsboxes:drawDots,stop:drawStop,mahjong:drawMahjong,blackjack:drawBlackjack,poker:drawPoker,escoba:drawEscoba,rummy:drawRummy};

@@ -2859,6 +2859,122 @@ html[data-theme="dark"] .ck-photo-btns button:first-child{background:#1f5fc4;col
 .pc-note.war{background:#ffe9e9;color:#8f1016}
 .pc-opt.hidden,.pc-duel.hidden,.pc-score.hidden,.pc-choice.hidden{display:none}
 html[data-theme="dark"] .pc-link{color:#9fc0ff}
+/* 0.3.23 (V2, Fase 6.3): frases rapidas en las partidas online de dos - boton flotante, lista y globo */
+.emo-box{position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:45;display:grid;justify-items:end;gap:8px}
+.emo-box.hidden{display:none}
+.emo-btn{width:52px;height:52px;border:0;border-radius:50%;background:linear-gradient(180deg,#2a7de1,#0b4fb3);color:#fff;font-size:24px;box-shadow:0 4px 0 #083a85,0 8px 16px #0b3d9140;cursor:pointer}
+.emo-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #083a85}
+.emo-panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:min(280px,82vw);padding:10px;border-radius:18px;background:#fff;box-shadow:0 14px 40px #07172b55;border:1px solid #dce4ef}
+.emo-panel.hidden{display:none}
+.emo-panel button{min-height:42px;padding:6px 8px;border:1px solid #dce4ef;border-radius:12px;background:#f5f8fc;color:#203653;font-size:13.5px;font-weight:800;cursor:pointer}
+.emo-bubble{position:fixed;left:50%;top:calc(84px + env(safe-area-inset-top,0px));z-index:9200;transform:translate(-50%,-14px);display:grid;justify-items:center;gap:1px;max-width:86vw;padding:8px 16px;border-radius:18px;background:#10213b;color:#fff;box-shadow:0 10px 30px #0006;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+.emo-bubble.show{opacity:1;transform:translate(-50%,0)}
+.emo-bubble.mine{background:#0b3d91}
+.emo-bubble small{font-size:11.5px;opacity:.75;font-weight:800}.emo-bubble b{font-size:19px;line-height:1.2;text-align:center}
+html[data-theme="dark"] .emo-panel{background:#16223a;border-color:#26344f}html[data-theme="dark"] .emo-panel button{background:#101a2e;border-color:#26344f;color:#e6edf9}
+/* 0.3.20: golpe del disparo en Batalla naval - la casilla se ilumina y rebota un instante al recibir el tiro, antes de la salpicadura o la llama */
+.nv-cell.fx-splash,.nv-cell.fx-boom{animation:nvImpact .38s cubic-bezier(.2,1.6,.4,1);z-index:5}
+@keyframes nvImpact{0%{transform:scale(1.7);filter:brightness(2.4)}60%{transform:scale(.92)}100%{transform:none;filter:none}}
+html[data-fx="off"] .nv-cell.fx-splash,html[data-fx="off"] .nv-cell.fx-boom{animation:none}
+/* 0.3.18 (V2, Fase 5.1): iconos dibujados de «Contra la maquina / En este dispositivo / Multijugador» */
+.mi{display:inline-grid;place-items:center;width:26px;height:26px;margin-right:8px;border-radius:8px;background:#e8f1ff;color:#0b3d91;vertical-align:-7px;font-style:normal}
+.mi svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.900;stroke-linecap:round;stroke-linejoin:round}
+html[data-theme="dark"] .mi{background:#1c2c4a;color:#9fc0ff}
+/* 0.3.17: en la votacion de STOP, marca verde en las respuestas que estan en el diccionario del juego */
+.sp-ok{flex:none;display:inline-grid;place-items:center;width:18px;height:18px;margin-left:4px;border-radius:50%;background:#12824a;color:#fff;font-size:11px;font-weight:900;text-decoration:none}
+/* 0.3.15 (V2, Fase 5): animales de Memoria dibujados (SVG) */
+.mc-face svg{display:block;width:78%;height:78%;margin:auto}
+/* 0.3.12: casilla «Los barcos no pueden tocarse» del menu de Batalla naval */
+.nv-check{display:flex;align-items:center;gap:10px;padding:10px 13px;border:2px solid #cfd8e6;border-radius:14px;background:#fff;color:#10213b;font-size:14px;font-weight:800;cursor:pointer}
+.nv-check input{width:20px;height:20px;accent-color:#0b3d91}
+/* 0.3.11 (V2, Fase 2.2): PANTALLA DE RESULTADO unica (js/result.js). La tarjeta de fin de los juegos sencillos (.game-end-card) usa el mismo dibujo y botones. */
+.res-overlay{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:18px;background:#091a30b8;-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);animation:resFade .2s ease-out}
+.res-card{width:min(400px,100%);padding:22px 20px 14px;border-radius:26px;background:#fff;color:#10213b;text-align:center;box-shadow:0 24px 80px #07172b66;animation:resPop .28s cubic-bezier(.2,1.5,.4,1)}
+.res-ic{width:84px;height:84px;margin:0 auto 6px;display:grid;place-items:center;border-radius:50%;background:#fff6d6}
+.res-ic svg{width:58px;height:58px}
+.res-card.lose .res-ic{background:#eef1f6}.res-card.draw .res-ic{background:#eef4ff}.res-card.end .res-ic{background:#ffecec}
+.res-eyebrow{margin:0 0 4px;color:#d62027;font-size:11px;font-weight:900;letter-spacing:.14em}
+.res-card h3{margin:0 0 6px;font-size:25px;line-height:1.15}
+.res-card strong{display:block;margin:0 0 4px;color:#0b3d91;font-size:15px}
+.res-card small{display:block;color:#5a6880;font-size:13px}
+.res-btns{display:grid;gap:8px;margin-top:16px}
+.res-btns button{min-height:46px;padding:10px 12px;border:1px solid #dce4ef;border-radius:14px;background:#f5f8fc;color:#203653;font-size:14px;font-weight:850;cursor:pointer}
+.res-btns button.res-main{border:0;background:linear-gradient(180deg,#2a7de1,#0b4fb3);color:#fff;font-size:16px;box-shadow:0 4px 0 #083a85}
+.res-btns button:active{transform:translateY(2px)}
+.res-peek{margin-top:10px;border:0;background:none;color:#5a6880;font-size:13px;font-weight:800;text-decoration:underline;cursor:pointer}
+.res-note{min-height:1.2em;margin:4px 0 0;font-size:12.5px;color:#12824a;font-weight:800}
+@keyframes resFade{from{opacity:0}to{opacity:1}}
+@keyframes resPop{from{transform:scale(.8);opacity:0}to{transform:none;opacity:1}}
+.game-end-card .res-ic{margin-bottom:10px}
+.game-end-card>p{font-size:11px}.game-end-card>small{font-size:13px}
+.game-end-card button{min-height:46px;font-size:14px;border-radius:14px}
+.game-end-card #playAgain:not(:disabled){border:0;background:linear-gradient(180deg,#2a7de1,#0b4fb3);color:#fff;font-size:16px;box-shadow:0 4px 0 #083a85}
+html[data-theme="dark"] .res-card{background:#16223a;color:#e6edf9}html[data-theme="dark"] .res-card strong{color:#9fc0ff}html[data-theme="dark"] .res-card small,html[data-theme="dark"] .res-peek{color:#93a3bd}
+html[data-theme="dark"] .res-btns button{background:#101a2e;border-color:#26344f;color:#e6edf9}
+html[data-fx="off"] .res-overlay,html[data-fx="off"] .res-card{animation:none}
+/* 0.3.10 (V2): el Sudoku tiene un cuarto boton («Auto», notas automaticas): los cuatro caben en una sola fila */
+#gameScreen .mode-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+#gameScreen .mode-row .tool{min-width:0;padding-left:4px;padding-right:4px;font-size:13px;white-space:nowrap}
+/* 0.3.9 (V2, Fase 7): POKER Texas Hold'em (js/poker.js) - usa las cartas .bj-card del Blackjack en tres tamanos */
+.pk .bj-card{animation:none}
+.bj-card.sm{width:30px;height:44px;margin-left:-10px;border-radius:5px}.bj-card.sm b{font-size:12px;left:3px;top:2px}.bj-card.sm i{font-size:15px;margin-top:8px}
+.bj-card.md{width:44px;height:64px;margin-left:4px;border-radius:7px}.bj-card.md:first-child{margin-left:0}.bj-card.md b{font-size:15px}.bj-card.md i{font-size:23px}
+.pk-table{position:relative;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-areas:"s1 s2 s3" "mid mid mid" ". s0 .";gap:6px 4px;align-items:center;max-width:560px;margin:0 auto;padding:12px 6px;border-radius:26px;background:radial-gradient(ellipse at 50% 40%,#1e8a5f,#0e5c3f 72%);box-shadow:inset 0 0 0 4px #0a4631,inset 0 0 0 6px #c9a24a,0 10px 22px #0004;color:#fff}
+.pk-seat{position:relative;display:grid;justify-items:center;gap:3px;min-width:0;padding:5px 3px;border-radius:14px;border:2px solid transparent;font-size:11.5px}
+.pk-seat.s0{grid-area:s0}.pk-seat.s1{grid-area:s1}.pk-seat.s2{grid-area:s2}.pk-seat.s3{grid-area:s3}
+.pk-seat.turn{border-color:#ffd54a;background:#ffffff18}.pk-seat.out{opacity:.45}.pk-seat.won{border-color:#ffd54a;background:#ffd54a33}
+.pk-who{display:grid;justify-items:center;line-height:1.15;max-width:100%}.pk-who span{font-size:22px;line-height:1}
+.pk-who b{font-size:12px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pk-who u{text-decoration:none;display:inline-block;width:15px;height:15px;border-radius:50%;background:#fff;color:#10213b;font-size:10px;line-height:15px;text-align:center}
+.pk-who i{font-style:normal;color:#ffe082;font-weight:900}
+.pk-hole{display:flex;min-height:44px}
+.pk-seat em{font-style:normal;padding:1px 7px;border-radius:99px;background:#00000055;font-weight:800;white-space:nowrap}
+.pk-seat s{text-decoration:none;padding:1px 8px;border-radius:99px;background:#ffd54a;color:#4a3200;font-weight:900}
+.pk-seat small{font-size:11px;font-weight:900;color:#ffe082}
+.pk-mid{grid-area:mid;display:grid;justify-items:center;gap:4px;min-width:0}
+.pk-board{display:flex;justify-content:center}
+.pk-table .pk-board .bj-card.md{width:clamp(30px,10.5vw,44px);height:clamp(44px,15.4vw,64px);margin-left:3px}
+.pk-pot{margin:0;font-size:12.5px;font-weight:800}.pk-pot b{color:#ffe082;font-size:16px}
+.pk-me{display:flex;align-items:center;justify-content:center;gap:14px;max-width:560px;margin:10px auto 8px;color:#10213b}
+.pk-mycards{display:flex}
+.pk-me small{display:block;font-size:12px;font-weight:800;opacity:.7}.pk-me b{display:block;font-size:22px;color:#b26a00}.pk-me i{display:inline-block;font-style:normal;margin-top:2px;padding:1px 9px;border-radius:99px;background:#e3f4f0;color:#075246;font-size:12.5px;font-weight:900}
+.pk .bj-msg{max-width:560px;margin:0 auto;background:#e8f1ff;color:#0b3d91;font-size:13.5px}.pk .bj-msg.win{background:#ffd54a;color:#4a3200}.pk .bj-msg.lose{background:#8f1016;color:#fff}
+.pk-raise{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px}
+.pk-raise span{font-size:13px;font-weight:800}
+.pk-raise button{padding:9px 13px;border:2px solid #0b3d91;border-radius:11px;background:#fff;color:#0b3d91;font-size:13.5px;font-weight:900;cursor:pointer}
+.pk-raise button.all{background:#d62027;border-color:#a3131a;color:#fff}
+html[data-theme="dark"] .pk-me{color:#e6edf9}
+/* 0.3.8 (V2, Fase 7): BLACKJACK completo (js/blackjack.js) - mesa de fieltro, cartas dibujadas y fichas de juego */
+.bj-bank{display:flex;align-items:baseline;justify-content:center;gap:8px;margin:0 auto 8px;color:#10213b;font-size:13px;font-weight:800}
+.bj-bank b{font-size:22px;color:#b26a00}.bj-bank b::before{content:"";display:inline-block;width:14px;height:14px;margin-right:5px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe082,#f9a825 60%,#b26a00);vertical-align:-1px}
+.bj-bank i{font-style:normal;padding:2px 9px;border-radius:99px;background:#fff0c2;color:#7a5200}
+.bj-table{display:grid;gap:10px;max-width:560px;margin:0 auto;padding:14px 10px;border-radius:22px;background:radial-gradient(ellipse at 50% 0,#1e8a5f,#0e5c3f 70%);box-shadow:inset 0 0 0 4px #0a4631,inset 0 0 0 6px #c9a24a,0 10px 22px #0004;color:#fff}
+.bj-side{display:grid;justify-items:center;gap:6px}.bj-side small{font-size:12.5px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;opacity:.85}
+.bj-cards{display:flex;justify-content:center;min-height:76px}
+.bj-card{position:relative;width:52px;height:76px;margin-left:-16px;border-radius:8px;background:#fff;color:#10213b;box-shadow:0 3px 8px #0007;display:grid;place-items:center;animation:bjIn .28s ease-out}
+.bj-card:first-child{margin-left:0}
+.bj-card b{position:absolute;left:5px;top:3px;font-size:17px;font-weight:900;line-height:1}.bj-card i{font-style:normal;font-size:28px;line-height:1}
+.bj-card.red{color:#d62027}
+.bj-card.back{background:repeating-linear-gradient(45deg,#0b3d91 0 6px,#1565c0 6px 12px);box-shadow:inset 0 0 0 3px #fff,0 3px 8px #0007}
+.bj-card.ghost{background:#ffffff14;box-shadow:inset 0 0 0 2px #ffffff40;animation:none}
+@keyframes bjIn{from{transform:translateY(-24px) rotate(-8deg);opacity:0}to{transform:none;opacity:1}}
+.bj-msg{min-height:1.6em;padding:6px 12px;border-radius:12px;background:#00000038;text-align:center;font-weight:900;font-size:14.5px}
+.bj-msg.win{background:#ffd54a;color:#4a3200}.bj-msg.lose{background:#8f1016}
+.bj-hands{display:flex;flex-wrap:wrap;justify-content:center;gap:14px}
+.bj-hand{display:grid;justify-items:center;gap:4px;padding:6px 8px;border-radius:14px;border:2px solid transparent}
+.bj-hand.on{border-color:#ffd54a;background:#ffffff14}
+.bj-hand p{display:flex;align-items:center;gap:6px;margin:0;font-size:12.5px}.bj-hand p b{font-size:17px}.bj-hand p span{opacity:.85}
+.bj-hand em{font-style:normal;padding:1px 8px;border-radius:99px;background:#fff;color:#10213b;font-weight:900}
+.bj-hand.win em,.bj-hand.bj em{background:#ffd54a;color:#4a3200}.bj-hand.lose em,.bj-hand.bust em{background:#8f1016;color:#fff}
+.bj-ctrl{display:grid;gap:8px;max-width:560px;margin:10px auto 0}
+.bj-row{display:flex;gap:8px;justify-content:center}.bj-row .arc-btn{flex:1 1 0;min-width:0}
+.bj-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bj-chips{display:flex;justify-content:center;gap:10px}
+.bj-chip{width:58px;height:58px;border-radius:50%;border:5px dashed #fff;color:#fff;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 4px 0 #0003,inset 0 0 0 3px #0002;transition:transform .1s}
+.bj-chip:active{transform:translateY(3px)}.bj-chip:disabled{opacity:.35;cursor:not-allowed}
+.bj-chip.c10{background:#1565c0}.bj-chip.c25{background:#2e7d32}.bj-chip.c50{background:#d62027}.bj-chip.c100{background:#10213b}
+.bj-hint{margin:0;text-align:center;font-size:13px;opacity:.8}
+html[data-theme="dark"] .bj-bank{color:#e6edf9}
+html[data-fx="off"] .bj-card{animation:none}
 /* 0.3.7: Perfil y Amigos como PAGINA a pantalla completa, con la barra de abajo a la vista (body.tab-page lo pone js/tabbar.js).
    Son las mismas pantallas de siempre (.tut): solo se les quita el fondo oscuro, la tarjeta flotante y la X, y se les deja sitio abajo para la barra. */
 body.tab-page #profileScreen,body.tab-page #friendsScreen,body.tab-page #friendsNotifs{align-items:stretch;padding:0 0 calc(62px + env(safe-area-inset-bottom,0px));background:radial-gradient(ellipse at 50% 0,#fff 0,#f4f7fc 55%,#eaf0f8 100%);-webkit-backdrop-filter:none;backdrop-filter:none}
