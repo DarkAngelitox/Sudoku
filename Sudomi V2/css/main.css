@@ -2859,6 +2859,15 @@ html[data-theme="dark"] .ck-photo-btns button:first-child{background:#1f5fc4;col
 .pc-note.war{background:#ffe9e9;color:#8f1016}
 .pc-opt.hidden,.pc-duel.hidden,.pc-score.hidden,.pc-choice.hidden{display:none}
 html[data-theme="dark"] .pc-link{color:#9fc0ff}
+/* 0.3.32 (V2): Mesa 3D - las fichas de tu mano con tamano fijo (en iPhone a veces salian sin ancho y se "perdian") y mas borrosas al estar borracho */
+.d3-myrack{gap:3px;padding-left:4px;padding-right:4px}
+.d3-myrack .d3-my{flex:0 0 auto;width:calc((100% - 18px)/7);max-width:46px;height:auto;aspect-ratio:1/2;line-height:0}
+.d3-myrack .d3-my svg{width:100%;height:100%}
+.d3-myrack.blur .d3-my svg{filter:blur(11px)}   /* 0.3.33 (dueno): super borrosas, que no se lean los puntos */
+.d3-myrack.blur .d3-my{animation:d3TileDrunk 1.300s ease-in-out infinite alternate}
+.d3-myrack.blur .d3-my:nth-child(2n){animation-delay:-.600s}
+@keyframes d3TileDrunk{from{translate:0 -3px;rotate:-4deg}to{translate:0 3px;rotate:4deg}}
+@media(prefers-reduced-motion:reduce){.d3-myrack.blur .d3-my{animation:none}}
 /* 0.3.31 (V2): Mesa 3D - escenas intercambiables (patio, colmado dibujado y fotos desenfocadas) */
 .d3-bg{position:absolute;inset:0;z-index:0}
 .d3-bg svg{display:block;width:100%;height:100%}
@@ -2950,7 +2959,7 @@ html[data-theme="dark"] .pc-link{color:#9fc0ff}
 .d3-my.no{filter:brightness(.82);cursor:default}
 .d3-my.picked{transform:translateY(-20px)}.d3-my.lifted{opacity:.2}
 .d3.dragging .d3-my{cursor:grabbing}
-.d3-myrack.blur .d3-my svg{filter:blur(2px)}
+.d3-myrack.blur .d3-my svg{filter:blur(11px)}
 .d3.drunk .d3-stage{animation:d3Sway 2.400s ease-in-out infinite}
 @keyframes d3Sway{0%,100%{transform:rotate(-2.500deg) translateX(-5px)}50%{transform:rotate(2.500deg) translateX(5px)}}
 @media(max-height:700px){.d3{height:430px}.d3-fig{width:96px}.d3-fig.top{margin-left:-48px}}

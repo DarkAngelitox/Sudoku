@@ -69,7 +69,7 @@
  /* ---- un jugador sentado: silla plástica blanca + cuerpo de palitos + cabeza con su avatar ---- */
  function figure(p,pos,o,H){
   const slats=[44,52,60,68,76].map(x=>`<path d="M${x} 58V102" stroke="#d3cebe" stroke-width="3" stroke-linecap="round"/>`).join('');
-  const head=o.drunk?FACES[p%FACES.length]:`<text x="60" y="45" text-anchor="middle" font-size="29">${H.esc(o.avatar)}</text>`;
+  const head=o.face?FACES[p%FACES.length]:`<text x="60" y="45" text-anchor="middle" font-size="29">${H.esc(o.avatar)}</text>`;
   return `<div class="d3-fig ${pos}${o.turn?' turn':''}${o.drunk?' drunk':''}${o.reach?' reach':''}${o.sip?' sip':''}${o.won?' won':''}" data-seat="${p}">
    <svg viewBox="0 0 120 150" aria-hidden="true">
     <g class="d3-chair"><path d="M30 122V60q0-16 16-16h28q16 0 16 16v62" fill="#f6f3ea" stroke="#b9b4a3" stroke-width="2.500"/>${slats}<rect x="22" y="108" width="76" height="13" rx="6" fill="#fdfbf5" stroke="#b9b4a3" stroke-width="2.500"/><path d="M28 121v26M92 121v26" stroke="#d9d4c5" stroke-width="6" stroke-linecap="round"/></g>
@@ -113,13 +113,15 @@
    </div></div>`;
   // ----- los jugadores -----
   const fig=(p,pos,label)=>{const s=(g.seats&&g.seats[p])||{name:`Jugador ${p+1}`};
-   return figure(p,pos,{name:s.name,avatar:s.avatar||(s.bot?'🤖':'🙂'),count:(g.hands[p]||[]).length,label,turn:g.turn===p&&playing,drunk:dr[p]>0,reach:played===p,sip:sipBy===p,won:g.over&&H.dTeam(p)===g.winTeam,lv:dr[p]>0?0:(H.D3_SIPS-sips[p])/H.D3_SIPS},H)};
+   return figure(p,pos,{name:s.name,avatar:s.avatar||(s.bot?'🤖':'🙂'),count:(g.hands[p]||[]).length,label,turn:g.turn===p&&playing,drunk:dr[p]>0,face:dr[p]>0||dr[me]>0,reach:played===p,sip:sipBy===p,won:g.over&&H.dTeam(p)===g.winTeam,lv:(H.D3_SIPS-sips[p])/H.D3_SIPS},H)};   // face: cara de borracho — la del que está borracho, y TODAS cuando el borracho eres tú (así lo ves tú)
   const bubbles=seen.bubbles.map(b=>`<div class="d3-bub ${posOf(b.p)}" style="animation-delay:-${((now-b.at)/1000).toFixed(2)}s">${H.esc(b.text)}</div>`).join('');
   // ----- tu atril, tu vaso y tu mano -----
+  // 0.3.32: las fichas de tu mano van ordenadas (por el número más alto y luego el otro) con la propiedad CSS «order»; data-i sigue siendo su lugar real en la mano
+  const rank=h.map((t,i)=>[Math.max(t[0],t[1])*10+Math.min(t[0],t[1]),i]).sort((a,b)=>b[0]-a[0]).map(x=>x[1]);
   const mine=h.map((t,i)=>{const ok=I.mine&&playing&&H.dFits(g,t);
-   return `<button type="button" class="d3-my ${ok?'ok':'no'}${g.sel===i?' picked':''}" data-a="play" data-i="${i}" data-v0="${t[0]}" data-v1="${t[1]}" ${ok?'':'disabled'} aria-label="Ficha ${t[0]}-${t[1]}">${H.dSvg(t[0],t[1],true)}</button>`}).join('');
-  const myDrunk=dr[me]>0,myLv=myDrunk?0:(H.D3_SIPS-sips[me])/H.D3_SIPS;
-  const beer=`<button type="button" class="d3-beer${sipBy===me?' sip':''}${myDrunk?' empty':''}" data-a="sip" data-s="${me}" ${myDrunk?'disabled':''} aria-label="${myDrunk?'Vaso vacío':'Tomar un trago'}">${mug(myLv,'me')}<small>${myDrunk?'vacío':`${H.D3_SIPS-sips[me]}/${H.D3_SIPS}`}</small></button>`;
+   return `<button type="button" class="d3-my ${ok?'ok':'no'}${g.sel===i?' picked':''}" style="order:${rank.indexOf(i)}" data-a="play" data-i="${i}" data-v0="${t[0]}" data-v1="${t[1]}" ${ok?'':'disabled'} aria-label="Ficha ${t[0]}-${t[1]}">${H.dSvg(Math.max(t[0],t[1]),Math.min(t[0],t[1]),true)}</button>`}).join('');
+  const myDrunk=dr[me]>0,myLv=(H.D3_SIPS-sips[me])/H.D3_SIPS;
+  const beer=`<button type="button" class="d3-beer${sipBy===me?' sip':''}" data-a="sip" data-s="${me}" aria-label="Tomar un trago">${mug(myLv,'me')}<small>${H.D3_SIPS-sips[me]}/${H.D3_SIPS}</small></button>`;
   const turnText=g.over?'Fin de la partida':reveal?'Mano terminada':I.mine?'Tu turno':`Juega ${H.esc(((g.seats&&g.seats[g.turn])||{}).name||'')}`;
   const sc=scene();
   const sceneHTML=`<div class="d3 sc-${sc[0]}${myDrunk?' drunk':''}${I.mine&&playing?' myturn':''}" data-el="${e?e[0]:''}" data-er="${e?e[1]:''}">${bgHTML(sc)}

@@ -76,16 +76,17 @@ const dPlayable=(g,p)=>g.hands[p].some(t=>dFits(g,t));
  *   g.sips[p]  = tragos que lleva p de su vaso · a los D3_SIPS se acaba el vaso y p queda borracho D3_TURNS turnos suyos (g.drunk[p])
  *   g.say      = últimos globos: {p, text, n}; n crece siempre (g.sayN), así la pantalla sabe cuáles son nuevos
  * No cambian ninguna regla del dominó: son adorno. La vista clásica los ignora. */
-const D3_SIPS=5,D3_TURNS=3;
+const D3_SIPS=5,D3_TURNS=2;   // 0.3.32 (dueño): la primera borrachera dura 2 turnos; se puede seguir bebiendo borracho y cada 5 tragos más suman 1 turno
 function dSay(g,p,text){g.say=g.say||[];g.sayN=(g.sayN|0)+1;g.say.push({p,text,n:g.sayN});if(g.say.length>6)g.say.shift()}
 function dSip(g,who){
  if(!g.sips){g.sips=[0,0,0,0];g.drunk=[0,0,0,0]}
- if(!inRange(who,4)||g.drunk[who]>0)return;
+ if(!inRange(who,4))return;
  g.sips[who]++;g.sipN=(g.sipN|0)+1;g.sipBy=who;
- if(g.sips[who]>=D3_SIPS){
-  g.sips[who]=0;g.drunk[who]=D3_TURNS;
-  dSay(g,(who+2)%4,`Perdimos a ${dName(g,who)}`);dSay(g,(who+1)%4,'Ete loco ta borracho');
- }else if(g.sips[who]===1)dSay(g,who,'¡Salud!');
+ if(g.sips[who]>=D3_SIPS){                                   // se acabó el vaso (le sirven otro)
+  g.sips[who]=0;
+  if(g.drunk[who]>0){g.drunk[who]++;dSay(g,who,'¡Otra ronda!')}
+  else{g.drunk[who]=D3_TURNS;dSay(g,(who+2)%4,`Perdimos a ${dName(g,who)}`);dSay(g,(who+1)%4,'Ete loco ta borracho')}
+ }else if(g.sips[who]===1&&!g.drunk[who])dSay(g,who,'¡Salud!');
 }
 const dSober=(g,p)=>{if(g.drunk&&g.drunk[p]>0)g.drunk[p]--};
 const DOM_BONUS=25;   // 0.3.14: premios dominicanos (capicúa y pase corrido); se suman al terminar la mano
