@@ -2859,6 +2859,15 @@ html[data-theme="dark"] .ck-photo-btns button:first-child{background:#1f5fc4;col
 .pc-note.war{background:#ffe9e9;color:#8f1016}
 .pc-opt.hidden,.pc-duel.hidden,.pc-score.hidden,.pc-choice.hidden{display:none}
 html[data-theme="dark"] .pc-link{color:#9fc0ff}
+/* 0.3.7: Perfil y Amigos como PAGINA a pantalla completa, con la barra de abajo a la vista (body.tab-page lo pone js/tabbar.js).
+   Son las mismas pantallas de siempre (.tut): solo se les quita el fondo oscuro, la tarjeta flotante y la X, y se les deja sitio abajo para la barra. */
+body.tab-page #profileScreen,body.tab-page #friendsScreen,body.tab-page #friendsNotifs{align-items:stretch;padding:0 0 calc(62px + env(safe-area-inset-bottom,0px));background:radial-gradient(ellipse at 50% 0,#fff 0,#f4f7fc 55%,#eaf0f8 100%);-webkit-backdrop-filter:none;backdrop-filter:none}
+body.tab-page #profileScreen .tut-card,body.tab-page #friendsScreen .tut-card,body.tab-page #friendsNotifs .tut-card{width:min(760px,100%);height:100%;max-height:none;border-radius:0;background:transparent;box-shadow:none}
+body.tab-page #profileScreen .tut-card header,body.tab-page #friendsScreen .tut-card header,body.tab-page #friendsNotifs .tut-card header{padding-top:max(18px,env(safe-area-inset-top))}
+body.tab-page #profileScreen .tut-x,body.tab-page #friendsScreen .tut-x,body.tab-page #friendsNotifs .tut-x{display:none}
+body.tab-page #profileScreen .tut-body,body.tab-page #friendsScreen .tut-body,body.tab-page #friendsNotifs .tut-body{padding-bottom:22px}
+body.tab-page .tab-bar{z-index:9100}
+html[data-theme="dark"] body.tab-page #profileScreen,html[data-theme="dark"] body.tab-page #friendsScreen,html[data-theme="dark"] body.tab-page #friendsNotifs{background:#0d1626}
 /* 0.3.6: insignia TEMPORAL «V2» junto al logo, para no confundir esta version con la V1 mientras conviven */
 .v2-chip{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:8px;background:#d62027;color:#fff;-webkit-text-fill-color:#fff;font-style:normal;font-size:.62em;font-weight:900;letter-spacing:.04em;vertical-align:middle;line-height:1.5}
 /* 0.3.4 (V2, Fase 5): fichas de Mahjong dibujadas (SVG) en vez de emojis */

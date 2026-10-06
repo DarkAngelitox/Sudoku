@@ -21,17 +21,28 @@
  let bar=null,timer=0;
  const shown=el=>!!el&&!el.classList.contains('hidden');
  // dónde está el jugador: 'home', 'arcade' (lista o menú de un juego) o '' (dentro de una partida u otra pantalla: sin barra)
- function where(){
+ const PAGES={profile:['profileScreen'],friends:['friendsScreen','friendsNotifs']};   // friendsNotifs = los avisos (invitaciones), que abre la misma pestaña
+ function base(){
   if(shown($('#homeScreen')))return 'home';
   if(shown($('#miniGamesScreen'))&&!shown($('#miniGameStage')))return 'arcade';
   return '';
  }
+ // 0.3.7: Perfil y Amigos se abren como PÁGINA a pantalla completa con la barra a la vista (body.tab-page), no como ventana encima.
+ // Solo cuando debajo está la portada o la lista del arcade; si se abren en medio de una partida siguen siendo una ventana normal.
+ function where(){
+  const b=base();if(!b)return '';
+  for(const k in PAGES)if(PAGES[k].some(id=>shown(document.getElementById(id))))return k;
+  return b;
+ }
+ function closePages(except){const S=window.SudomiScreen;if(!S)return;for(const k in PAGES)if(k!==except)PAGES[k].forEach(id=>{if(shown(document.getElementById(id)))S.close(id)})}
  function update(){
   if(!bar)return;
   const w=where(),vis=!!w;
   if(bar.classList.contains('hidden')===vis)bar.classList.toggle('hidden',!vis);
   if(document.body.classList.contains('has-tabbar')!==vis)document.body.classList.toggle('has-tabbar',vis);
-  bar.querySelectorAll('[data-tab]').forEach(b=>{const on=(w==='home'&&b.dataset.tab==='sudoku')||(w==='arcade'&&b.dataset.tab==='arcade');if(b.classList.contains('on')!==on)b.classList.toggle('on',on)});
+  const page=w==='profile'||w==='friends';
+  if(document.body.classList.contains('tab-page')!==page)document.body.classList.toggle('tab-page',page);
+  bar.querySelectorAll('[data-tab]').forEach(b=>{const t=b.dataset.tab,on=(w==='home'&&t==='sudoku')||(w===t);if(b.classList.contains('on')!==on)b.classList.toggle('on',on)});
   const n=window.SudomiFriends&&SudomiFriends.notifs?SudomiFriends.notifs().length:0,bd=bar.querySelector('.tb-badge'),txt=n?String(n):'';
   if(bd&&bd.textContent!==txt){bd.textContent=txt;bd.classList.toggle('hidden',!n)}
  }
@@ -42,8 +53,10 @@
   window.scrollTo(0,0);
  }
  function go(tab){
+  if(where()===tab&&(tab==='profile'||tab==='friends'))return;   // ya estás en esa página
+  closePages(tab);
   if(tab==='sudoku')goHome();
-  else if(tab==='arcade'){if(where()==='arcade'){const l=$('#arcLogo');if(l)l.click()}else{const b=$('#openMiniGames');if(b)b.click()}window.scrollTo(0,0)}
+  else if(tab==='arcade'){if(base()==='arcade'){const l=$('#arcLogo');if(l)l.click()}else{const b=$('#openMiniGames');if(b)b.click()}window.scrollTo(0,0)}
   else if(tab==='friends'){const F=window.SudomiFriends;if(F)(F.notifs&&F.notifs().length&&F.showNotifs?F.showNotifs:F.open)()}
   else if(tab==='profile'){if(window.SudomiProfileScreen)SudomiProfileScreen.open()}
   later();
@@ -57,6 +70,9 @@
   bar.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>go(b.dataset.tab));
   const mo=new MutationObserver(later);
   ['#homeScreen','#miniGamesScreen','#miniGameStage','#gameScreen'].forEach(s=>{const e=$(s);if(e)mo.observe(e,{attributes:true,attributeFilter:['class']})});
+  // las páginas Perfil y Amigos se crean al abrirlas: se envuelven open/close de SudomiScreen para enterarse
+  const S=window.SudomiScreen;
+  if(S&&!S._tb){S._tb=true;const o=S.open,c=S.close;S.open=function(){const r=o.apply(this,arguments);update();return r};S.close=function(){const r=c.apply(this,arguments);update();return r}}
   setInterval(update,4000);window.addEventListener('storage',later);
   update();
  }
