@@ -176,7 +176,7 @@
   }};
   const x=X().render('domino',game,ctx);
   const over=game.over;
-  const end=over?`<div class="game-end-overlay"><div class="game-end-card"><p>PARTIDA TERMINADA</p><h3>${game.winTeam===mySeat%2?'¡Ganó tu equipo!':'Ganó el otro equipo'}</h3><strong>${game.winTeam===mySeat%2?'Ganador: tu equipo':'Ganador: equipo rival'}</strong><small>${esc(game.message||'')}</small><div>${role==='host'?'<button id="dpAgain">Jugar otra</button>':'<button disabled>El anfitrión inicia otra</button>'}<button id="dpExit">Salir</button></div></div></div>`:'';
+  const end=over?`<div class="game-end-overlay"><div class="game-end-card"><div class="res-ic">${window.SudomiResult?SudomiResult.icon(game.winTeam===mySeat%2?'win':'lose'):''}</div><p>PARTIDA TERMINADA</p><h3>${game.winTeam===mySeat%2?'¡Ganó tu equipo!':'Ganó el otro equipo'}</h3><strong>${game.winTeam===mySeat%2?'Ganador: tu equipo':'Ganador: equipo rival'}</strong><small>${esc(game.message||'')}</small><div>${role==='host'?'<button id="dpAgain">Jugar otra</button>':'<button disabled>El anfitrión inicia otra</button>'}<button id="dpExit">Salir</button></div></div></div>`:'';
   env.stage.innerHTML=`<div class="mini-game"><div class="mini-game-head"><div><p>ARCADE SUDOMI · MULTIJUGADOR</p><h2>Dominó</h2><small>Sala ${esc(P().pretty(code))}</small></div><div class="mini-game-actions"><button class="game-restart" id="dpLeave">Salir</button></div></div>${x.html}${end}</div>`;
   x.bind();
   $('#dpLeave').onclick=()=>{close();env.exit()};

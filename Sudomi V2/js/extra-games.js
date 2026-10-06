@@ -54,6 +54,7 @@ function newDomino(g,keep){
  const all=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)all.push([a,b]);shuffle(all);
  g.n=4;g.hands=[0,1,2,3].map(i=>all.slice(i*7,i*7+7));g.row=[];g.mid=0;g.sel=-1;g.passes=0;g.phase='play';g.summary=null;g.stock=[];g.first=null;g.over=false;g.winner=null;g.lastPlayer=-1;g.blocker=-1;g.bonus=[0,0];g.bonusLog=[];g.corrido='';
  g.score=keep?keep.score.slice():[0,0];g.handNo=keep?keep.handNo:1;
+ if(!g.sips){g.sips=[0,0,0,0];g.drunk=[0,0,0,0];g.say=[];g.sayN=0}   // 0.3.30: vaso de cerveza y globos (Mesa 3D); siguen de una mano a la otra
  if(!g.seats)g.seats=[0,1,2,3].map(i=>({name:`Jugador ${i+1}`}));
  if(keep&&keep.opener!=null){g.turn=keep.opener;g.message=`${dName(g,g.turn)} abre la mano ${g.handNo}.`}
  else{
@@ -71,6 +72,22 @@ const dFits=(g,t)=>{
  const e=dEnds(g);return t[0]===e[0]||t[1]===e[0]||t[0]===e[1]||t[1]===e[1];
 };
 const dPlayable=(g,p)=>g.hands[p].some(t=>dFits(g,t));
+/* 0.3.30 — MESA 3D: el vaso de cerveza y los globos de conversación son parte del estado de la partida (así los ven todos, también online).
+ *   g.sips[p]  = tragos que lleva p de su vaso · a los D3_SIPS se acaba el vaso y p queda borracho D3_TURNS turnos suyos (g.drunk[p])
+ *   g.say      = últimos globos: {p, text, n}; n crece siempre (g.sayN), así la pantalla sabe cuáles son nuevos
+ * No cambian ninguna regla del dominó: son adorno. La vista clásica los ignora. */
+const D3_SIPS=5,D3_TURNS=3;
+function dSay(g,p,text){g.say=g.say||[];g.sayN=(g.sayN|0)+1;g.say.push({p,text,n:g.sayN});if(g.say.length>6)g.say.shift()}
+function dSip(g,who){
+ if(!g.sips){g.sips=[0,0,0,0];g.drunk=[0,0,0,0]}
+ if(!inRange(who,4)||g.drunk[who]>0)return;
+ g.sips[who]++;g.sipN=(g.sipN|0)+1;g.sipBy=who;
+ if(g.sips[who]>=D3_SIPS){
+  g.sips[who]=0;g.drunk[who]=D3_TURNS;
+  dSay(g,(who+2)%4,`Perdimos a ${dName(g,who)}`);dSay(g,(who+1)%4,'Ete loco ta borracho');
+ }else if(g.sips[who]===1)dSay(g,who,'¡Salud!');
+}
+const dSober=(g,p)=>{if(g.drunk&&g.drunk[p]>0)g.drunk[p]--};
 const DOM_BONUS=25;   // 0.3.14: premios dominicanos (capicúa y pase corrido); se suman al terminar la mano
 function dHandEnd(g,winnerSeat,blocked,capicua){
  g.bonus=g.bonus||[0,0];g.bonusLog=g.bonusLog||[];
@@ -97,6 +114,7 @@ function dHandEnd(g,winnerSeat,blocked,capicua){
 // A pass: one more in a row (four = the table is blocked) and the turn goes to the next seat.
 // 0.3.14: PASE CORRIDO = después de tu ficha pasan los otros tres y te vuelve a tocar (y tú sí puedes jugar): premio para tu pareja
 function dPass(g,p){
+ dSober(g,p);dSay(g,p,'Toc toc… paso');
  g.passes++;if(g.passes>=4){dHandEnd(g,-1,true);return false}
  g.turn=(p+1)%4;
  if(g.passes===3&&g.lastPlayer>=0&&g.turn===g.lastPlayer&&dPlayable(g,g.turn)){const tm=dTeam(g.turn);g.bonus=g.bonus||[0,0];g.bonus[tm]+=DOM_BONUS;g.bonusLog=(g.bonusLog||[]).concat(`Pase corrido de ${dName(g,g.turn)} (+${DOM_BONUS})`);g.corrido=dName(g,g.turn)}
@@ -114,6 +132,7 @@ function dSettle(g){
 }
 function applyDomino(g,p,a){
  if(g.over)return;
+ if(a.a==='sip'){dSip(g,g.wifi?p:(inRange(a.s,4)?a.s:p));return}   // tomar un trago: se puede en cualquier momento, no gasta turno
  if(g.phase==='handend'){if(a.a==='next')newDomino(g,{score:g.score,handNo:g.handNo+1,opener:g.nextOpener});return}
  if(p!==g.turn)return;
  if(a.a==='pass'){
@@ -139,6 +158,10 @@ function applyDomino(g,p,a){
  else if(side==='L'){g.row.unshift(t[1]===e[0]?[t[0],t[1]]:[t[1],t[0]]);g.mid=(g.mid|0)+1}
  else g.row.push(t[0]===e[1]?[t[0],t[1]]:[t[1],t[0]]);
  g.sel=-1;g.fx=[e?side:'R'];g.passes=0;g.lastPlayer=p;g.ts=(g.ts|0)+1;
+ dSober(g,p);
+ if(e&&t[0]===t[1])dSay(g,(p+1)%4,'¿Por qué tú te acuesta?');              // puso un doble (va «acostado», cruzado)
+ if(!h.length)dSay(g,p,cap?'¡Capicúa!':'¡Dominó!');
+ else if(g.seats&&g.seats[p]&&g.seats[p].bot&&Math.random()<.3)dSip(g,p);   // las máquinas también beben
  if(!h.length){dHandEnd(g,p,false,cap);return}
  g.turn=(p+1)%4;g.message=`${dName(g,p)} jugó ${t[0]}|${t[1]}.`;dSettle(g);dCurtain(g);
 }
@@ -655,23 +678,39 @@ const cardFx=(g,c)=>!!c&&g.fx.includes(c.id);
 // c === null is a hidden / face-down card.
 function pcard(c,o={}){
  if(!c)return `<span class="pcard back${o.mini?' mini':''}"${o.i!=null?` style="--i:${o.i}"`:''}></span>`;
- return `<span class="pcard ${isRed(c.s)?'red':'blk'}${o.fx?' deal':''}"${o.i!=null?` style="--i:${o.i}"`:''}><b>${rank(c.v)}</b><i>${c.s}</i><em>${c.s}</em></span>`;
+ return `<span class="pcard ${isRed(c.s)?'red':'blk'}${c.v>10?' fig':''}${o.fx?' deal':''}"${o.i!=null?` style="--i:${o.i}"`:''}><b>${rank(c.v)}</b><i>${c.s}</i><em>${c.v>10?rank(c.v):c.s}</em><u>${rank(c.v)}</u></span>`;
 }
+// 0.3.24: los palos de la baraja española van dibujados (antes eran emoji, que cambian de un teléfono a otro).
+const SP_SVG={
+ oros:'<circle cx="20" cy="20" r="15" fill="#f4b400" stroke="#8a5a00" stroke-width="2"/><circle cx="20" cy="20" r="10" fill="#ffd95a" stroke="#b07a00" stroke-width="1.5"/><path d="M20 12l2.4 5 5.4.6-4 3.8 1.1 5.4-4.9-2.7-4.9 2.7 1.1-5.4-4-3.8 5.400-.6z" fill="#b07a00"/>',
+ copas:'<path d="M9 7h22v6c0 7-4.500 12-11 12S9 20 9 13z" fill="#d8323c" stroke="#7d1118" stroke-width="2" stroke-linejoin="round"/><path d="M12 10h16" stroke="#ffb3b8" stroke-width="2.500" stroke-linecap="round"/><path d="M20 25v6" stroke="#7d1118" stroke-width="4"/><path d="M11 35c0-3 4-4.500 9-4.500s9 1.500 9 4.500z" fill="#f4b400" stroke="#8a5a00" stroke-width="1.800" stroke-linejoin="round"/>',
+ espadas:'<path d="M20 3l4 6v17h-8V9z" fill="#dfe8f5" stroke="#1d4ea8" stroke-width="2" stroke-linejoin="round"/><path d="M20 6v19" stroke="#1d4ea8" stroke-width="1.200"/><rect x="10" y="25" width="20" height="4.500" rx="2.200" fill="#f4b400" stroke="#8a5a00" stroke-width="1.500"/><rect x="17.500" y="29" width="5" height="7" rx="1.500" fill="#1d4ea8"/><circle cx="20" cy="37" r="2.200" fill="#f4b400" stroke="#8a5a00" stroke-width="1"/>',
+ bastos:'<path d="M14 36l-3-3L25 8c1.500-3 5-4 7.500-2s2.500 5.500 0 7.500z" fill="#8d5a2b" stroke="#4d2d10" stroke-width="2" stroke-linejoin="round"/><path d="M17 27l4 3M21 20l4 3M25 13l4 3" stroke="#4d2d10" stroke-width="1.600" stroke-linecap="round"/><path d="M27 6c-1-3 2-5 4-3M33 9c3-1 5 2 3 4" fill="none" stroke="#2f7d32" stroke-width="2.400" stroke-linecap="round"/>'
+};
+const spArt=cl=>`<svg viewBox="0 0 40 40" aria-hidden="true">${SP_SVG[cl]}</svg>`;
 const SPS={Oros:['🪙','oros'],Copas:['🏆','copas'],Espadas:['⚔️','espadas'],Bastos:['🪵','bastos']};
 const SPN={1:'As',10:'Sota',11:'Caballo',12:'Rey'};
 function scard(c,o={}){
  if(!c)return '<span class="pcard back"></span>';
- const [ic,cl]=SPS[c.s];
- return `<span class="scard ${cl}${o.fx?' deal':''}"${o.i!=null?` style="--i:${o.i}"`:''}><b>${c.v}</b><em>${ic}</em><small>${SPN[c.v]||c.s}</small></span>`;
+ const cl=SPS[c.s][1];
+ return `<span class="scard ${cl}${o.fx?' deal':''}"${o.i!=null?` style="--i:${o.i}"`:''}><b>${c.v}</b><em>${spArt(cl)}</em><small>${SPN[c.v]||c.s}</small><u>${c.v}</u></span>`;
 }
 const backs=n=>`<span class="backs">${Array.from({length:n},(_,i)=>pcard(null,{mini:true,i})).join('')}</span>`;
 const msg=g=>g.message?`<p class="arc-msg">${esc(g.message)}</p>`:'';
 
+// 0.3.29: iconos dibujados para lo que antes eran emoji (escoba, pista, copa del ganador, candado)
+const ico=b=>`<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${b}</svg>`;
+const ICO={
+ broom:ico('<path d="M19 3L11 12" stroke="#8d5a2b" stroke-width="2.600" stroke-linecap="round"/><path d="M12.500 10.500l-3-2.500-6 8 7 5.500z" fill="#f4b400" stroke="#8a5a00" stroke-width="1.600" stroke-linejoin="round"/><path d="M6 14l5 4M4.500 16.500l4 3" stroke="#8a5a00" stroke-width="1.300" stroke-linecap="round"/>'),
+ bulb:ico('<path d="M12 3a6.500 6.500 0 0 0-3.500 12v2h7v-2A6.500 6.500 0 0 0 12 3z" fill="#ffd54a" stroke="#b26a00" stroke-width="1.600" stroke-linejoin="round"/><path d="M9.500 20h5M10.500 22h3" stroke="#b26a00" stroke-width="1.800" stroke-linecap="round"/>'),
+ cup:ico('<path d="M7 4h10v4a5 5 0 0 1-10 0z" fill="#ffd54a" stroke="#b26a00" stroke-width="1.600" stroke-linejoin="round"/><path d="M7 5H3.500c0 3.500 1.500 5 4 5M17 5h3.500c0 3.500-1.500 5-4 5" fill="none" stroke="#b26a00" stroke-width="1.600" stroke-linecap="round"/><path d="M12 13v4M8 20h8" stroke="#b26a00" stroke-width="2" stroke-linecap="round"/>'),
+ lock:ico('<rect x="5" y="10.500" width="14" height="10" rx="2.500" fill="#ffd54a" stroke="#b26a00" stroke-width="1.600"/><path d="M8 10.500V8a4 4 0 0 1 8 0v2.500" fill="none" stroke="#b26a00" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="15.500" r="1.600" fill="#b26a00"/>')
+};
 function bar(g,ctx,info,noTurn){
- return `<div class="arc-bar">${[0,1].map(p=>`<div class="arc-chip p${p}${!noTurn&&g.turn===p&&!g.over?' turn':''}${g.over&&g.winner===p?' won':''}"><span class="av">${p+1}</span><div><strong>Jugador ${p+1}${ctx.wifi&&ctx.player===p?' · tú':''}</strong><small>${info[p]}</small></div>${g.over&&g.winner===p?'<span class="crown">🏆</span>':''}</div>`).join('')}</div>`;
+ return `<div class="arc-bar">${[0,1].map(p=>`<div class="arc-chip p${p}${!noTurn&&g.turn===p&&!g.over?' turn':''}${g.over&&g.winner===p?' won':''}"><span class="av">${p+1}</span><div><strong>Jugador ${p+1}${ctx.wifi&&ctx.player===p?' · tú':''}</strong><small>${info[p]}</small></div>${g.over&&g.winner===p?'<span class="crown">${ICO.cup}</span>':''}</div>`).join('')}</div>`;
 }
 function curtainHtml(g){
- return `<div class="arc-curtain"><span class="lock">🔒</span><h3>Turno del Jugador ${g.turn+1}</h3>${msg(g)}<p class="arc-sub">Pásale el dispositivo. Toca cuando estés listo para ver tu mano.</p><button class="arc-btn big" data-a="reveal">Ver mi turno</button></div>`;
+ return `<div class="arc-curtain"><span class="lock">${ICO.lock}</span><h3>Turno del Jugador ${g.turn+1}</h3>${msg(g)}<p class="arc-sub">Pásale el dispositivo. Toca cuando estés listo para ver tu mano.</p><button class="arc-btn big" data-a="reveal">Ver mi turno</button></div>`;
 }
 
 /* ---------- Dominó ---------- */
@@ -740,6 +779,8 @@ function drawDomino(g,ctx,I){
  const arena=`<div class="dm-arena"><div class="dm-a dm-at">${av(seatOf(2),'top','Compañero')}${backs(seatOf(2),'h')}</div><div class="dm-a dm-al">${av(seatOf(1),'left','Rival')}${backs(seatOf(1),'v')}</div><div class="dm-a dm-ab">${e?`<div class="d-ends"><span>◀ ${e[0]}</span><span>${e[1]} ▶</span></div>`:''}${row}</div><div class="dm-a dm-ar">${av(seatOf(3),'right','Rival')}${backs(seatOf(3),'v')}</div></div>`;
  const score=`<div class="dm-score"><span class="mine">Tu equipo <b>${g.score[myTeam]}</b></span><i>meta ${DOM_TARGET}</i><span>Rivales <b>${g.score[1-myTeam]}</b></span></div><p class="dm-dir">↻ Se juega de izquierda a derecha</p>`;
  const sum=reveal&&g.summary?`<div class="dm-sum"><h4>${g.over?'🏆 Fin de la partida':`Mano ${g.handNo}`}</h4>${[0,1,2,3].map(p=>{const s=(g.seats&&g.seats[p])||{name:`Jugador ${p+1}`};return `<div class="dm-sum-row ${dTeam(p)===myTeam?'mine':''}"><b>${esc(s.name)}</b><span>${(g.hands[p]||[]).map(t=>dtile(t,'sm')).join('')||'<em>sin fichas</em>'}</span><i>${g.summary.pips[p]}</i></div>`}).join('')}${g.over?'':'<div class="arc-actions"><button class="arc-btn big" data-a="next">Siguiente mano ▶</button></div>'}</div>`:'';
+ // 0.3.30: MESA 3D (js/domino-3d.js) — otra forma de pintar la misma partida; se elige con el interruptor del menú de Dominó
+ if(window.SudomiDomino3D&&SudomiDomino3D.on())return SudomiDomino3D.draw(g,I,{dLayout,dSvg,dFits,dEnds,dPlayable,dTeam,esc,msg,sum,DOM_TARGET,D3_SIPS,DU});
  return `<div class="arc-felt dom dm-table" data-n="${g.row.length}" data-turn="${g.turn}" data-over="${g.over?1:0}" data-viewer="${me}">${score}${arena}<div class="dm-foot">${av(me,'bottom','Tú')}${DM?DM.bottle(me):''}</div></div>
   ${msg(g)}${sum}${reveal?'':`${sideChoice}${drunk?`<p class="dm-drunk-note">🥴 Estás mareado: las fichas se ven borrosas ${drunkN>1?'durante '+drunkN+' turnos más':'durante este turno'}.</p>`:''}<div class="d-hand${drunk?' drunk':''}">${hand||'<span class="arc-hint">Sin fichas</span>'}</div>${I.mine&&playing&&g.row.length&&!dPlayable(g,me)?'<div class="arc-actions"><button class="arc-btn pulse" data-a="pass">✋ Pasar · no tengo ficha</button></div>':''}`}`;
 }
@@ -849,14 +890,14 @@ function drawEscoba(g,ctx,I){
  const hint=D.hint&&hand[D.hint.card]?D.hint:null;
  const tableHtml=g.table.length?g.table.map((c,i)=>`<button class="cardbtn${g.sel.includes(i)?' lift':''}${hint&&hint.sel.includes(i)?' hint':''}" data-a="table" data-i="${i}" ${I.mine&&g.card>=0?'':'disabled'}>${scard(c,{fx:cardFx(g,c)})}</button>`).join(''):'<span class="arc-hint">Mesa vacía</span>';
  const mine=hand.map((c,i)=>`<button class="cardbtn${g.card===i?' lift':''}${hint&&hint.card===i?' hint':''}" data-a="hand" data-i="${i}" ${I.mine?'':'disabled'}>${scard(c,{fx:cardFx(g,c),i})}</button>`).join('');
- const pile=p=>`<span class="es-pile p${p}"><b>${g.captured[p].length}</b> cartas · 🧹${g.escobas[p]}</span>`;
+ const pile=p=>`<span class="es-pile p${p}"><b>${g.captured[p].length}</b> cartas · ${ICO.broom}${g.escobas[p]}</span>`;
  let summary='';
  if(g.summary&&(round||g.over)){
   summary=`<table class="es-sum"><thead><tr><th>Ronda ${g.round}</th><th>J1</th><th>J2</th></tr></thead><tbody>${g.summary.rows.map(r=>`<tr><td>${r.name}</td><td class="${r.pt[0]?'pt':''}">${r.a}${r.pt[0]?' <small>+'+r.pt[0]+'</small>':''}</td><td class="${r.pt[1]?'pt':''}">${r.b}${r.pt[1]?' <small>+'+r.pt[1]+'</small>':''}</td></tr>`).join('')}</tbody><tfoot><tr><td>Total (meta ${ESCOBA_TARGET})</td><td>${g.total[0]}</td><td>${g.total[1]}</td></tr></tfoot></table>${round&&!g.over?'<div class="arc-actions"><button class="arc-btn big" data-a="next">Siguiente ronda ▶</button></div>':''}`;
  }
  const hands=round||g.over?'':`<div class="d-hand">${mine}</div>
   <div class="es-sumline">${I.mine&&card?`Suma: <b class="${sum===15?'ok':sum>15?'over':''}">${sum}</b> / 15`:'&nbsp;'}</div>
-  <div class="arc-actions"><button class="arc-btn big" data-a="play" ${I.mine&&g.card>=0?'':'disabled'}>${g.sel.length?`Capturar (suma ${sum})`:'Dejar carta en la mesa'}</button><button class="arc-btn alt" data-a="hint" ${I.mine?'':'disabled'}>💡 Pista</button></div>`;
+  <div class="arc-actions"><button class="arc-btn big" data-a="play" ${I.mine&&g.card>=0?'':'disabled'}>${g.sel.length?`Capturar (suma ${sum})`:'Dejar carta en la mesa'}</button><button class="arc-btn alt" data-a="hint" ${I.mine?'':'disabled'}>${ICO.bulb} Pista</button></div>`;
  return `${msg(g)}<div class="es-score">Ronda ${g.round} · primero en llegar a ${ESCOBA_TARGET} · <b>J1 ${g.total[0]}</b> — <b>J2 ${g.total[1]}</b></div>
   <div class="arc-felt es">${round||g.over?'':`<div class="es-opp">${backs(g.hands[I.opp].length)}<span class="arc-sub">Jugador ${I.opp+1} · mazo: ${g.deck.length}</span></div>`}<div class="es-table">${round||g.over?'':tableHtml}</div><div class="es-piles">${pile(0)}${pile(1)}</div></div>${summary}${hands}`;
 }
@@ -936,7 +977,7 @@ const infoFor={
  mahjong:g=>[0,1].map(p=>pl(g.score[p],'pareja')),
  blackjack:g=>[0,1].map(p=>g.over?`${score21(g.hands[p])} pts`:g.stood[p]?'plantado':pl(g.hands[p].length,'carta')),
  poker:g=>[0,1].map(p=>g.over?pokerName(rankPoker(g.hands[p])):g.stage==='swap'&&g.turn>p?'ya cambió':'5 cartas'),
- escoba:g=>[0,1].map(p=>`${g.total[p]} pts · 🧹${g.escobas[p]}`),
+ escoba:g=>[0,1].map(p=>`${g.total[p]} pts · ${ICO.broom}${g.escobas[p]}`),
  rummy:g=>[0,1].map(p=>`${g.rscore?g.rscore[p]:0} pts · ${pl(g.hands[p].length,'carta')}`),
  slide:g=>[0,1].map(p=>g.phase==='play'||g.over?`${slDoneCount(g,p)}/6 columnas`:'—')
 };

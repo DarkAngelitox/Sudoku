@@ -18,6 +18,7 @@
  const SYM={skip:'⊘',rev:'⇄',d2:'+2',wild:'★',d4:'+4',rewind:'⏪',super:'+2',parry:'🛡',tornado:'🌪'};
  const RULES=[
   ['Cómo se juega','Tira una carta del mismo color o del mismo número/símbolo que la del centro. Si tienes una carta que se puede tirar, tienes que tirarla: solo puedes robar o pasar cuando no tienes ninguna (el Parry es la única que puedes guardar). Gana quien se quede sin cartas.'],
+  ['📣 ¡DOS!','Cada vez que te quedas con 2 cartas tienes que tocar el botón ¡DOS!: al tirar teniendo 3, o al robar teniendo 1. El botón está siempre ahí; nadie te avisa. Puedes tocarlo antes de tu jugada o en los 3 segundos siguientes (en ese rato nadie más juega). Si no avisas, cualquier rival puede pillarte con el botón «no dijo DOS» antes de que juegue el siguiente: robas 2 cartas. Si nadie te pilla a tiempo, te salvaste.'],
   ['⊘ Salta · ⇄ Reversa · +2','Salta: el siguiente pierde el turno. Reversa: cambia el sentido (entre dos jugadores, salta). +2: el siguiente roba 2 y pierde el turno.'],
   ['★ Comodín · +4','Se pueden tirar siempre y eliges el color. Con +4 el siguiente roba 4 y pierde el turno.'],
   ['➕ Acumular +2 y +4','Si te tiran un +2 o un +4, puedes responder con tu propio +2 o +4 (de cualquier color): se suman y le toca al siguiente, que también puede responder. Quien no responda roba todas las cartas acumuladas y pierde el turno.'],
@@ -143,11 +144,46 @@
   }else{let w=nextOf(s,p);while(!d.need[w])w=nextOf(s,w);d.who=w}
   s.seq++;return true;
  }
- function win(s,p){s.winner=p;s.pend={};say(s,`🏆 ¡${s.names[p]} gana la partida!`)}
+ function win(s,p){s.winner=p;s.pend={};s.owe=null;say(s,`🏆 ¡${s.names[p]} gana la partida!`)}
+ /* 0.3.26 — la regla de «¡DOS!»: quien se queda con 2 cartas al tirar tiene que avisar.
+  *   - Puede avisar ANTES de tirar (en su turno, con 3 cartas): queda guardado en s.said[p].
+  *   - Si no avisó, queda «debiendo» (s.owe={who}) y puede avisar hasta que otro jugador haga su jugada.
+  *   - Mientras debe, cualquier rival puede pillarlo ({t:'catch'}): roba DOS_FINE cartas.
+  *   - Si el siguiente jugador juega sin que nadie lo pille, se salvó. */
+ /* 0.3.27 — el botón está SIEMPRE a la vista (no avisa de nada); también hay que avisar si tenías 1 carta y robas otra;
+  * y hay DOS_GRACE ms de gracia al terminar la jugada: en ese rato solo puede actuar quien debe el aviso (nadie juega ni lo pilla). */
+ const DOS_FINE=2,DOS_GRACE=3000;
+ const inGrace=s=>!!s.owe&&Date.now()-s.owe.t<DOS_GRACE;
+ function toTwo(s,p){
+  if(s.said&&s.said[p]){s.said[p]=false;say(s,`¡DOS! ${s.names[p]} avisó: le quedan 2 cartas.`)}
+  else s.owe={who:p,t:Date.now()};
+ }
+ function callDos(s,p){
+  if(s.owe&&s.owe.who===p){s.owe=null;say(s,`¡DOS! ${s.names[p]} avisó: le quedan 2 cartas.`);s.seq++;return true}
+  const k=s.hands[p]?s.hands[p].length:0;
+  if(!s.draft&&p===s.turn&&!s.pend[p]&&(k===3||k===1)&&!(s.said&&s.said[p])){(s.said=s.said||[])[p]=true;s.seq++;return true}   // aviso adelantado: antes de tirar (3 cartas) o antes de robar (1 carta)
+  return false;
+ }
+ function catchDos(s,p){
+  const o=s.owe;if(!o||o.who===p||p<0||p>=s.n||inGrace(s))return false;
+  s.owe=null;const g=take(s,o.who,DOS_FINE);
+  say(s,`👉 ${s.names[p]} pilló a ${s.names[o.who]} sin decir ¡DOS!: roba ${g}.`);
+  s.caught={who:o.who,by:p,seq:s.seq+1};s.seq++;return true;
+ }
  /* One action by player p. Returns true if it was legal and applied.
-  *   {t:'play',u,color?} · {t:'draw'} · {t:'pass'} · {t:'accept'} · {t:'parry'}  */
+  *   {t:'play',u,color?} · {t:'draw'} · {t:'pass'} · {t:'accept'} · {t:'parry'} · {t:'dos'} · {t:'catch'}  */
  function act(s,p,a){
   if(!s||s.winner>=0||!a)return false;
+  if(a.t==='dos')return callDos(s,p);
+  if(a.t==='catch')return catchDos(s,p);
+  const owed=s.owe;
+  if(owed&&p!==owed.who&&inGrace(s))return false;             // rato de gracia: los demás esperan
+  const ok=act0(s,p,a);
+  if(ok&&owed&&s.owe===owed&&(p!==owed.who||s.hands[p].length!==2))s.owe=null;   // otro jugador ya jugó (o él mismo volvió a jugar): se salvó
+  if(ok&&s.said&&s.said[p])s.said[p]=false;                   // el aviso adelantado solo vale para la jugada siguiente
+  return ok;
+ }
+ function act0(s,p,a){
   if(s.draft)return a.t==='pick'&&pickCard(s,p,a.i);
   if(p!==s.turn)return false;
   const hand=s.hands[p],e=s.pend[p];
@@ -161,7 +197,7 @@
     say(s,`${s.names[p]} responde con ${cardName(card)}${card.v==='d4'?' → '+CNAME[s.color].toLowerCase():''}: ¡ya son +${total}!`);
     s.pend[nx]={n:total,from:p,skip:true,label:`+${total}`,stack:true};
     s.hist[p]=card.u;
-    if(!hand.length)win(s,p);else{if(hand.length===2)say(s,`¡DOS! A ${s.names[p]} le quedan 2 cartas.`);endTurn(s,p)}
+    if(!hand.length)win(s,p);else{if(hand.length===2)toTwo(s,p);endTurn(s,p)}
     s.seq++;return true;
    }
    if(a.t==='accept'){delete s.pend[p];resolve(s,p,e);if(e.skip)endTurn(s,p);s.seq++;return true}
@@ -179,6 +215,7 @@
   if(a.t==='draw'){
    if(s.drew||mustPlay(s,p))return false;
    const g=take(s,p,1);s.drew=true;say(s,`${s.names[p]} roba una carta.`);
+   if(g&&hand.length===2)toTwo(s,p);                          // tenía 1 y robó: vuelve a tener 2, tiene que avisar
    if(!g||!hand.some(c=>canPlay(s,p,c)))endTurn(s,p);
    s.seq++;return true;
   }
@@ -206,7 +243,7 @@
    if(s.draft){s.seq++;return true}                          // the turn ends when everybody has chosen (pickCard)
    const left=s.hands[p].length;                             // Tornado/Rebobinar may have changed the hand
    if(!left)win(s,p);
-   else{if(left===2)say(s,`¡DOS! A ${who} le quedan 2 cartas.`);endTurn(s,p)}
+   else{if(left===2)toTwo(s,p);endTurn(s,p)}
    s.seq++;return true;
   }
   return false;
@@ -220,6 +257,8 @@
    drawCount:s.draw.length,top:top(s),color:s.color,turn:s.turn,dir:s.dir,
    must:myTurn&&!s.pend[seat]&&mustPlay(s,seat),
    pend:myTurn&&s.pend[seat]?s.pend[seat]:null,hit:Object.keys(s.pend).map(Number),
+   owe:s.owe?s.owe.who:-1,said:(s.said||[]).map(Boolean),caught:s.caught&&s.caught.seq===s.seq?{who:s.caught.who,by:s.caught.by}:null,
+   canCatch:s.winner<0&&!!s.owe&&s.owe.who!==seat&&!inGrace(s),
    locked:s.locked[seat]?s.locked[seat].u:null,drew:s.drew,winner:s.winner,log:s.log.slice(-4),you:seat,seq:s.seq};
  }
 
@@ -263,7 +302,7 @@
  const NAME_KEY='sudomi-player-name';
  const esc=t=>String(t).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
  let endSent=false;
- let ui=null,screen='menu',mode=null,S=null,V=null,net=null,seats=[],size=2,started=false,aiTimer=null,pick=null,status='',roomCode='',offline=false,showRules=false,busy=false;
+ let ui=null,screen='menu',mode=null,S=null,V=null,net=null,seats=[],size=2,started=false,aiTimer=null,graceTimer=null,pick=null,status='',roomCode='',offline=false,showRules=false,busy=false;
  // 0.2.22 — what the table looked like the last time it was drawn. Animations play only for what changed since then.
  let shown={seq:-1,n:0,top:null,hand:[],counts:[],color:null};
  const FX={skip:['⊘','¡Salta!'],rev:['⇄','Reversa'],d2:['+2','¡Roba 2!'],d4:['+4','¡Roba 4!'],wild:['★','Comodín'],rewind:['⏪','¡Rebobinar!'],super:['+2','¡Súper +2!'],parry:['🛡','¡Parry!'],tornado:['🌪','¡Tornado!']};
@@ -277,7 +316,7 @@
  window.addEventListener('sudomi-profile',()=>{if(ui&&screen==='menu')render()});
  const $=sel=>ui.stage.querySelector(sel);
 
- function reset(){try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}clearTimeout(aiTimer);aiTimer=null;if(net){try{net.close()}catch(_){}}net=null;S=null;V=null;seats=[];started=false;pick=null;status='';roomCode='';offline=false;mode=null;busy=false}
+ function reset(){try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}clearTimeout(aiTimer);clearTimeout(graceTimer);aiTimer=null;if(net){try{net.close()}catch(_){}}net=null;S=null;V=null;seats=[];started=false;pick=null;status='';roomCode='';offline=false;mode=null;busy=false}
  function open(opts){ui=opts;reset();screen='menu';ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');render()}
  function close(){if(!ui)return;reset();screen='menu'}
  function leave(){try{window.SudomiFriends&&SudomiFriends.untrack()}catch(_){}const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}}
@@ -295,9 +334,23 @@
   clearTimeout(aiTimer);
   if(!S||S.winner>=0)return;
   const actor=()=>S.draft?S.draft.who:S.turn,seat=seats[actor()];
+  const game=S,isAI=i=>!!seats[i]&&(seats[i].kind!=='human'||seats[i].away);
+  // 0.3.26 — «¡DOS!»: la máquina avisa (a veces se le olvida) y a veces pilla al que no avisó. Depende del nivel elegido.
+  const owe=S.owe,lv=['easy','normal','hard'].indexOf(window.SudomiAILevel?SudomiAILevel():'normal');
+  clearTimeout(graceTimer);
+  if(owe&&inGrace(S)){                                        // rato de gracia: nadie más juega; al terminar se vuelve a pintar (aparece el botón de pillar)
+   if(isAI(owe.who)&&!owe.tried){owe.tried=true;if(Math.random()<[.7,.88,.97][lv]){aiTimer=setTimeout(()=>{if(S!==game||S.owe!==owe)return;act(S,owe.who,{t:'dos'});pushState()},550+Math.random()*700);return}}
+   graceTimer=setTimeout(()=>{if(S===game&&S.owe===owe)pushState()},DOS_GRACE-(Date.now()-owe.t)+40);
+   return;
+  }
+  if(owe&&!isAI(owe.who)&&!owe.tried){
+   owe.tried=true;
+   const c=seats.findIndex((x,i)=>i!==owe.who&&isAI(i));
+   if(c>=0&&Math.random()<[.35,.6,.85][lv]){aiTimer=setTimeout(()=>{if(S!==game||S.owe!==owe)return;act(S,c,{t:'catch'});pushState()},300+Math.random()*900);return}
+  }
   if(!seat||(seat.kind==='human'&&!seat.away))return;
-  const game=S;
-  aiTimer=setTimeout(()=>{if(S!==game||S.winner>=0)return;const p=actor();if(!act(S,p,aiMove(S,p))&&!act(S,p,{t:'accept'}))act(S,p,{t:S.drew?'pass':'draw'});pushState()},seat.away?2600:S.draft?650:1200);
+  const slow=owe&&isAI(owe.who)?2800:0;                       // se le olvidó avisar: te deja un momento para pillarla
+  aiTimer=setTimeout(()=>{if(S!==game||S.winner>=0)return;const p=actor();if(!act(S,p,aiMove(S,p))&&!act(S,p,{t:'accept'}))act(S,p,{t:S.drew?'pass':'draw'});pushState()},slow||(seat.away?2600:S.draft?650:1200));
  }
  function startSolo(){reset();mode='solo';seats=[{name:myName(),kind:'human',id:'host',avatar:myAvatar()},{name:aiNames(1)[0]||'Máquina',kind:'ai'}];startGame()}
  function startGame(){
@@ -434,6 +487,19 @@
    startLabel:'▶ Empezar partida',canStart:seats.length>=2,onStart:startGame,onRemove:removeSeat,
    status:(status||'')+(offline?' · Sin conexión. Reconectando…':'')});
  }
+ /* 0.3.25: la carta jugada vuela desde quien la tiró hasta el centro, y las robadas salen del mazo hacia tu mano.
+    Se mide con offsetLeft/offsetTop (no con el rectángulo en pantalla) porque las cartas ya tienen una animación puesta. */
+ function flyCards(from,me){
+  try{
+   const q=s=>ui.stage.querySelector(s);
+   const mid=el=>{let x=el.offsetWidth/2,y=el.offsetHeight/2;for(let n=el;n&&n!==ui.stage;n=n.offsetParent){x+=n.offsetLeft;y+=n.offsetTop}return [x,y]};
+   const aim=(el,src)=>{const a=mid(src),b=mid(el);el.style.setProperty('--dx',Math.round(a[0]-b[0])+'px');el.style.setProperty('--dy',Math.round(a[1]-b[1])+'px');el.classList.add('fly')};
+   const top=q('.dos-top .dcard.drop');
+   if(top&&from>=0){const src=from===me?q('.dos-hand'):q('.dos-opp.s'+from+' .dos-av');if(src)aim(top,src)}
+   const pile=q('#dosDraw');
+   if(pile)ui.stage.querySelectorAll('.dos-cardbtn.dealt').forEach(el=>aim(el,pile));
+  }catch(_){}
+ }
  function renderGame(){
   const v=V,me=v.you,myTurn=v.turn===me&&v.winner<0;
   if(v.winner<0)endSent=false;else if(!endSent){endSent=true;try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:'dos',won:v.winner===me}}))}catch(_){}}   /* 0.3.2: avisa el resultado a logros y estadísticas */
@@ -449,6 +515,11 @@
   const handAnim=u=>fx==='tornado'?'whirl':added.includes(u)?'dealt':'';
   const colorChanged=fresh&&!first&&v.color!==shown.color;
   const justWon=fresh&&v.winner>=0;
+  // 0.3.25: quién tiró la carta de arriba (para que vuele desde su sitio) y avisos de «¡DOS!» / «¡Última!»
+  const lost=fresh&&!first&&shown.hand.some(u=>!v.hand.some(c=>c.u===u));
+  const from=newTop?(lost?me:gains.findIndex((x,i)=>i!==me&&x<0)):-1;
+  const call=(n,i)=>v.winner<0&&n===2?(v.owe===i?'':'<u class="dos-call">¡DOS!</u>'):v.winner<0&&v.said&&v.said[i]?'<u class="dos-call">¡DOS!</u>':v.winner<0&&n===1?'<u class="dos-call one">¡Última!</u>':'';
+  const backsHTML=n=>{const m=Math.min(n,8);return Array.from({length:m},(_,j)=>`<i style="transform:rotate(${Math.round((j-(m-1)/2)*(m>6?6:8))}deg)"></i>`).join('')};
   shown={seq:v.seq,n:v.n,top:v.top.u,hand:v.hand.map(c=>c.u),counts:v.counts.slice(),color:v.color};
   // 0.2.23 — round table: the other players sit around it in playing order (left, top, right); you are at the bottom
   // 0.2.24 — up to 7 opponents on an arc from your left, over the top, to your right. --fx/--fy are fractions of the arena (0..1).
@@ -456,7 +527,7 @@
   const place=k=>{const ang=(m===1?90:arc-(2*arc-180)*k/(m-1))*Math.PI/180;return `--fx:${((1+Math.cos(ang))/2).toFixed(3)};--fy:${((1-Math.sin(ang))/1.5).toFixed(3)}`};
   const d=v.draft,acting=d?d.who:v.turn;
   const avatar=i=>seats[i]&&seats[i].kind==='ai'?'🤖':seats[i]&&seats[i].avatar?seats[i].avatar:['🦊','🐼','🦉','🐯','🐸','🐵','🦄','🐙'][i%8];
-  const opp=(i,k)=>`<div class="dos-opp s${i} ${acting===i&&v.winner<0?'turn':''}${v.hit.includes(i)?'hit':''} ${!d&&gain(i)>0?'grew':!d&&gain(i)<0?'shrank':''}" style="${place(k)}">${!d&&gain(i)>0?`<s>+${gain(i)}</s>`:''}<span class="dos-av">${avatar(i)}<i>${v.counts[i]}</i></span><b>${esc(v.names[i])}${seats[i]&&seats[i].away?' 📴':''}</b><span class="dos-backs">${'<i></i>'.repeat(Math.min(v.counts[i],6))}</span></div>`;
+  const opp=(i,k)=>`<div class="dos-opp s${i} ${acting===i&&v.winner<0?'turn':''}${v.hit.includes(i)?'hit':''} ${!d&&gain(i)>0?'grew':!d&&gain(i)<0?'shrank':''}" style="${place(k)}">${!d&&gain(i)>0?`<s>+${gain(i)}</s>`:''}<span class="dos-av">${avatar(i)}<i>${v.counts[i]}</i>${call(v.counts[i],i)}</span><b>${esc(v.names[i])}${seats[i]&&seats[i].away?' 📴':''}</b><span class="dos-backs ${v.counts[i]===1&&v.winner<0?'last':''}">${backsHTML(v.counts[i])}</span></div>`;
   const ring=`<svg class="dos-ring c-${v.color} ${v.dir<0?'rev':''}" viewBox="0 0 200 200" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round"><path d="M22 100A78 78 0 0 1 96 22"/><path d="M178 100A78 78 0 0 1 104 178"/></g><g fill="currentColor"><path d="M92 6l30 16-30 16z"/><path d="M108 194l-30-16 30-16z"/></g></svg>`;
   const fan=k=>{const n=v.hand.length,mid=(n-1)/2,step=Math.min(4,36/Math.max(n,1));return n>14?'':`--a:${((k-mid)*step).toFixed(1)}deg;--y:${(Math.pow(Math.abs(k-mid),2)*step*.22).toFixed(1)}px;`};
   const hand=v.hand.slice().sort((a,b)=>'rbgyk'.indexOf(a.c)-'rbgyk'.indexOf(b.c)||(a.v<b.v?-1:a.v>b.v?1:0));
@@ -465,15 +536,15 @@
   const prompt=e?`<div class="dos-prompt"><p>${esc(v.names[e.from])} te tiró <b>${e.label}</b>.${canStack?' Responde con un <b>+2</b> o <b>+4</b> de tu mano (brillan abajo) y se lo pasas al siguiente,':''}${canParry?` ${canStack?'usa':'Usa'} Parry`:''}${canStack||canParry?' o acepta.':''}</p><div>${canParry?'<button class="arc-btn pulse" id="dosParry">🛡 Usar Parry</button>':''}<button class="arc-btn alt" id="dosAccept">${e.n?`Robar ${e.n}`:'Perder el turno'}</button></div></div>`:'';
   const canDraw=myTurn&&!e&&!v.drew&&!v.must,canPass=myTurn&&!e&&v.drew&&!v.must;
   const confetti=justWon?`<div class="dos-confetti">${Array.from({length:36},(_,k)=>`<i style="left:${Math.round(Math.random()*100)}%;background:${CONFETTI[k%5]};animation-delay:${(Math.random()*.9).toFixed(2)}s;animation-duration:${(1.8+Math.random()*1.6).toFixed(2)}s"></i>`).join('')}</div>`:'';
-  const end=v.winner>=0?`<div class="dos-over ${justWon?'pop':''}">${confetti}<div class="dos-card"><p class="dos-kicker">PARTIDA TERMINADA</p><h3>${v.winner===me?'¡Ganaste! 🎉':`Ganó ${esc(v.names[v.winner])}`}</h3><div class="dos-endbtns">${mode==='guest'?'<p class="arc-sub center">El anfitrión puede iniciar otra partida.</p>':'<button class="arc-btn" id="dosAgain">Jugar otra</button>'}<button class="arc-btn alt" id="dosEndExit">Todos los juegos</button></div></div></div>`:'';
+  const end=v.winner>=0?`<div class="dos-over ${justWon?'pop':''}">${confetti}<div class="dos-card dos-endcard"><div class="res-ic ${v.winner===me?'':'lose'}">${window.SudomiResult?SudomiResult.icon(v.winner===me?'win':'lose'):''}</div><p class="dos-kicker">DOS · PARTIDA TERMINADA</p><h3>${v.winner===me?'¡Ganaste!':`Ganó ${esc(v.names[v.winner])}`}</h3><p class="arc-sub center">${v.winner===me?'Te quedaste sin cartas.':`Te quedaron ${v.hand.length} carta${v.hand.length===1?'':'s'}.`}</p><div class="dos-endbtns">${mode==='guest'?'<p class="arc-sub center">El anfitrión puede iniciar otra partida.</p>':'<button class="arc-btn" id="dosAgain">Jugar otra</button>'}<button class="arc-btn alt" id="dosEndExit">Todos los juegos</button></div></div></div>`:'';
   // Tornado: everybody sees the cards in the middle; only the player whose turn it is can take one
   const sortCards=list=>list.slice().sort((a,b)=>'rbgyk'.indexOf(a.c)-'rbgyk'.indexOf(b.c)||(a.v<b.v?-1:a.v>b.v?1:0));
   const draftBox=d&&v.winner<0?`<div class="dos-over ${fx==='tornado'?'late':''}"><div class="dos-card dos-draft"><p class="dos-kicker">🌪 TORNADO</p><h3>${d.who===me?'Elige una carta':`Elige ${esc(v.names[d.who])}…`}</h3><p class="arc-sub center">${d.need[me]>0?`Te ${d.need[me]===1?'falta 1 carta':`faltan ${d.need[me]} cartas`}`:'Ya tienes todas tus cartas'} · quedan ${d.count} en el centro</p><div class="dos-pool ${d.who===me?'':'idle'}">${Array.from({length:d.count},(_,i)=>`<button class="dos-poolbtn" data-p="${i}" ${d.who===me?'':'disabled'} aria-label="Carta boca abajo ${i+1}"><span class="dcard back"></span></button>`).join('')}</div>${v.hand.length?`<p class="arc-sub center">Tus cartas</p><div class="dos-mine">${sortCards(v.hand).map(c=>cardHTML(c,added.includes(c.u)?'got':'')).join('')}</div>`:''}</div></div>`:'';
   const picker=pick!=null?`<div class="dos-over"><div class="dos-card"><h3>Elige el color</h3><div class="dos-colors">${COLORS.map(c=>`<button class="c-${c}" data-color="${c}">${CNAME[c]}</button>`).join('')}</div><button class="arc-btn alt" id="dosPickCancel">Cancelar</button></div></div>`:'';
   ui.stage.innerHTML=`<div class="mini-game dos">${head(mode==='solo'?'CONTRA LA MÁQUINA':`ONLINE · ${v.n} JUGADORES`)}
    ${offline?'<p class="arc-alert">Sin conexión. Reconectando…</p>':''}
-   <div class="dos-room2">
-    <div class="dos-arena n${v.n} ${v.n>5?'compact':''}">
+   <div class="dos-room2 ${fx?'fxr-'+fx:''}">
+    <div class="dos-arena n${v.n} ${v.n>5?'compact':''} tint-${v.color}">
      ${order.map(opp).join('')}
      <div class="dos-table ${fx?'fx-'+fx:''}">
       ${ring}
@@ -482,19 +553,24 @@
       ${fx?`<div class="dos-fx fx-${fx}"><span>${FX[fx][0]}</span><b>${FX[fx][1]}</b></div>`:''}
      </div>
      <div class="dos-info"><span class="dos-dot c-${v.color} ${colorChanged?'ping':''}"></span><b>${CNAME[v.color]}</b>${v.stack?`<em class="dos-stack">+${v.stack}</em>`:''}</div>
+     ${v.canCatch?`<div class="dos-shout"><button class="dos-catchbtn" id="dosCatch">👉 ¡${esc(v.names[v.owe])} no dijo DOS!</button></div>`:''}
+     ${v.caught&&fresh?`<div class="dos-fx fx-caught"><span>+${DOS_FINE}</span><b>¡${esc(v.names[v.caught.who])} no dijo DOS!</b></div>`:''}
      <div class="dos-turn ${myTurn?'mine':''}">${v.winner>=0?'Fin de la partida':d?(d.who===me?'Elige tus cartas':`Elige ${esc(v.names[d.who])}`):myTurn?'Tu turno':`Turno de ${esc(v.names[v.turn])}`}</div>
     </div>
-    <div class="dos-me s${me} ${myTurn?'turn':''}"><span class="dos-av">${avatar(me)}<i>${v.hand.length}</i></span><b>${esc(v.names[me])}</b>
-     <div class="dos-mebtns"><button class="arc-btn" id="dosDraw2" ${canDraw?'':'disabled'}>Robar</button><button class="arc-btn alt" id="dosPass" ${canPass?'':'disabled'}>Pasar</button></div></div>
+    <div class="dos-me s${me} ${myTurn?'turn':''}"><span class="dos-av">${avatar(me)}<i>${v.hand.length}</i>${call(v.hand.length,me)}</span><b>${esc(v.names[me])}</b>
+     <div class="dos-mebtns">${v.winner<0?'<button class="dos-callbtn" id="dosCall">¡DOS!</button>':''}<button class="arc-btn ${canDraw&&!v.playable.length?'go':''}" id="dosDraw2" ${canDraw?'':'disabled'}>Robar</button><button class="arc-btn alt ${canPass&&!v.playable.length?'go':''}" id="dosPass" ${canPass?'':'disabled'}>Pasar</button></div></div>
     ${prompt}
     <div class="dos-hand ${myTurn&&!e?'':'idle'} ${hand.length>14?'many':'fan'}" style="--n:${hand.length}">${hand.map((c,k)=>`<button class="dos-cardbtn ${v.playable.includes(c.u)?'ok':''} ${v.locked===c.u?'locked':''} ${handAnim(c.u)}" style="--k:${k};${fan(k)}" data-u="${c.u}" ${v.playable.includes(c.u)?'':'disabled'}>${cardHTML(c)}${v.locked===c.u?'<u>Bloqueada</u>':''}</button>`).join('')}</div>
    </div>
    <ul class="dos-log">${v.log.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
    ${draftBox}${picker}${end}${rulesHTML()}</div>`;
   bindCommon();
+  flyCards(from,me);
   ui.stage.querySelectorAll('.dos-poolbtn').forEach(b=>b.onclick=()=>send({t:'pick',i:+b.dataset.p}));
   $('#dosDraw').onclick=$('#dosDraw2').onclick=()=>send({t:'draw'});
   $('#dosPass').onclick=()=>send({t:'pass'});
+  const cb=$('#dosCall');if(cb)cb.onclick=()=>send({t:'dos'});
+  const kb=$('#dosCatch');if(kb)kb.onclick=()=>send({t:'catch'});
   ui.stage.querySelectorAll('.dos-cardbtn').forEach(b=>b.onclick=()=>tapCard(+b.dataset.u));
   if(e){const par=$('#dosParry');if(par)par.onclick=()=>send({t:'parry'});$('#dosAccept').onclick=()=>send({t:'accept'})}
   if(pick!=null){ui.stage.querySelectorAll('[data-color]').forEach(b=>b.onclick=()=>{const u=pick;pick=null;send({t:'play',u,color:b.dataset.color});if(mode==='guest')render()});$('#dosPickCancel').onclick=()=>{pick=null;render()}}

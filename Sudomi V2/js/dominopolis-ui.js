@@ -358,7 +358,7 @@
     if (xpDone !== token) { xpDone = token; const opp = g.players.length - 1; try { window.SudomiXP && SudomiXP.award(meWon ? 60 + 15 * Math.min(opp, 7) : 20) } catch (_) {} try { window.dispatchEvent(new CustomEvent('sudomi-dominopolis', { detail: { type: 'end', won: meWon, opponents: opp } })) } catch (_) {} }
     const rows = order.map((o, k) => `<li class="${o.p.id === me ? 'me' : ''}" style="border-left:6px solid ${o.p.color}"><b>${k + 1}.</b> ${tokEmo(o.p.id)} <span>${esc(o.p.name)}</span><em>${o.p.bankrupt ? 'Quiebra' : money(o.w)}</em></li>`).join('');
     const again = netMode === 'guest' ? '<p class="dp-note small">El anfitrión puede empezar otra partida.</p>' : '<button class="arc-btn" id="dpAgain">Otra partida</button>';
-    openSheet(`<div class="dp-end"><h3>${meWon ? '🏆 ¡Ganaste!' : '🏁 Fin de la partida'}</h3><p>${meWon ? 'Eres el dueño de la ciudad.' : esc(win.name) + ' gana la partida.'}</p><ol>${rows}</ol><div class="dp-btns">${again}<button class="arc-btn alt" id="dpExit2">Salir</button></div></div>`, s => {
+    openSheet(`<div class="dp-end"><div class="res-ic ${meWon ? '' : 'lose'}">${window.SudomiResult ? SudomiResult.icon(meWon ? 'win' : 'end') : ''}</div><h3>${meWon ? '¡Ganaste!' : 'Fin de la partida'}</h3><p>${meWon ? 'Eres el dueño de la ciudad.' : esc(win.name) + ' gana la partida.'}</p><ol>${rows}</ol><div class="dp-btns">${again}<button class="arc-btn alt" id="dpExit2">Salir</button></div></div>`, s => {
       const ag = s.querySelector('#dpAgain'); if (ag) ag.onclick = () => { closeSheet(); if (netMode === 'host') backToLobby(); else renderMenu() };
       s.querySelector('#dpExit2').onclick = leave;
     });

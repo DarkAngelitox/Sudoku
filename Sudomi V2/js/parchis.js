@@ -344,7 +344,8 @@
  let lastFx=0,fxTimer=null;
  function update(local){
   if(!g||!ui||!$('.pc-board'))return;
-  if(!g.over)endSent=false;else if(!endSent){endSent=true;const hs=g.players.filter(c=>g.seats[c].kind==='human'),L=net.role!=='solo'?net.me:hs.length===1?hs[0]:-1;if(L>=0){try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:'parchis',won:g.war?g.team[L]===g.winner:g.winner===L}}))}catch(_){}}}   /* 0.3.2: avisa el resultado a logros y estadísticas (no si hay varias personas en el mismo teléfono) */
+  if(!g.over)endSent=false;else if(!endSent){endSent=true;const hs=g.players.filter(c=>g.seats[c].kind==='human'),L=net.role!=='solo'?net.me:hs.length===1?hs[0]:-1;if(L>=0){try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:'parchis',won:g.war?g.team[L]===g.winner:g.winner===L}}))}catch(_){}}
+   try{const root=$('.pc-board').closest('.mini-game'),won=L>=0?(g.war?g.team[L]===g.winner:g.winner===L):null;if(window.SudomiResult&&root)setTimeout(()=>{if(g&&g.over)SudomiResult.show(root,{kind:won===null?'end':won?'win':'lose',game:'PARCHIMI',title:won?'¡Ganaste!':won===false?'Perdiste':'Partida terminada',sub:String(g.msg||'').replace(/^🏆\s*/,''),exit:leave})},1400)}catch(_){}}   /* 0.3.28: tarjeta de resultado común */   /* 0.3.2: avisa el resultado a logros y estadísticas (no si hay varias personas en el mismo teléfono) */
   const c=g.players[g.turn],me=mine(c)&&!g.over,opts=g.phase==='pick'&&me?g.opts:[],W=g.war;
   if(opts.length&&!opts.some(o=>o.d===selDie))selDie=opts[0].d;
   if(!opts.length)choice=null;
