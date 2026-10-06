@@ -116,10 +116,11 @@
  const needProfile=fn=>{if(P()&&!P().get()){P().ensure(fn);return true}return false};
  let ui=null,screen='menu',mode=null,S=null,V=null,net=null,seats=[],size=4,clock=null,status='',roomCode='',offline=false,busy=false,showRules=false;
  let draft=Array(10).fill(''),draftKey='',focus=-1,lastKey='',sendTimer=null;
+ let classic=false;   // 0.2.101: la sala a la que entré es de STOP clásico -> la pantalla la lleva js/stop-clasico.js
  const $=sel=>ui.stage.querySelector(sel);
  window.addEventListener('sudomi-profile',()=>{if(ui&&screen==='menu')render()});
 
- function reset(){try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}clearInterval(clock);clock=null;clearTimeout(sendTimer);if(net){try{net.close()}catch(_){}}net=null;S=null;V=null;seats=[];status='';roomCode='';offline=false;mode=null;busy=false;lastKey=''}
+ function reset(){try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}clearInterval(clock);clock=null;clearTimeout(sendTimer);if(net){try{net.close()}catch(_){}}net=null;classic=false;S=null;V=null;seats=[];status='';roomCode='';offline=false;mode=null;busy=false;lastKey=''}
  function open(opts){ui=opts;reset();screen='menu';ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');render()}
  function close(){if(!ui)return;reset();screen='menu'}
  function leave(){try{window.SudomiFriends&&SudomiFriends.untrack()}catch(_){}const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}}
@@ -192,6 +193,10 @@
   reset();mode='guest';roomCode=code;status='Conectando…';screen='joining';render();
   net=SudomiParty.join('stop',code,{name:myName(),avatar:myAvatar()},e=>{
    if(mode!=='guest')return;
+   const C=window.SudomiStopClasico;
+   if(C&&!classic&&e.type==='msg'&&e.data&&e.data.classic){classic=true;C.adopt(ui,m=>!!(net&&net.send(m)),code)}
+   if(classic&&e.type!=='closed'){if(e.type!=='open')C.guest(e);return}
+   if(classic&&C)C.close();
    if(e.type==='open'){status='Conectado. Esperando al anfitrión…';try{window.SudomiFriends&&SudomiFriends.track({game:'stop',gameName:'STOP',room:code,role:'guest'})}catch(_){}}
    else if(e.type==='away')offline=true;
    else if(e.type==='back')offline=false;

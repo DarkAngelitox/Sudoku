@@ -253,6 +253,7 @@ class Game{
   if(!this.ui.notesMode){const count=this.board.reduce((t,v)=>t+(v===n?1:0),0);if(count>=9)return false;}
   if(this.ui.notesMode){this.toggleNote(n);return true}
   if(this.board[i]===n)return false;
+  if(this.board[i]&&this.board[i]===this.solution[i])return false;   // 0.2.96: un número correcto ya no se puede reemplazar por otro (evita errores por un toque de más)
   this.push();
   if(n!==this.solution[i]){
    this.board[i]=n;this.errors++;this.ui.wrong(i);

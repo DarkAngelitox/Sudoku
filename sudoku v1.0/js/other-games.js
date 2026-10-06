@@ -13,7 +13,7 @@ const games=[
  ['memory','🐾','Memoria de animales','Encuentra parejas volteando dos fichas.'],
  ['dotsboxes','▫️','Puntos y cajas','Completa cuadros para sumar puntos.'],
  ['stop','🔤','STOP','Diez categorías, de 1 a 8 jugadores, con IA y salas online.'],
- ['mahjong','🀄','Duelo Mahjong','Variante de emparejar fichas para 2 jugadores.'],
+ ['mahjong','🀄','Duelo Mahjong','Carrera de parejas: cada quien con su tablero.'],
  ['blackjack','🂡','Blackjack','Cartas, estrategia y banca.'],
  ['poker','🃏','Póker','Cambia cartas y gana con la mejor mano (2 jugadores).'],
  ['escoba','🃑','Escoba','La clásica escoba con baraja española.'],
@@ -33,6 +33,12 @@ function openDos(){if(!window.SudomiDos)return false;current=null;game=null;Sudo
 function openDominoParty(pending,create){if(!window.SudomiDominoParty)return false;current=null;game=null;SudomiDominoParty.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()},back:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');chooseMode('domino')},toast:(t,s)=>wifiToast(t,s)},pending,create);return true}
 function openDominopolis(){if(!window.SudomiDominopolis)return false;current=null;game=null;SudomiDominopolis.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}});return true}
 function openParchis(mode,code){if(!window.SudomiParchis)return false;current=null;game=null;SudomiParchis.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}},mode,code);return true}
+// 0.2.97: la Batalla naval nueva vive en js/naval.js (la clase Fleet de abajo queda solo como respaldo si ese archivo no cargara)
+function openNaval(mode,code){if(!window.SudomiNaval)return false;current=null;game=null;SudomiNaval.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}},mode,code);return true}
+function openMahjong(mode,code){if(!window.SudomiMahjong)return false;current=null;game=null;SudomiMahjong.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}},mode,code);return true}   // 0.2.100: Mahjong nuevo (js/mahjong.js)
+function openStopClasico(){if(!window.SudomiStopClasico)return false;current=null;game=null;SudomiStopClasico.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}});return true}   // 0.2.101: STOP clásico (js/stop-clasico.js)
+// el interruptor «Modo clásico» de la pantalla de elegir partida de STOP; se recuerda en este navegador
+const stopClassic=()=>{try{return localStorage.getItem('sudomi-stop-clasico')==='1'}catch(_){return false}};
 function openStop(){if(!window.SudomiStop)return false;current=null;game=null;SudomiStop.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()},legacy:()=>launch('stop','pvp')});return true}
 let current=null, game=null, wifi={active:false,player:0,handler:null,names:[null,null]}, acknowledgedWin=null, localWinListener=null;
 /* 0.2.25 — player profiles in two-player online games: each phone sends {name, avatar} to the other one,
@@ -94,7 +100,7 @@ function awayBarHook(on){
  SudomiFriends.awayBar({game:current,gameName:it?it[2]:'',room:s.room,names:[nm]});
 }
 function leaveWifi(){try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}wifi.names=[null,null];if(wifi.active&&window.SudomiLAN){SudomiLAN.leave();wifi.active=false;wifi.player=0;wifi.handler=null}try{localStorage.removeItem(HOST_KEY)}catch(_){}hideWifiToast()}
-function back(){if(window.SudomiDos)SudomiDos.close();if(window.SudomiParchis)SudomiParchis.close();if(window.SudomiStop)SudomiStop.close();leaveWifi();stage.classList.add('hidden');hub.classList.remove('hidden');$('#miniGamesScreen').classList.add('hidden');$('#homeScreen').classList.remove('hidden');current=null;game=null;renderHub()}
+function back(){if(window.SudomiDos)SudomiDos.close();if(window.SudomiParchis)SudomiParchis.close();if(window.SudomiNaval)SudomiNaval.close();if(window.SudomiMahjong)SudomiMahjong.close();if(window.SudomiStop)SudomiStop.close();if(window.SudomiStopClasico)SudomiStopClasico.close();leaveWifi();stage.classList.add('hidden');hub.classList.remove('hidden');$('#miniGamesScreen').classList.add('hidden');$('#homeScreen').classList.remove('hidden');current=null;game=null;renderHub()}
 /* 0.2.95 — BARRA DEL ARCADE: casa/atrás · logo (va a la lista de juegos) · modo claro/oscuro · foto de perfil.
  * «Atrás» siempre es UN paso: partida → menú de ese juego → lista de juegos → inicio. Si hay una partida en marcha, atrás y el logo preguntan antes de salir.
  * Los dibujos (logo, banners, animaciones de las opciones, adornos del fondo) están en js/arcade-art.js. */
@@ -104,8 +110,11 @@ const navLevel=()=>!stage.classList.contains('hidden')?'play':hub.querySelector(
 // ¿hay una partida que se perdería al salir? (los menús, las salas de espera y las partidas terminadas no cuentan)
 function navPlaying(){
  if(navLevel()!=='play')return false;
- if(stage.querySelector('.pc-menu,.dp-menu,.lb,.game-end-overlay'))return false;
+ if(stage.querySelector('.pc-menu,.dp-menu,.nv-menu,.mz-menu,.lb,.game-end-overlay'))return false;
  const P=window.SudomiParchis;if(navId==='parchis'&&P&&P._state){const s=P._state();return !!s&&!s.over}
+ const Nv=window.SudomiNaval;if(navId==='fleet'&&Nv&&Nv._view){const v=Nv._view();return !!v&&!v.over}
+ const Sc=window.SudomiStopClasico;if(navId==='stop'&&Sc&&Sc.active())return Sc.playing();
+ const Mj=window.SudomiMahjong;if(navId==='mahjong'&&Mj&&Mj.playing)return Mj.playing();
  if(game)return !(game.over||game.done);
  return true;
 }
@@ -119,7 +128,7 @@ function navConfirm(go){
 }
 // cierra lo que haya en el escenario (cualquier juego, con o sin sala) y vuelve a mostrar el menú
 function exitStage(){
- ['SudomiDos','SudomiStop','SudomiParchis','SudomiDominopolis','SudomiDominoParty'].forEach(k=>{try{const M=window[k];if(M&&typeof M.close==='function')M.close()}catch(_){}});
+ ['SudomiDos','SudomiStop','SudomiStopClasico','SudomiParchis','SudomiNaval','SudomiMahjong','SudomiDominopolis','SudomiDominoParty'].forEach(k=>{try{const M=window[k];if(M&&typeof M.close==='function')M.close()}catch(_){}});
  if(game?.dispose)game.dispose();leaveWifi();current=null;game=null;stage.innerHTML='';stage.classList.add('hidden');hub.classList.remove('hidden');
 }
 function navBack(){
@@ -173,7 +182,7 @@ function renderHub(){
 //   🤖 Contra la máquina · 👥 En este dispositivo (si el juego lo tiene) · 🌐 Multijugador · 🔑 Unirme con un código (para quien no es amigo)
 // «Multijugador» crea la sala solo. DOS, STOP y Dominópolis primero preguntan cuántos juegan (2 a 8); los demás tienen tamaño fijo y pasan directo a la sala.
 const VARIABLE_GAMES=['dos','stop','dominopolis'];
-const NO_LOCAL=['dos','dominopolis'];
+const NO_LOCAL=['dos','dominopolis','mahjong'];   // mahjong (0.2.100): cada jugador necesita su propio tablero de 80 fichas
 const isLocalHost=()=>{const h=location.hostname;return h==='localhost'||h==='127.0.0.1'||h==='[::1]'||h.endsWith('.local')||/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h)};
 function modeButtons(id){
  const pve='<button data-mode="pve"><strong>🤖 Contra la máquina</strong><small>'+(id==='domino'?'Tú y un compañero IA contra dos rivales IA':'Juega contra la computadora')+'</small></button>';
@@ -187,8 +196,9 @@ function chooseMode(id){
  const item=games.find(g=>g[0]===id);
  const choices=id==='mines'?mineLevelsHTML()+'<button data-mode="clock"><strong>⏱ Contra el reloj</strong><small>Completa el tablero y mejora tu tiempo</small></button><button data-mode="practice"><strong>🧘 Práctica</strong><small>Juega sin cronómetro</small></button>':modeButtons(id);
  navId=id;   // 0.2.95: sin cuadro, con el banner del juego (lo pone arcadeChrome) y una animación distinta en cada opción
- hub.innerHTML=`<button class="games-back mode-back" id="backToGames">‹ Todos los juegos</button><div class="mode-picker arc-plain"><span class="mode-game-icon">${item[1]}</span><p>ELIGE TU PARTIDA</p><h2>${item[2]}</h2><div class="mode-choices">${choices}</div></div>`;
+ hub.innerHTML=`<button class="games-back mode-back" id="backToGames">‹ Todos los juegos</button><div class="mode-picker arc-plain"><span class="mode-game-icon">${item[1]}</span><p>ELIGE TU PARTIDA</p><h2>${item[2]}</h2>${id==='stop'&&window.SudomiStopClasico?`<label class="sc-switch${stopClassic()?' on':''}"><input type="checkbox" id="stopClassicSw" ${stopClassic()?'checked':''}><span><b>📝 Modo clásico</b><small>La hoja de siempre: 6 columnas, 5 rondas y piedra, papel o tijera para poner la letra.</small></span><i></i></label>`:''}<div class="mode-choices">${choices}</div></div>`;
  $('#backToGames').onclick=renderHub;
+ const csw=$('#stopClassicSw');if(csw){csw.onchange=()=>{try{localStorage.setItem('sudomi-stop-clasico',csw.checked?'1':'0')}catch(_){}chooseMode(id)};if(csw.checked){const lb=hub.querySelector('[data-mode="pvp"]');if(lb)lb.remove()}}
  hub.querySelectorAll('[data-mode]').forEach(b=>{b.onclick=()=>enterMode(id,b.dataset.mode);if(ART())b.insertAdjacentHTML('beforeend',ART().opt(id,b.dataset.mode))});
  const j=$('#mcJoin');if(j)j.onclick=()=>{const raw=$('#mcCode').value,msg=$('#mcMsg'),code=raw.replace(/[^A-Za-z0-9]/g,'').toUpperCase();if(code.length<6){msg.textContent='Escribe el código completo de la sala.';return}joinByCode(id,code)};
  qrOffer(id);
@@ -196,8 +206,11 @@ function chooseMode(id){
 function enterMode(id,mode){
  if(mode==='clock'||mode==='practice')return launch(id,mode);
  if(id==='parchis'){openParchis(mode);return}
+ if(id==='fleet'&&openNaval(mode))return;
+ if(id==='mahjong'&&openMahjong(mode))return;
  if(mode==='pve'){
   if(id==='dos'&&openDos()){SudomiDos.solo();return}
+  if(id==='stop'&&stopClassic()&&openStopClasico()){SudomiStopClasico.solo();return}
   if(id==='stop'&&openStop()){SudomiStop.solo();return}
   if(id==='dominopolis'&&openDominopolis()){SudomiDominopolis.soloSetup();return}
   return launch(id,'pve');
@@ -214,6 +227,7 @@ function countScreen(id){
 }
 function startMulti(id,n){
  if(id==='dos'&&openDos()){SudomiDos.create(n);return}
+ if(id==='stop'&&stopClassic()&&openStopClasico()){SudomiStopClasico.create(n);return}
  if(id==='stop'&&openStop()){SudomiStop.create(n);return}
  if(id==='dominopolis'&&openDominopolis()){SudomiDominopolis.create(n);return}
  if(id==='domino'){openDominoParty('',true);return}
@@ -222,6 +236,8 @@ function startMulti(id,n){
 function joinByCode(id,code){
  navId=id;
  if(id==='parchis'){openParchis('join',code);return}
+ if(id==='fleet'&&openNaval('join',code))return;
+ if(id==='mahjong'&&openMahjong('join',code))return;
  if(id==='dos'&&openDos()){SudomiDos.join(code);return}
  if(id==='stop'&&openStop()){SudomiStop.join(code);return}
  if(id==='dominopolis'&&openDominopolis()){SudomiDominopolis.join(code);return}
@@ -348,6 +364,8 @@ function joinInvite(id,room,opts){
  navId=id;
  if(id==='dos'){open();if(openDos())SudomiDos.join(room);return}
  if(id==='parchis'){open();openParchis('join',room);return}
+ if(id==='fleet'&&window.SudomiNaval){open();openNaval('join',room);return}
+ if(id==='mahjong'&&window.SudomiMahjong){open();openMahjong('join',room);return}
  if(id==='stop'){open();if(openStop())SudomiStop.join(room);return}
  if(id==='dominopolis'){open();if(openDominopolis())SudomiDominopolis.join(room,opts);return}
  open();wifiLobby(id,{code:room});
