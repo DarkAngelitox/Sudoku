@@ -1,0 +1,48 @@
+/* SUDOMI 0.2.79 — FONDOS de Dominópolis (window.SudomiDpBg).
+ * Ocho escenas dibujadas con SVG (sin imágenes): Playa, Atardecer, Noche, Ciudad, Montaña, Selva, Bandera y Espacio.
+ * Cada jugador elige la suya (se guarda en este teléfono: localStorage 'sudomi-dp-bg') y nadie más la ve cambiar.
+ *   · el selector está en el menú de Dominópolis y en la sala de espera, debajo de «Tu color»
+ *   · en la partida, el botón 🖼 pasa al siguiente fondo
+ * apply(elemento) pone la escena como fondo de la «mesa» (.dp-stage). Solo dibuja; no toca las reglas del juego. */
+(() => {
+  const KEY = 'sudomi-dp-bg';
+  const V = 'viewBox="0 0 400 360" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"';
+  const grad = (id, stops, vertical = true) => `<linearGradient id="${id}" x1="0" y1="0" x2="${vertical ? 0 : 1}" y2="${vertical ? 1 : 0}">${stops.map(([o, c]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</linearGradient>`;
+  const palm = (fill, trunk, x = 0, y = 0, flip = false) => `<g transform="translate(${x} ${y})${flip ? ' scale(-1 1)' : ''}"><path d="M26 372Q42 300 30 238" stroke="${trunk}" stroke-width="8" fill="none" stroke-linecap="round"/><g fill="${fill}"><path d="M30 238q-30-6-52 14q28-4 52-14z"/><path d="M30 238q-8-32-36-38q24 14 36 38z"/><path d="M30 238q14-30 46-28q-28 6-46 28z"/><path d="M30 238q32 0 50 22q-28-12-50-22z"/></g></g>`;
+  const waves = (col, op) => `<g stroke="${col}" stroke-opacity="${op}" fill="none" stroke-width="2" stroke-linecap="round"><path d="M110 214q15-8 30 0t30 0M250 236q15-8 30 0t30 0M60 286q15-8 30 0t30 0M290 318q15-8 30 0t30 0M170 330q15-8 30 0t30 0"/></g>`;
+  const stars = (n, seed, col = '#fff') => { let s = '', k = seed; for (let i = 0; i < n; i++) { k = (k * 9301 + 49297) % 233280; const x = k / 233280 * 400; k = (k * 9301 + 49297) % 233280; const y = k / 233280 * 170; s += `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${(i % 3 ? 1.1 : 1.8)}" fill="${col}" opacity="${i % 2 ? .7 : .95}"/>` } return s };
+
+  const SCENES = {
+    playa: () => `<svg ${V}><defs>${grad('s', [[0, '#4fb6f2'], [1, '#e3f6ff']])}${grad('m', [[0, '#35cbd8'], [1, '#0a5fa0']])}</defs><rect width="400" height="360" fill="url(#s)"/><circle cx="334" cy="56" r="46" fill="#ffe27a" opacity=".28"/><circle cx="334" cy="56" r="30" fill="#ffe27a"/><g fill="#fff" opacity=".92"><ellipse cx="72" cy="62" rx="38" ry="11"/><ellipse cx="100" cy="53" rx="26" ry="10"/><ellipse cx="222" cy="38" rx="34" ry="9"/></g><rect y="168" width="400" height="192" fill="url(#m)"/><path d="M0 168Q100 158 200 168T400 168V175H0z" fill="#fff" opacity=".55"/>${waves('#fff', .38)}<path d="M296 203V168l28 35z" fill="#fff"/><path d="M286 206h48l-8 10h-32z" fill="#d62027"/>${palm('#178a4a', '#6b4423')}${palm('#178a4a', '#6b4423', 400, 20, true)}</svg>`,
+    atardecer: () => `<svg ${V}><defs>${grad('s', [[0, '#3b2a6f'], [.45, '#e0566b'], [.75, '#ffb066'], [1, '#ffe29a']])}${grad('m', [[0, '#ff9a5a'], [.4, '#c2456b'], [1, '#2b1a56']])}</defs><rect width="400" height="360" fill="url(#s)"/><circle cx="200" cy="168" r="70" fill="#fff3b0" opacity=".35"/><circle cx="200" cy="168" r="46" fill="#fff3b0"/><rect y="168" width="400" height="192" fill="url(#m)"/><g fill="#ffd9a0" opacity=".55"><rect x="150" y="180" width="100" height="4" rx="2"/><rect x="165" y="192" width="70" height="4" rx="2"/><rect x="178" y="206" width="44" height="4" rx="2"/><rect x="188" y="222" width="24" height="4" rx="2"/></g>${waves('#ffd9a0', .3)}${palm('#2a1646', '#1c0f33')}${palm('#2a1646', '#1c0f33', 400, 20, true)}</svg>`,
+    noche: () => `<svg ${V}><defs>${grad('s', [[0, '#081a44'], [1, '#365a9a']])}${grad('m', [[0, '#1b6a9a'], [1, '#071d44']])}</defs><rect width="400" height="360" fill="url(#s)"/>${stars(26, 7)}<circle cx="332" cy="58" r="34" fill="#fff6c9" opacity=".2"/><circle cx="332" cy="58" r="22" fill="#fff6c9"/><rect y="168" width="400" height="192" fill="url(#m)"/><path d="M0 168Q100 158 200 168T400 168V175H0z" fill="#bcd4ff" opacity=".35"/><path d="M300 168h66v10h-66z" fill="#fff6c9" opacity=".22"/>${waves('#bcd4ff', .28)}${palm('#0d4a2a', '#32200f')}${palm('#0d4a2a', '#32200f', 400, 20, true)}</svg>`,
+    ciudad: () => {
+      let b = ''; const cols = ['#1d3566', '#243f7a', '#17294f', '#2c4a8a'];
+      for (let i = 0; i < 12; i++) { const x = i * 34 - 6, h = 70 + ((i * 47) % 90), w = 28 + (i % 3) * 4; b += `<rect x="${x}" y="${230 - h}" width="${w}" height="${h + 130}" fill="${cols[i % 4]}"/>`; for (let r = 0; r < h / 16; r++) for (let c = 0; c < 2; c++) if ((i + r + c) % 3) b += `<rect x="${x + 5 + c * 11}" y="${236 - h + r * 16}" width="6" height="8" fill="#ffd86b" opacity=".85"/>` }
+      return `<svg ${V}><defs>${grad('s', [[0, '#2a3a8c'], [.6, '#d4568a'], [1, '#ffb27a']])}</defs><rect width="400" height="360" fill="url(#s)"/><circle cx="310" cy="120" r="26" fill="#ffe9a8" opacity=".9"/>${b}<rect y="300" width="400" height="60" fill="#10162e"/><g fill="#ffd86b"><rect x="20" y="326" width="40" height="5" rx="2"/><rect x="110" y="326" width="40" height="5" rx="2"/><rect x="200" y="326" width="40" height="5" rx="2"/><rect x="290" y="326" width="40" height="5" rx="2"/></g></svg>`;
+    },
+    montana: () => `<svg ${V}><defs>${grad('s', [[0, '#7ec8f2'], [1, '#e8f7ff']])}${grad('g', [[0, '#3e8e4b'], [1, '#1b5a2c']])}</defs><rect width="400" height="360" fill="url(#s)"/><circle cx="70" cy="60" r="26" fill="#fff6c0"/><g fill="#fff" opacity=".9"><ellipse cx="250" cy="52" rx="40" ry="11"/><ellipse cx="282" cy="44" rx="26" ry="9"/></g><path d="M0 230L90 110l70 90 60-70 80 100 100-80v190H0z" fill="#6aa876"/><path d="M0 260L70 170l60 70 70-90 90 100 110-70v180H0z" fill="url(#g)"/><ellipse cx="200" cy="248" rx="220" ry="16" fill="#fff" opacity=".4"/><rect y="300" width="400" height="60" fill="#14472a"/><g fill="#0f3a22">${[30, 90, 150, 250, 320, 372].map((x, i) => `<path d="M${x} ${300 - (i % 2) * 6}l-18 46h36zM${x} ${282 - (i % 2) * 6}l-14 36h28z"/>`).join('')}</g></svg>`,
+    selva: () => `<svg ${V}><defs>${grad('s', [[0, '#bff0a8'], [.5, '#3fae5a'], [1, '#0d4a2a']])}</defs><rect width="400" height="360" fill="url(#s)"/><g fill="#fff" opacity=".12"><path d="M120 0l40 0-90 360h-40z"/><path d="M240 0l30 0-70 360h-30z"/></g><g fill="#0f6a38" opacity=".9"><ellipse cx="40" cy="300" rx="70" ry="26" transform="rotate(-30 40 300)"/><ellipse cx="350" cy="310" rx="70" ry="26" transform="rotate(28 350 310)"/><ellipse cx="60" cy="90" rx="60" ry="22" transform="rotate(35 60 90)"/><ellipse cx="350" cy="80" rx="60" ry="22" transform="rotate(-35 350 80)"/></g><g fill="#0a4a28"><ellipse cx="200" cy="350" rx="130" ry="30"/><ellipse cx="20" cy="200" rx="46" ry="16" transform="rotate(-70 20 200)"/><ellipse cx="380" cy="210" rx="46" ry="16" transform="rotate(70 380 210)"/></g><g fill="#ffd23f"><circle cx="90" cy="240" r="5"/><circle cx="320" cy="150" r="5"/><circle cx="260" cy="300" r="4"/></g></svg>`,
+    bandera: () => `<svg ${V}><rect width="400" height="360" fill="#fff"/><rect width="190" height="170" fill="#0b3d91"/><rect x="210" width="190" height="170" fill="#d62027"/><rect y="190" width="190" height="170" fill="#d62027"/><rect x="210" y="190" width="190" height="170" fill="#0b3d91"/><g fill="#fff" opacity=".25"><circle cx="60" cy="50" r="5"/><circle cx="330" cy="260" r="5"/><circle cx="120" cy="300" r="4"/><circle cx="300" cy="90" r="4"/><circle cx="40" cy="250" r="3"/><circle cx="370" cy="40" r="3"/></g></svg>`,
+    espacio: () => `<svg ${V}><defs>${grad('s', [[0, '#0a0620'], [.6, '#2a1260'], [1, '#5a2a8a']])}</defs><rect width="400" height="360" fill="url(#s)"/>${stars(40, 21)}<circle cx="320" cy="110" r="38" fill="#e8a24a"/><ellipse cx="320" cy="110" rx="62" ry="12" fill="none" stroke="#f5d08a" stroke-width="4" transform="rotate(-18 320 110)"/><circle cx="80" cy="260" r="26" fill="#4fb6f2"/><circle cx="72" cy="252" r="8" fill="#b6e6ff" opacity=".7"/><circle cx="210" cy="320" r="14" fill="#d62027"/></svg>`
+  };
+  const LIST = [
+    { id: 'playa', name: 'Playa' }, { id: 'atardecer', name: 'Atardecer' }, { id: 'noche', name: 'Noche' }, { id: 'ciudad', name: 'Ciudad' },
+    { id: 'montana', name: 'Montaña' }, { id: 'selva', name: 'Selva' }, { id: 'bandera', name: 'Bandera' }, { id: 'espacio', name: 'Espacio' }
+  ];
+  const ok = id => LIST.some(x => x.id === id);
+  const url = id => 'url("data:image/svg+xml;utf8,' + encodeURIComponent(SCENES[ok(id) ? id : 'playa']()).replace(/"/g, '%22') + '")';
+  function get() { try { const v = localStorage.getItem(KEY); return ok(v) ? v : 'playa' } catch (_) { return 'playa' } }
+  function set(id) { if (!ok(id)) return; try { localStorage.setItem(KEY, id) } catch (_) {}; document.querySelectorAll('.dp-stage').forEach(apply) }
+  function next() { const i = LIST.findIndex(x => x.id === get()); const n = LIST[(i + 1) % LIST.length].id; set(n); return n }
+  function apply(el) { if (!el) return; el.style.backgroundImage = url(get()); el.dataset.bg = get() }
+  // selector (mismo tamaño que las fichas): data-bg="id" en cada botón; el borde marca el elegido
+  function pickerHTML() {
+    const cur = get();
+    return LIST.map(x => `<button type="button" class="dp-bgtile${x.id === cur ? ' on' : ''}" data-bg="${x.id}" aria-label="Fondo ${x.name}" title="${x.name}" style="background-image:${url(x.id).replace(/"/g, '&quot;')}"></button>`).join('');
+  }
+  function bindPicker(root) {
+    root.querySelectorAll('[data-bg]').forEach(b => b.onclick = () => { set(b.dataset.bg); root.querySelectorAll('[data-bg]').forEach(x => x.classList.toggle('on', x === b)) });
+  }
+  window.SudomiDpBg = { list: LIST.map(x => ({ ...x })), get, set, next, apply, pickerHTML, bindPicker, name: id => (LIST.find(x => x.id === id) || LIST[0]).name };
+})();
