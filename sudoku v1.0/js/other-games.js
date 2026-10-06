@@ -21,7 +21,7 @@ const games=[
  ['slide','🧩','Fichas deslizantes','Desliza columnas, voltea fichas y completa tu set.'],
  ['dos','🌪','DOS','Quédate sin cartas. De 1 a 8 jugadores, con IA y salas online.'],
  ['dominopolis','🏙️','Dominópolis','Compra, construye y cobra alquiler. De 2 a 8 jugadores, con IA y salas online.'],   // 0.2.20: runs on its own (js/dos-game.js), not through SudomiExtraGames
- ['parchis','🎲','Parchís','Saca tus fichas, da la vuelta y llévalas al centro. De 2 a 4 jugadores.']   // 0.2.86: js/parchis.js (por ahora sin salas online)
+ ['parchis','🎲','Parchimi','El parchís de SUDOMI: saca tus fichas, da la vuelta y llévalas al centro. De 2 a 4 jugadores, con IA y salas online.']   // 0.2.86: js/parchis.js (por ahora sin salas online)
 ];
 // 0.2.30: difficulty buttons shown above the Minesweeper modes (the choice is remembered on this device)
 function mineLevelsHTML(){const best=mineBest();return `<div class="mine-levels" role="group" aria-label="Dificultad">${Object.entries(MINE_LEVELS).map(([k,L])=>`<button type="button" data-ml="${k}" class="${k===minesLevel?'on':''}"><b>${L.label}</b><small>${L.n}×${L.n} · ${L.mines} 💣${best[k]?` · ⏱ ${clockText(best[k])}`:''}</small></button>`).join('')}</div>`}
@@ -66,7 +66,7 @@ function profileFirst(button){const P=window.SudomiProfile;if(P&&!P.get()){P.ens
 const matchRecords={tictactoe:{pve:{scores:[0,0],starter:0},pvp:{scores:[0,0],starter:0}},connect4:{pve:{scores:[0,0]},pvp:{scores:[0,0]}}};
 function init(){
  $('#openMiniGames').onclick=()=>{let m=$('#homeDropdown');m.classList.add('hidden');$('#homeMenuBtn').setAttribute('aria-expanded','false');open()};
- $('#gamesBackHome').onclick=back;
+ $('#gamesBackHome').onclick=navBack;arcadeChrome();
  setInterval(()=>{if(current==='mines'&&game?.mode==='clock'&&game.clockStarted&&!game.over){game.seconds++;let value=clockText(game.seconds);let timer=$('#mineClock'),badge=document.querySelector('.turn-indicator');if(timer)timer.textContent=value;if(badge)badge.textContent=`⏱ ${value}`}else if(game&&games.findIndex(g=>g[0]===current)>=6)SudomiExtraGames.tick(current,game,{wifi:wifi.active,player:wifi.player,render,dispatch:dispatchExtra})},1000);
  renderHub();
  renderHomeGames();
@@ -95,6 +95,71 @@ function awayBarHook(on){
 }
 function leaveWifi(){try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}wifi.names=[null,null];if(wifi.active&&window.SudomiLAN){SudomiLAN.leave();wifi.active=false;wifi.player=0;wifi.handler=null}try{localStorage.removeItem(HOST_KEY)}catch(_){}hideWifiToast()}
 function back(){if(window.SudomiDos)SudomiDos.close();if(window.SudomiParchis)SudomiParchis.close();if(window.SudomiStop)SudomiStop.close();leaveWifi();stage.classList.add('hidden');hub.classList.remove('hidden');$('#miniGamesScreen').classList.add('hidden');$('#homeScreen').classList.remove('hidden');current=null;game=null;renderHub()}
+/* 0.2.95 — BARRA DEL ARCADE: casa/atrás · logo (va a la lista de juegos) · modo claro/oscuro · foto de perfil.
+ * «Atrás» siempre es UN paso: partida → menú de ese juego → lista de juegos → inicio. Si hay una partida en marcha, atrás y el logo preguntan antes de salir.
+ * Los dibujos (logo, banners, animaciones de las opciones, adornos del fondo) están en js/arcade-art.js. */
+let navId=null;   // el juego cuyo menú o partida está abierto
+const ART=()=>window.SudomiArcadeArt;
+const navLevel=()=>!stage.classList.contains('hidden')?'play':hub.querySelector('.games-grid')?'hub':'sub';
+// ¿hay una partida que se perdería al salir? (los menús, las salas de espera y las partidas terminadas no cuentan)
+function navPlaying(){
+ if(navLevel()!=='play')return false;
+ if(stage.querySelector('.pc-menu,.dp-menu,.lb,.game-end-overlay'))return false;
+ const P=window.SudomiParchis;if(navId==='parchis'&&P&&P._state){const s=P._state();return !!s&&!s.over}
+ if(game)return !(game.over||game.done);
+ return true;
+}
+function navConfirm(go){
+ if(!navPlaying())return go();
+ const m=$('#modal');
+ m.innerHTML='<div class="modal-card"><h2>¿Salir de la partida?</h2><p>Si sales ahora, la partida que estás jugando se pierde.</p><div class="modal-actions"><button class="primary-action" id="arcStay">Seguir jugando</button><button class="secondary-action" id="arcLeave">Salir</button></div></div>';
+ m.classList.remove('hidden');
+ $('#arcStay').onclick=()=>m.classList.add('hidden');
+ $('#arcLeave').onclick=()=>{m.classList.add('hidden');go()};
+}
+// cierra lo que haya en el escenario (cualquier juego, con o sin sala) y vuelve a mostrar el menú
+function exitStage(){
+ ['SudomiDos','SudomiStop','SudomiParchis','SudomiDominopolis','SudomiDominoParty'].forEach(k=>{try{const M=window[k];if(M&&typeof M.close==='function')M.close()}catch(_){}});
+ if(game?.dispose)game.dispose();leaveWifi();current=null;game=null;stage.innerHTML='';stage.classList.add('hidden');hub.classList.remove('hidden');
+}
+function navBack(){
+ const lv=navLevel();
+ if(lv==='play')return navConfirm(()=>{const id=navId;exitStage();if(id&&games.some(g=>g[0]===id))chooseMode(id);else renderHub()});
+ if(lv==='sub'){const b=hub.querySelector('#backToModes,#backToModes2')||hub.querySelector('#backToGames');if(b&&b.id!=='backToGames')b.click();else renderHub();return}
+ back();
+}
+function navHome(){
+ const lv=navLevel();
+ if(lv==='play')return navConfirm(()=>{exitStage();renderHub()});
+ if(lv==='sub'){const b=hub.querySelector('#backToModes,#backToModes2');if(b)b.click()}   // así las salas de espera se cierran bien
+ renderHub();
+}
+function arcadeChrome(){
+ const A=ART(),logo=$('#arcLogo'),nav=$('#gamesBackHome'),screen=$('#miniGamesScreen'),scene=$('#arcScene');
+ if(logo){logo.innerHTML=A?A.logo:'SUDOMI ARCADE';logo.onclick=navHome}
+ // solo se toca la página cuando de verdad cambia algo: otros archivos también vigilan esta pantalla y, si no, se disparan unos a otros sin parar
+ let shownLv='';
+ const paintNav=()=>{const lv=navLevel();if(lv===shownLv)return;shownLv=lv;const hubLv=lv==='hub';nav.innerHTML=A?A.icon(hubLv?'home':'back'):(hubLv?'⌂':'‹');nav.setAttribute('aria-label',hubLv?'Inicio':'Atrás');nav.title=hubLv?'Inicio':'Atrás';screen.dataset.lv=lv};
+ // dentro de una partida: fuera los botones «Juegos / Sudoku / Modos» (ahora eso lo hace la barra) y la línea «ARCADE SUDOMI · …»
+ const tidy=()=>{
+  stage.querySelectorAll('button:not(.arc-gone)').forEach(b=>{const t=b.textContent.trim();if((t==='Juegos'||t==='Sudoku'||t==='Modos')&&!b.closest('.game-end-overlay'))b.classList.add('arc-gone')});
+  stage.querySelectorAll('.mini-game-head p:not(.arc-gone),.dos-head p:not(.arc-gone)').forEach(p=>{if(/^ARCADE SUDOMI/.test(p.textContent.trim()))p.classList.add('arc-gone')});
+  // en las pantallas intermedias (cuántos juegan, sala de espera) el icono y el título se cambian por el banner del juego
+  hub.querySelectorAll('.mode-picker:not(.arc-done)').forEach(mp=>{
+   mp.classList.add('arc-done');const it=games.find(g=>g[0]===navId),h=mp.querySelector('h2'),p=mp.querySelector(':scope>p'),ic=mp.querySelector('.mode-game-icon');
+   if(!A||!it||!h)return;const sub=p?p.textContent.trim():'';
+   h.insertAdjacentHTML('beforebegin',A.banner(navId,it[2],/ELIGE TU PARTIDA/.test(sub)?'':sub));h.classList.add('arc-sr');if(p)p.remove();if(ic)ic.remove();   /* el h2 se queda (oculto): lo usan los lectores de pantalla y js/game-tutorials.js */
+  });
+  paintNav();
+ };
+ let queued=false;const later=()=>{if(queued)return;queued=true;setTimeout(()=>{queued=false;tidy()},0)};   // como mucho una pasada por cada tanda de cambios
+ new MutationObserver(later).observe(hub,{childList:true,subtree:true});
+ new MutationObserver(later).observe(stage,{childList:true,subtree:true});
+ new MutationObserver(later).observe(stage,{attributes:true,attributeFilter:['class']});   // solo el propio escenario (se muestra / se oculta)
+ const paintScene=()=>{if(scene&&A)scene.innerHTML=A.scene(document.documentElement.getAttribute('data-skin')||'')};
+ new MutationObserver(paintScene).observe(document.documentElement,{attributes:true,attributeFilter:['data-skin']});
+ paintScene();tidy();
+}
 function toHub(){if(game?.dispose)game.dispose();leaveWifi();current=null;game=null;stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}
 function renderHub(){
  const saved=window.SudomiLAN&&!SudomiLAN.session?SudomiLAN.saved:null,item=saved&&games.find(g=>g[0]===saved.session.game);
@@ -121,9 +186,10 @@ function modeButtons(id){
 function chooseMode(id){
  const item=games.find(g=>g[0]===id);
  const choices=id==='mines'?mineLevelsHTML()+'<button data-mode="clock"><strong>⏱ Contra el reloj</strong><small>Completa el tablero y mejora tu tiempo</small></button><button data-mode="practice"><strong>🧘 Práctica</strong><small>Juega sin cronómetro</small></button>':modeButtons(id);
- hub.innerHTML=`<button class="games-back mode-back" id="backToGames">‹ Todos los juegos</button><div class="mode-picker"><span class="mode-game-icon">${item[1]}</span><p>ELIGE TU PARTIDA</p><h2>${item[2]}</h2><div class="mode-choices">${choices}</div></div>`;
+ navId=id;   // 0.2.95: sin cuadro, con el banner del juego (lo pone arcadeChrome) y una animación distinta en cada opción
+ hub.innerHTML=`<button class="games-back mode-back" id="backToGames">‹ Todos los juegos</button><div class="mode-picker arc-plain"><span class="mode-game-icon">${item[1]}</span><p>ELIGE TU PARTIDA</p><h2>${item[2]}</h2><div class="mode-choices">${choices}</div></div>`;
  $('#backToGames').onclick=renderHub;
- hub.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>enterMode(id,b.dataset.mode));
+ hub.querySelectorAll('[data-mode]').forEach(b=>{b.onclick=()=>enterMode(id,b.dataset.mode);if(ART())b.insertAdjacentHTML('beforeend',ART().opt(id,b.dataset.mode))});
  const j=$('#mcJoin');if(j)j.onclick=()=>{const raw=$('#mcCode').value,msg=$('#mcMsg'),code=raw.replace(/[^A-Za-z0-9]/g,'').toUpperCase();if(code.length<6){msg.textContent='Escribe el código completo de la sala.';return}joinByCode(id,code)};
  qrOffer(id);
 }
@@ -154,6 +220,7 @@ function startMulti(id,n){
  friendLobby(id);
 }
 function joinByCode(id,code){
+ navId=id;
  if(id==='parchis'){openParchis('join',code);return}
  if(id==='dos'&&openDos()){SudomiDos.join(code);return}
  if(id==='stop'&&openStop()){SudomiStop.join(code);return}
@@ -202,7 +269,7 @@ const QR_GAMES=['checkers','tictactoe','connect4','dotsboxes','memory'];
 // 0.2.58: the QR option now lives INSIDE the Multijugador lobby (button '📷 Sin internet (QR)'), not as a separate mode
 async function qrOffer(id){}
 function qrLobby(id){SudomiQR.activate();wifiLobby(id,{qr:true})}
-function launch(id,mode='pve'){current=id;if(mode==='pve')aiPick=randomAi(3);wifi.active=mode==='wifi';game=create(id,mode==='wifi'?'pvp':mode);if(wifi.active)game.wifi=true;hub.classList.add('hidden');stage.classList.remove('hidden');render();}
+function launch(id,mode='pve'){current=id;navId=id;if(mode==='pve')aiPick=randomAi(3);wifi.active=mode==='wifi';game=create(id,mode==='wifi'?'pvp':mode);if(wifi.active)game.wifi=true;hub.classList.add('hidden');stage.classList.remove('hidden');render();}
 function wifiLobby(id,opts={}){
  if(!window.SudomiLAN){hub.innerHTML='<p>No se cargó el módulo de conexión.</p>';return}
  const item=games.find(g=>g[0]===id),N=netInfo();
@@ -278,6 +345,7 @@ function joinInvite(id,room,opts){
  if(!room||!id)return false;
  if(id==='domino4'){open();openDominoParty(room);return true}   // 0.2.58: Dominó multijugador
  if(id==='mines'||!games.some(g=>g[0]===id))return false;
+ navId=id;
  if(id==='dos'){open();if(openDos())SudomiDos.join(room);return}
  if(id==='parchis'){open();openParchis('join',room);return}
  if(id==='stop'){open();if(openStop())SudomiStop.join(room);return}
