@@ -316,7 +316,26 @@
  window.addEventListener('sudomi-profile',()=>{if(ui&&screen==='menu')render()});
  const $=sel=>ui.stage.querySelector(sel);
 
- function reset(){try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}clearTimeout(aiTimer);clearTimeout(graceTimer);aiTimer=null;if(net){try{net.close()}catch(_){}}net=null;S=null;V=null;seats=[];started=false;pick=null;status='';roomCode='';offline=false;mode=null;busy=false}
+ /* 0.3.35 — FRASES RÁPIDAS en DOS (pedido del dueño). El botón del globo abre la lista; al tocar una frase sale un globo sobre tu avatar y
+  * les llega a los demás. Solo viaja el número de la frase. Invitado → {t:'emote',k} → anfitrión, que la reparte al resto con el asiento de quien habló.
+  * No es parte de las reglas: no pasa por act(). Contra la máquina también sale (y a veces la máquina contesta). */
+ const EMO=['¡Toma!','¡No dijiste DOS!','¡Cambia ese color!','¡Buena jugada!','¡Dale, que es tarde!','¡Ay, mi madre!','¡Qué suerte!','Jajaja','👍','😡'];
+ const EMO_MS=3000;
+ let emotes=[],emoOpen=false,emoAt=0;
+ function addEmote(seat,k){
+  if(!Number.isInteger(k)||k<0||k>=EMO.length||!Number.isInteger(seat))return;
+  emotes=emotes.filter(x=>x.seat!==seat&&Date.now()-x.at<EMO_MS);emotes.push({seat,k,at:Date.now()});
+  if(screen==='game'&&V)render();
+ }
+ function relayEmote(from,k){if(net&&mode==='host')seats.forEach((x,j)=>{if(j!==from&&x.id&&x.id!=='host'&&!x.away)net.send(x.id,{t:'emote',seat:from,k})})}
+ function sayEmote(k){
+  if(Date.now()-emoAt<1500||!V)return;
+  emoAt=Date.now();emoOpen=false;
+  if(mode==='guest'){try{net.send({t:'emote',k})}catch(_){}}else relayEmote(0,k);
+  addEmote(V.you,k);
+  if(mode==='solo'&&Math.random()<.4){const game=S;setTimeout(()=>{if(S===game&&S&&S.winner<0)addEmote(1,[3,5,6,7,8][Math.floor(Math.random()*5)])},900+Math.random()*900)}
+ }
+ function reset(){emotes=[];emoOpen=false;try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}clearTimeout(aiTimer);clearTimeout(graceTimer);aiTimer=null;if(net){try{net.close()}catch(_){}}net=null;S=null;V=null;seats=[];started=false;pick=null;status='';roomCode='';offline=false;mode=null;busy=false}
  function open(opts){ui=opts;reset();screen='menu';ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');render()}
  function close(){if(!ui)return;reset();screen='menu'}
  function leave(){try{window.SudomiFriends&&SudomiFriends.untrack()}catch(_){}const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}}
@@ -395,6 +414,7 @@
    else{seats[i].away=true;pushState()}                                                                         // lost the connection: the computer covers until it returns
    return;
   }
+  if(e.type==='msg'&&e.data.t==='emote'&&started){addEmote(i,e.data.k);relayEmote(i,e.data.k);return}
   if(e.type==='msg'&&e.data.t==='act'&&started){if(act(S,i,e.data.a))pushState();else net.send(e.id,{t:'state',v:viewFor(S,i),seats:publicSeats()})}
  }
  /* ----- guest ----- */
@@ -413,6 +433,7 @@
    else if(e.type==='msg'){
     const d=e.data;
     if(d.t==='lobby'){seats=d.seats;size=d.size;screen='lobby';status=''}
+    else if(d.t==='emote'){addEmote(d.seat,d.k);return}
     else if(d.t==='state'){V=d.v;seats=d.seats;started=true;screen='game';if(pick&&!V.hand.some(c=>c.u===pick))pick=null}
    }
    render();
@@ -527,7 +548,11 @@
   const place=k=>{const ang=(m===1?90:arc-(2*arc-180)*k/(m-1))*Math.PI/180;return `--fx:${((1+Math.cos(ang))/2).toFixed(3)};--fy:${((1-Math.sin(ang))/1.5).toFixed(3)}`};
   const d=v.draft,acting=d?d.who:v.turn;
   const avatar=i=>seats[i]&&seats[i].kind==='ai'?'🤖':seats[i]&&seats[i].avatar?seats[i].avatar:['🦊','🐼','🦉','🐯','🐸','🐵','🦄','🐙'][i%8];
-  const opp=(i,k)=>`<div class="dos-opp s${i} ${acting===i&&v.winner<0?'turn':''}${v.hit.includes(i)?'hit':''} ${!d&&gain(i)>0?'grew':!d&&gain(i)<0?'shrank':''}" style="${place(k)}">${!d&&gain(i)>0?`<s>+${gain(i)}</s>`:''}<span class="dos-av">${avatar(i)}<i>${v.counts[i]}</i>${call(v.counts[i],i)}</span><b>${esc(v.names[i])}${seats[i]&&seats[i].away?' 📴':''}</b><span class="dos-backs ${v.counts[i]===1&&v.winner<0?'last':''}">${backsHTML(v.counts[i])}</span></div>`;
+  // 0.3.35: globo de la frase rápida de cada jugador (sigue vivo aunque la mesa se vuelva a pintar)
+  const nowE=Date.now();emotes=emotes.filter(x=>nowE-x.at<EMO_MS);
+  const sayOf=(i,cls)=>{const x=emotes.find(q=>q.seat===i);return x?`<q class="dos-say ${cls||''}" style="animation-delay:-${((nowE-x.at)/1000).toFixed(2)}s">${esc(EMO[x.k])}</q>`:''};
+  const sideOf=k=>{const ang=(m===1?90:arc-(2*arc-180)*k/(m-1))*Math.PI/180;return (1+Math.cos(ang))/2>.6?'r':''};
+  const opp=(i,k)=>`<div class="dos-opp s${i} ${acting===i&&v.winner<0?'turn':''}${v.hit.includes(i)?'hit':''} ${!d&&gain(i)>0?'grew':!d&&gain(i)<0?'shrank':''}" style="${place(k)}">${sayOf(i,sideOf(k))}${!d&&gain(i)>0?`<s>+${gain(i)}</s>`:''}<span class="dos-av">${avatar(i)}<i>${v.counts[i]}</i>${call(v.counts[i],i)}</span><b>${esc(v.names[i])}${seats[i]&&seats[i].away?' 📴':''}</b><span class="dos-backs ${v.counts[i]===1&&v.winner<0?'last':''}">${backsHTML(v.counts[i])}</span></div>`;
   const ring=`<svg class="dos-ring c-${v.color} ${v.dir<0?'rev':''}" viewBox="0 0 200 200" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round"><path d="M22 100A78 78 0 0 1 96 22"/><path d="M178 100A78 78 0 0 1 104 178"/></g><g fill="currentColor"><path d="M92 6l30 16-30 16z"/><path d="M108 194l-30-16 30-16z"/></g></svg>`;
   const fan=k=>{const n=v.hand.length,mid=(n-1)/2,step=Math.min(4,36/Math.max(n,1));return n>14?'':`--a:${((k-mid)*step).toFixed(1)}deg;--y:${(Math.pow(Math.abs(k-mid),2)*step*.22).toFixed(1)}px;`};
   const hand=v.hand.slice().sort((a,b)=>'rbgyk'.indexOf(a.c)-'rbgyk'.indexOf(b.c)||(a.v<b.v?-1:a.v>b.v?1:0));
@@ -555,9 +580,10 @@
      <div class="dos-info"><span class="dos-dot c-${v.color} ${colorChanged?'ping':''}"></span><b>${CNAME[v.color]}</b>${v.stack?`<em class="dos-stack">+${v.stack}</em>`:''}</div>
      ${v.canCatch?`<div class="dos-shout"><button class="dos-catchbtn" id="dosCatch">👉 ¡${esc(v.names[v.owe])} no dijo DOS!</button></div>`:''}
      ${v.caught&&fresh?`<div class="dos-fx fx-caught"><span>+${DOS_FINE}</span><b>¡${esc(v.names[v.caught.who])} no dijo DOS!</b></div>`:''}
+     ${v.winner<0?`<button type="button" class="dos-emobtn${emoOpen?' on':''}" id="dosEmo" aria-label="Frases rápidas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-5 4v-4H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" fill="currentColor"/></svg></button>${emoOpen?`<div class="dos-emolist">${EMO.map((t,k)=>`<button type="button" data-emo="${k}">${t}</button>`).join('')}</div>`:''}`:''}
      <div class="dos-turn ${myTurn?'mine':''}">${v.winner>=0?'Fin de la partida':d?(d.who===me?'Elige tus cartas':`Elige ${esc(v.names[d.who])}`):myTurn?'Tu turno':`Turno de ${esc(v.names[v.turn])}`}</div>
     </div>
-    <div class="dos-me s${me} ${myTurn?'turn':''}"><span class="dos-av">${avatar(me)}<i>${v.hand.length}</i>${call(v.hand.length,me)}</span><b>${esc(v.names[me])}</b>
+    <div class="dos-me s${me} ${myTurn?'turn':''}">${sayOf(me,'me')}<span class="dos-av">${avatar(me)}<i>${v.hand.length}</i>${call(v.hand.length,me)}</span><b>${esc(v.names[me])}</b>
      <div class="dos-mebtns">${v.winner<0?'<button class="dos-callbtn" id="dosCall">¡DOS!</button>':''}<button class="arc-btn ${canDraw&&!v.playable.length?'go':''}" id="dosDraw2" ${canDraw?'':'disabled'}>Robar</button><button class="arc-btn alt ${canPass&&!v.playable.length?'go':''}" id="dosPass" ${canPass?'':'disabled'}>Pasar</button></div></div>
     ${prompt}
     <div class="dos-hand ${myTurn&&!e?'':'idle'} ${hand.length>14?'many':'fan'}" style="--n:${hand.length}">${hand.map((c,k)=>`<button class="dos-cardbtn ${v.playable.includes(c.u)?'ok':''} ${v.locked===c.u?'locked':''} ${handAnim(c.u)}" style="--k:${k};${fan(k)}" data-u="${c.u}" ${v.playable.includes(c.u)?'':'disabled'}>${cardHTML(c)}${v.locked===c.u?'<u>Bloqueada</u>':''}</button>`).join('')}</div>
@@ -569,6 +595,8 @@
   ui.stage.querySelectorAll('.dos-poolbtn').forEach(b=>b.onclick=()=>send({t:'pick',i:+b.dataset.p}));
   $('#dosDraw').onclick=$('#dosDraw2').onclick=()=>send({t:'draw'});
   $('#dosPass').onclick=()=>send({t:'pass'});
+  const eb=$('#dosEmo');if(eb)eb.onclick=()=>{emoOpen=!emoOpen;render()};
+  ui.stage.querySelectorAll('[data-emo]').forEach(b=>b.onclick=()=>sayEmote(+b.dataset.emo));
   const cb=$('#dosCall');if(cb)cb.onclick=()=>send({t:'dos'});
   const kb=$('#dosCatch');if(kb)kb.onclick=()=>send({t:'catch'});
   ui.stage.querySelectorAll('.dos-cardbtn').forEach(b=>b.onclick=()=>tapCard(+b.dataset.u));

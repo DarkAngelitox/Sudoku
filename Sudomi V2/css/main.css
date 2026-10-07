@@ -933,7 +933,7 @@ html[data-theme="dark"] .dos-prompt p{color:#ffe08a}
 /* centre: pile + played card inside the arrows */
 .dos-table{position:absolute;left:50%;top:54%;width:206px;height:206px;margin:-103px 0 0 -103px;display:flex;align-items:center;justify-content:center;gap:10px;padding:0;border-radius:50%;background:radial-gradient(circle,#ffffff14 0%,#ffffff00 70%);box-shadow:none;overflow:visible}
 .dos-ring{position:absolute;inset:0;width:100%;height:100%;animation:dosTurnRing 9s linear infinite;filter:drop-shadow(0 2px 3px #0006);transition:color .3s}
-.dos-ring.rev{animation-direction:reverse;scale:-1 1}
+.dos-ring.rev{scale:-1 1}   /* 0.3.36: el espejo YA invierte el giro; antes ademas se invertia la animacion y las flechas giraban al reves de a donde apuntaban */
 .dos-ring.c-r{color:#ff4d57}.dos-ring.c-b{color:#4d9bff}.dos-ring.c-g{color:#3fd27c}.dos-ring.c-y{color:#ffcb2e}
 @keyframes dosTurnRing{to{transform:rotate(360deg)}}
 .dos-table .dos-pile,.dos-table .dos-top{position:relative;z-index:1}
@@ -2860,14 +2860,61 @@ html[data-theme="dark"] .ck-photo-btns button:first-child{background:#1f5fc4;col
 .pc-opt.hidden,.pc-duel.hidden,.pc-score.hidden,.pc-choice.hidden{display:none}
 html[data-theme="dark"] .pc-link{color:#9fc0ff}
 /* 0.3.32 (V2): Mesa 3D - las fichas de tu mano con tamano fijo (en iPhone a veces salian sin ancho y se "perdian") y mas borrosas al estar borracho */
-.d3-myrack{gap:3px;padding-left:4px;padding-right:4px}
-.d3-myrack .d3-my{flex:0 0 auto;width:calc((100% - 18px)/7);max-width:46px;height:auto;aspect-ratio:1/2;line-height:0}
-.d3-myrack .d3-my svg{width:100%;height:100%}
-.d3-myrack.blur .d3-my svg{filter:blur(11px)}   /* 0.3.33 (dueno): super borrosas, que no se lean los puntos */
-.d3-myrack.blur .d3-my{animation:d3TileDrunk 1.300s ease-in-out infinite alternate}
-.d3-myrack.blur .d3-my:nth-child(2n){animation-delay:-.600s}
-@keyframes d3TileDrunk{from{translate:0 -3px;rotate:-4deg}to{translate:0 3px;rotate:4deg}}
-@media(prefers-reduced-motion:reduce){.d3-myrack.blur .d3-my{animation:none}}
+/* 0.3.34 (dueno): cada ficha de tu mano tiene su CASILLA fija (una rejilla; hay tantas casillas como fichas te quedan). Nada se encoge, se monta ni sube:
+   la que puedes jugar se marca solo con el borde dorado. Borracho: borrosas tambien la que llevas en la mano. */
+.d3 .d3-myrack{display:grid;grid-auto-flow:column;grid-auto-columns:var(--d3w);justify-content:center;align-items:end;gap:3px;padding-left:4px;padding-right:4px;--d3w:min(46px,calc((100% - 18px)/7))}
+.d3 .d3-myrack .d3-my{grid-row:1;width:100%;min-width:0;max-width:none;height:auto;aspect-ratio:1/2;line-height:0;transform:none;translate:none;rotate:none;animation:none}
+.d3 .d3-myrack .d3-my svg{width:100%;height:100%}
+.d3 .d3-myrack .d3-my.ok,.d3 .d3-myrack .d3-my.picked{transform:none}
+.d3 .d3-myrack .d3-my.picked svg{filter:drop-shadow(0 0 8px #ffd54a) drop-shadow(0 3px 0 #b9ae92)}
+.d3 .d3-myrack.blur .d3-my svg,.d3.drunk .d3-held svg{filter:blur(11px)}
+/* 0.3.38 (V2): monedas y TIENDA DE SKINS (js/shop.js) + quinta pestana en la barra de abajo */
+body.tab-page #shopScreen{align-items:stretch;padding:0 0 calc(62px + env(safe-area-inset-bottom,0px));background:radial-gradient(ellipse at 50% 0,#fff 0,#f4f7fc 55%,#eaf0f8 100%);-webkit-backdrop-filter:none;backdrop-filter:none}
+body.tab-page #shopScreen .tut-card{width:min(760px,100%);height:100%;max-height:none;border-radius:0;background:transparent;box-shadow:none}
+body.tab-page #shopScreen .tut-card header{padding-top:max(18px,env(safe-area-inset-top))}
+body.tab-page #shopScreen .tut-x{display:none}
+body.tab-page #shopScreen .tut-body{padding-bottom:22px}
+#tabBar .tb-in button b{font-size:10.500px}
+.coin{display:inline-block;width:1.2em;height:1.2em;vertical-align:-.25em;flex:none}
+.shop-bank{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:20px;background:linear-gradient(135deg,#0b3d91,#1761b2);color:#fff;box-shadow:0 8px 18px #0b3d9133}
+.shop-bank .coin{width:44px;height:44px;filter:drop-shadow(0 3px 4px #0005)}
+.shop-bank b{display:block;font-size:30px;line-height:1;font-variant-numeric:tabular-nums}.shop-bank small{font-size:12px;font-weight:800;opacity:.85;letter-spacing:.1em;text-transform:uppercase}
+.shop-how{margin:12px 2px;color:#42536e;font-size:13.500px;line-height:1.45}.shop-how.small{font-size:12px;color:#6b7890}
+.shop-list{display:grid;gap:10px}
+.shop-item{position:relative;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:12px;border-radius:18px;background:#fff;box-shadow:inset 0 0 0 2px #dce4ef,0 3px 0 #d5dfee}
+.shop-item.on{box-shadow:inset 0 0 0 2.500px #1c8a4a,0 3px 0 #9fd8b6;background:#f3fbf6}
+.shop-prev{display:flex;padding:6px;border-radius:14px;background:repeating-conic-gradient(#7a4a22 0 25%,#f0d9b5 0 50%) 0 0/28px 28px}
+.shop-prev i{width:34px;height:34px;background-size:100% 100%;filter:drop-shadow(0 2px 2px #0006)}.shop-prev i+i{margin-left:-6px}
+.shop-txt{min-width:0}.shop-txt small{display:block;color:#d62027;font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.shop-txt b{display:block;font-size:15.500px;color:#10213b}.shop-txt p{margin:2px 0 0;color:#5a6880;font-size:12px;line-height:1.35}
+.shop-btn{display:inline-flex;align-items:center;gap:5px;min-height:40px;padding:8px 14px;border:0;border-radius:13px;background:linear-gradient(180deg,#2a7de1,#0b4fb3);color:#fff;font:inherit;font-size:14px;font-weight:900;cursor:pointer;box-shadow:0 4px 0 #083a85;touch-action:manipulation}
+.shop-btn.buy{background:linear-gradient(180deg,#ffe07a,#f0b000);color:#3a2a00;box-shadow:0 4px 0 #a87800}
+.shop-btn.alt{background:#eef3fb;color:#203653;box-shadow:0 4px 0 #d5dfee}
+.shop-btn:active:not(:disabled){transform:translateY(3px);box-shadow:none}.shop-btn:disabled{opacity:.45;filter:saturate(.5);cursor:not-allowed}
+.shop-tag{position:absolute;right:12px;top:-8px;padding:2px 9px;border-radius:999px;background:#1c8a4a;color:#fff;font-size:10px;font-style:normal;font-weight:900}.shop-tag.miss{background:#6b7890}
+.coin-toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));z-index:9300;display:flex;align-items:center;gap:10px;padding:9px 16px 9px 10px;border-radius:999px;background:#10213bf2;color:#fff;transform:translateX(-50%);box-shadow:0 10px 24px #0007;animation:coinToast 3.200s ease-out forwards;pointer-events:none}
+.coin-toast .coin{width:30px;height:30px}.coin-toast b{display:block;font-size:14px;color:#ffd54a}.coin-toast small{display:block;font-size:11px;opacity:.85}
+@keyframes coinToast{0%{opacity:0;transform:translate(-50%,-20px)}8%{opacity:1;transform:translate(-50%,0)}88%{opacity:1}100%{opacity:0;transform:translate(-50%,-10px)}}
+html[data-theme="dark"] .shop-item{background:#16233a;box-shadow:inset 0 0 0 2px #2b3a52,0 3px 0 #0a1324}html[data-theme="dark"] .shop-txt b{color:#e6edf7}html[data-theme="dark"] .shop-txt p,html[data-theme="dark"] .shop-how{color:#9fb0c8}
+html[data-theme="dark"] body.tab-page #shopScreen{background:#0f1829}
+/* 0.3.37 (V2): Parchimi - los temas del tablero son circulos pequenos */
+.pc-themes>b{display:block}.pc-themes .pc-tname{font-style:normal;font-weight:800;color:#0b3d91}
+.pc-dots{display:flex;flex-wrap:wrap;gap:9px;margin-top:8px}
+.pc-dots .pc-dot{flex:none;width:30px;height:30px;min-width:0;min-height:0;padding:0;border:3px solid #999;border-radius:50%;cursor:pointer;touch-action:manipulation;box-shadow:0 2px 4px #0003;transition:transform .12s}
+.pc-dots .pc-dot.on{transform:scale(1.18);box-shadow:0 0 0 3px #fff,0 0 0 5.500px #0b3d91}
+html[data-theme="dark"] .pc-themes .pc-tname{color:#9fc0ff}html[data-theme="dark"] .pc-dots .pc-dot.on{box-shadow:0 0 0 3px #16233a,0 0 0 5.500px #9fc0ff}
+/* 0.3.35 (V2): DOS - frases rapidas (boton del globo, lista y globo sobre el avatar) */
+.dos-emobtn{position:absolute;left:2px;bottom:0;z-index:5;display:grid;place-items:center;width:40px;height:34px;padding:0;border:2px solid #ffffff66;border-radius:13px;background:#12063acc;color:#fff;cursor:pointer;touch-action:manipulation}
+.dos-emobtn svg{width:20px;height:20px}.dos-emobtn.on{background:#ffd54a;color:#3a2a00;border-color:#fff}
+.dos-emolist{position:absolute;left:2px;bottom:40px;z-index:8;display:grid;grid-template-columns:1fr 1fr;gap:6px;width:min(280px,92%);padding:8px;border-radius:16px;background:#12063af5;box-shadow:0 10px 24px #0009,inset 0 0 0 2px #8f6bff66}
+.dos-emolist button{min-height:38px;padding:6px 8px;border:0;border-radius:11px;background:#fff;color:#1e0c52;font:inherit;font-size:12.500px;font-weight:800;cursor:pointer;touch-action:manipulation}
+.dos-emolist button:active{transform:scale(.95);background:#ffd54a}
+.dos-say{position:absolute;left:calc(50% + 18px);top:-12px;z-index:7;max-width:150px;padding:5px 10px;border:2.500px solid #111;border-radius:14px 14px 14px 3px;background:#fff;color:#111;font-size:12px;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;quotes:none;pointer-events:none;opacity:0;animation:dosSay 3s ease-out forwards}
+.dos-say::before,.dos-say::after{content:none}
+.dos-say.r{left:auto;right:calc(50% + 18px);border-radius:14px 14px 3px 14px}
+.dos-me{position:relative}
+.dos-say.me{left:54px;top:-30px}
+@keyframes dosSay{0%{opacity:0;transform:scale(.3)}8%{opacity:1;transform:scale(1.12)}14%{transform:scale(1)}85%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
 /* 0.3.31 (V2): Mesa 3D - escenas intercambiables (patio, colmado dibujado y fotos desenfocadas) */
 .d3-bg{position:absolute;inset:0;z-index:0}
 .d3-bg svg{display:block;width:100%;height:100%}
@@ -3332,7 +3379,7 @@ html[data-theme="dark"] .games-group-h{color:#e6edf9}html[data-theme="dark"] .ga
    body.has-tabbar = la barra esta a la vista: deja sitio abajo para que no tape nada. */
 .tab-bar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:#fffffff2;border-top:1px solid #d9e1ef;box-shadow:0 -6px 18px #0b3d9114;padding-bottom:env(safe-area-inset-bottom,0px);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 .tab-bar.hidden{display:none}
-.tb-in{display:grid;grid-template-columns:repeat(4,1fr);max-width:560px;margin:0 auto}
+.tb-in{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;max-width:560px;margin:0 auto}   /* 0.3.38: una columna por pestana, sean 4 o 5 */
 .tab-bar button{display:grid;justify-items:center;gap:2px;padding:8px 2px 7px;border:0;background:none;color:#6a7790;font-size:11.5px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .tab-bar button b{font-weight:800}
 .tb-ic{position:relative;display:grid;place-items:center;width:44px;height:28px;border-radius:99px;transition:background .15s,transform .15s}

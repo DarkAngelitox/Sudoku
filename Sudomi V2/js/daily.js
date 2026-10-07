@@ -123,7 +123,7 @@
  }
  window.addEventListener('sudomi-win',e=>{
   const k=e.detail&&e.detail.daily;if(!k)return;const v=read();
-  if(!v.done[k])v.done[k]={s:e.detail.seconds,e:e.detail.errors};
+  if(!v.done[k]){v.done[k]={s:e.detail.seconds,e:e.detail.errors};try{if(window.SudomiCoins)setTimeout(()=>SudomiCoins.add(SudomiCoins.DAILY,'Sudoku del día'),1500)}catch(_){}}   // 0.3.38: la primera vez que se cumple ese día da monedas (js/shop.js)
   delete v.prog[k];write(v);refresh();
   if(k===key(new Date()))streakReward();
  });

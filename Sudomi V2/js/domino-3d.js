@@ -118,8 +118,8 @@
   // ----- tu atril, tu vaso y tu mano -----
   // 0.3.32: las fichas de tu mano van ordenadas (por el número más alto y luego el otro) con la propiedad CSS «order»; data-i sigue siendo su lugar real en la mano
   const rank=h.map((t,i)=>[Math.max(t[0],t[1])*10+Math.min(t[0],t[1]),i]).sort((a,b)=>b[0]-a[0]).map(x=>x[1]);
-  const mine=h.map((t,i)=>{const ok=I.mine&&playing&&H.dFits(g,t);
-   return `<button type="button" class="d3-my ${ok?'ok':'no'}${g.sel===i?' picked':''}" style="order:${rank.indexOf(i)}" data-a="play" data-i="${i}" data-v0="${t[0]}" data-v1="${t[1]}" ${ok?'':'disabled'} aria-label="Ficha ${t[0]}-${t[1]}">${H.dSvg(Math.max(t[0],t[1]),Math.min(t[0],t[1]),true)}</button>`}).join('');
+  const mine=rank.map(i=>{const t=h[i],ok=I.mine&&playing&&H.dFits(g,t);                 // 0.3.34: se escriben ya en su orden, cada una en su casilla
+   return `<button type="button" class="d3-my ${ok?'ok':'no'}${g.sel===i?' picked':''}" data-a="play" data-i="${i}" data-v0="${t[0]}" data-v1="${t[1]}" ${ok?'':'disabled'} aria-label="Ficha ${t[0]}-${t[1]}">${H.dSvg(Math.max(t[0],t[1]),Math.min(t[0],t[1]),true)}</button>`}).join('');
   const myDrunk=dr[me]>0,myLv=(H.D3_SIPS-sips[me])/H.D3_SIPS;
   const beer=`<button type="button" class="d3-beer${sipBy===me?' sip':''}" data-a="sip" data-s="${me}" aria-label="Tomar un trago">${mug(myLv,'me')}<small>${H.D3_SIPS-sips[me]}/${H.D3_SIPS}</small></button>`;
   const turnText=g.over?'Fin de la partida':reveal?'Mano terminada':I.mine?'Tu turno':`Juega ${H.esc(((g.seats&&g.seats[g.turn])||{}).name||'')}`;

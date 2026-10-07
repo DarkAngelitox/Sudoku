@@ -15,13 +15,15 @@
   sudoku:'<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M9.2 3.5v17M14.8 3.5v17M3.5 9.2h17M3.5 14.8h17"/>',
   arcade:'<path d="M7 8h10a5 5 0 0 1 4.9 6l-.6 3a2.4 2.4 0 0 1-4.2 1l-1.6-2H8.500l-1.600 2a2.400 2.400 0 0 1-4.200-1l-.6-3A5 5 0 0 1 7 8Z"/><path d="M7.500 11v3M6 12.500h3"/><circle cx="16" cy="11.500" r=".7"/><circle cx="18" cy="13.500" r=".7"/>',
   friends:'<circle cx="9" cy="8.500" r="3.200"/><path d="M2.800 19.500c.5-3.300 3-5.300 6.200-5.300s5.700 2 6.200 5.300"/><circle cx="17" cy="9.500" r="2.500"/><path d="M16.500 14.300c2.600.1 4.300 1.800 4.800 4.400"/>',
-  profile:'<circle cx="12" cy="8.500" r="3.800"/><path d="M4.500 20c.7-4 3.700-6.300 7.500-6.300s6.800 2.300 7.500 6.300"/>'
+  profile:'<circle cx="12" cy="8.500" r="3.800"/><path d="M4.500 20c.7-4 3.700-6.300 7.500-6.300s6.800 2.300 7.500 6.300"/>',
+  shop:'<path d="M5 8.500h14l-1 11.500H6z"/><path d="M8.500 8.500V7a3.500 3.500 0 0 1 7 0v1.500"/>'
  };
- const TABS=[['sudoku','Sudoku'],['arcade','Arcade'],['friends','Amigos'],['profile','Perfil']];
+ // 0.3.38: quinta pestaña, «Tienda» (tienda de skins, js/shop.js)
+ const TABS=[['sudoku','Sudoku'],['arcade','Arcade'],['shop','Tienda'],['friends','Amigos'],['profile','Perfil']];
  let bar=null,timer=0;
  const shown=el=>!!el&&!el.classList.contains('hidden');
  // dónde está el jugador: 'home', 'arcade' (lista o menú de un juego) o '' (dentro de una partida u otra pantalla: sin barra)
- const PAGES={profile:['profileScreen'],friends:['friendsScreen','friendsNotifs']};   // friendsNotifs = los avisos (invitaciones), que abre la misma pestaña
+ const PAGES={profile:['profileScreen'],friends:['friendsScreen','friendsNotifs'],shop:['shopScreen']};   // friendsNotifs = los avisos (invitaciones), que abre la misma pestaña
  function base(){
   if(shown($('#homeScreen')))return 'home';
   if(shown($('#miniGamesScreen'))&&!shown($('#miniGameStage')))return 'arcade';
@@ -40,7 +42,7 @@
   const w=where(),vis=!!w;
   if(bar.classList.contains('hidden')===vis)bar.classList.toggle('hidden',!vis);
   if(document.body.classList.contains('has-tabbar')!==vis)document.body.classList.toggle('has-tabbar',vis);
-  const page=w==='profile'||w==='friends';
+  const page=w==='profile'||w==='friends'||w==='shop';
   if(document.body.classList.contains('tab-page')!==page)document.body.classList.toggle('tab-page',page);
   bar.querySelectorAll('[data-tab]').forEach(b=>{const t=b.dataset.tab,on=(w==='home'&&t==='sudoku')||(w===t);if(b.classList.contains('on')!==on)b.classList.toggle('on',on)});
   const n=window.SudomiFriends&&SudomiFriends.notifs?SudomiFriends.notifs().length:0,bd=bar.querySelector('.tb-badge'),txt=n?String(n):'';
@@ -53,12 +55,13 @@
   window.scrollTo(0,0);
  }
  function go(tab){
-  if(where()===tab&&(tab==='profile'||tab==='friends'))return;   // ya estás en esa página
+  if(where()===tab&&(tab==='profile'||tab==='friends'||tab==='shop'))return;   // ya estás en esa página
   closePages(tab);
   if(tab==='sudoku')goHome();
   else if(tab==='arcade'){if(base()==='arcade'){const l=$('#arcLogo');if(l)l.click()}else{const b=$('#openMiniGames');if(b)b.click()}window.scrollTo(0,0)}
   else if(tab==='friends'){const F=window.SudomiFriends;if(F)(F.notifs&&F.notifs().length&&F.showNotifs?F.showNotifs:F.open)()}
   else if(tab==='profile'){if(window.SudomiProfileScreen)SudomiProfileScreen.open()}
+  else if(tab==='shop'){if(window.SudomiShop)SudomiShop.open()}
   later();
  }
  function boot(){
