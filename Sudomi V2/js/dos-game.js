@@ -24,7 +24,7 @@
   ['➕ Acumular +2 y +4','Si te tiran un +2 o un +4, puedes responder con tu propio +2 o +4 (de cualquier color): se suman y le toca al siguiente, que también puede responder. Quien no responda roba todas las cartas acumuladas y pierde el turno.'],
   ['⏪ Rebobinar','Cada jugador recupera la última carta que tiró y no puede volver a usarla en su próximo turno. Cancela los efectos que estaban por cumplirse. Eliges el color.'],
   ['+2 Súper +2','Todos los demás roban 2 cartas (no pierden el turno). Eliges el color.'],
-  ['🛡 Parry','Cuando te tiran Salta, +2, +4 o Súper +2 puedes responder con Parry: el efecto le regresa a quien lo tiró. Usarlo cuenta como tu jugada. Es multicolor: también puedes tirarlo sobre cualquier color como una carta normal, o guardarlo.'],
+  ['🛡 Parry','Cuando te tiran Salta, +2, +4 o Súper +2 puedes responder con Parry: el efecto le regresa a quien lo tiró. Usarlo cuenta como tu jugada. Es multicolor: también puedes tirarlo sobre cualquier color como una carta normal, o guardarlo. Siempre puedes guardarlo: si es lo único que puedes tirar, puedes pasar sin robar.'],
   ['🌪 Tornado','Las cartas de todos se mezclan y van al centro boca abajo. Empezando por quien tiró el Tornado, cada jugador toma una carta por turno, sin saber cuál es, hasta tener la misma cantidad que tenía. Eliges el color.'],
   ['Jugadores','Contra la máquina, o en una sala online de 2 a 8 jugadores. Con 6 o más se usan dos barajas (la segunda no trae más Rebobinar, Súper +2 ni Tornado). Un Tornado ya jugado no vuelve al mazo.']
  ];
@@ -219,7 +219,8 @@
    if(!g||!hand.some(c=>canPlay(s,p,c)))endTurn(s,p);
    s.seq++;return true;
   }
-  if(a.t==='pass'){if(!s.drew||mustPlay(s,p))return false;say(s,`${s.names[p]} pasa.`);endTurn(s,p);s.seq++;return true}
+  // 0.3.47 (dueño): el Parry SIEMPRE se puede guardar. Si lo único que puedes tirar es un Parry, puedes pasar sin robar.
+  if(a.t==='pass'){if(mustPlay(s,p)||!(s.drew||hand.some(c=>c.v==='parry'&&canPlay(s,p,c))))return false;say(s,`${s.names[p]} pasa.`);endTurn(s,p);s.seq++;return true}
   if(a.t==='play'){
    const i=hand.findIndex(c=>c.u===a.u);if(i<0)return false;
    const card=hand[i];
@@ -259,6 +260,7 @@
    pend:myTurn&&s.pend[seat]?s.pend[seat]:null,hit:Object.keys(s.pend).map(Number),
    owe:s.owe?s.owe.who:-1,said:(s.said||[]).map(Boolean),caught:s.caught&&s.caught.seq===s.seq?{who:s.caught.who,by:s.caught.by}:null,
    canCatch:s.winner<0&&!!s.owe&&s.owe.who!==seat&&!inGrace(s),
+   keep:myTurn&&!s.pend[seat]&&!mustPlay(s,seat)&&mine.some(c=>c.v==='parry'&&canPlay(s,seat,c)),   // 0.3.47: tienes un Parry y nada más que tirar → puedes pasar directo
    locked:s.locked[seat]?s.locked[seat].u:null,drew:s.drew,winner:s.winner,log:s.log.slice(-4),you:seat,seq:s.seq};
  }
 
@@ -559,7 +561,7 @@
   const e=v.pend;
   const canParry=e&&v.hand.some(c=>c.v==='parry'),canStack=e&&e.stack&&v.playable.length>0;
   const prompt=e?`<div class="dos-prompt"><p>${esc(v.names[e.from])} te tiró <b>${e.label}</b>.${canStack?' Responde con un <b>+2</b> o <b>+4</b> de tu mano (brillan abajo) y se lo pasas al siguiente,':''}${canParry?` ${canStack?'usa':'Usa'} Parry`:''}${canStack||canParry?' o acepta.':''}</p><div>${canParry?'<button class="arc-btn pulse" id="dosParry">🛡 Usar Parry</button>':''}<button class="arc-btn alt" id="dosAccept">${e.n?`Robar ${e.n}`:'Perder el turno'}</button></div></div>`:'';
-  const canDraw=myTurn&&!e&&!v.drew&&!v.must,canPass=myTurn&&!e&&v.drew&&!v.must;
+  const canDraw=myTurn&&!e&&!v.drew&&!v.must,canPass=myTurn&&!e&&(v.drew||v.keep)&&!v.must;
   const confetti=justWon?`<div class="dos-confetti">${Array.from({length:36},(_,k)=>`<i style="left:${Math.round(Math.random()*100)}%;background:${CONFETTI[k%5]};animation-delay:${(Math.random()*.9).toFixed(2)}s;animation-duration:${(1.8+Math.random()*1.6).toFixed(2)}s"></i>`).join('')}</div>`:'';
   const end=v.winner>=0?`<div class="dos-over ${justWon?'pop':''}">${confetti}<div class="dos-card dos-endcard"><div class="res-ic ${v.winner===me?'':'lose'}">${window.SudomiResult?SudomiResult.icon(v.winner===me?'win':'lose'):''}</div><p class="dos-kicker">DOS · PARTIDA TERMINADA</p><h3>${v.winner===me?'¡Ganaste!':`Ganó ${esc(v.names[v.winner])}`}</h3><p class="arc-sub center">${v.winner===me?'Te quedaste sin cartas.':`Te quedaron ${v.hand.length} carta${v.hand.length===1?'':'s'}.`}</p><div class="dos-endbtns">${mode==='guest'?'<p class="arc-sub center">El anfitrión puede iniciar otra partida.</p>':'<button class="arc-btn" id="dosAgain">Jugar otra</button>'}<button class="arc-btn alt" id="dosEndExit">Todos los juegos</button></div></div></div>`:'';
   // Tornado: everybody sees the cards in the middle; only the player whose turn it is can take one

@@ -2476,7 +2476,7 @@ html[data-theme="dark"] .dp-roomcode{background:#14306b;color:#dbe7ff}
 .fr-av{font-size:1.6rem;text-align:center}.fr-friend small{display:block;opacity:.8;font-size:.76rem}
 .fr-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#9aa3b5;margin-right:5px}.fr-dot.on{background:#1fb35a;box-shadow:0 0 0 3px rgba(31,179,90,.25)}.fr-dot.wait{background:#e0a800}
 .fr-x{border:0;background:transparent;font-size:1.1rem;cursor:pointer}
-.fr-banner{position:fixed;left:50%;top:max(10px,env(safe-area-inset-top));transform:translateX(-50%);z-index:300;width:min(94vw,420px);padding:12px;border-radius:16px;background:#12306b;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.45);display:grid;gap:10px;animation:frIn .3s;box-sizing:border-box}
+.fr-banner{position:fixed;left:50%;top:max(10px,env(safe-area-inset-top));transform:translateX(-50%);z-index:10060;width:min(94vw,420px);padding:12px;border-radius:16px;background:#12306b;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.45);display:grid;gap:10px;animation:frIn .3s;box-sizing:border-box}
 .fr-banner.out{opacity:0;transform:translate(-50%,-20px);transition:.3s}
 @keyframes frIn{from{opacity:0;transform:translate(-50%,-30px)}}
 .fr-b-who{display:flex;gap:10px;align-items:center}.fr-b-who>span{font-size:1.8rem}
@@ -2862,12 +2862,120 @@ html[data-theme="dark"] .pc-link{color:#9fc0ff}
 /* 0.3.32 (V2): Mesa 3D - las fichas de tu mano con tamano fijo (en iPhone a veces salian sin ancho y se "perdian") y mas borrosas al estar borracho */
 /* 0.3.34 (dueno): cada ficha de tu mano tiene su CASILLA fija (una rejilla; hay tantas casillas como fichas te quedan). Nada se encoge, se monta ni sube:
    la que puedes jugar se marca solo con el borde dorado. Borracho: borrosas tambien la que llevas en la mano. */
-.d3 .d3-myrack{display:grid;grid-auto-flow:column;grid-auto-columns:var(--d3w);justify-content:center;align-items:end;gap:3px;padding-left:4px;padding-right:4px;--d3w:min(46px,calc((100% - 18px)/7))}
+.d3 .d3-myrack{display:grid;grid-auto-flow:column;grid-auto-columns:var(--d3w);justify-content:center;align-items:end;gap:3px;padding-left:4px;padding-right:4px;--d3w:min(40px,calc((100% - 18px)/7))}
 .d3 .d3-myrack .d3-my{grid-row:1;width:100%;min-width:0;max-width:none;height:auto;aspect-ratio:1/2;line-height:0;transform:none;translate:none;rotate:none;animation:none}
 .d3 .d3-myrack .d3-my svg{width:100%;height:100%}
 .d3 .d3-myrack .d3-my.ok,.d3 .d3-myrack .d3-my.picked{transform:none}
 .d3 .d3-myrack .d3-my.picked svg{filter:drop-shadow(0 0 8px #ffd54a) drop-shadow(0 3px 0 #b9ae92)}
 .d3 .d3-myrack.blur .d3-my svg,.d3.drunk .d3-held svg{filter:blur(11px)}
+/* 0.3.50 (V2): pantalla completa tambien en los juegos con archivo propio (#fsBar) + fondo distinto cuando se enciende el segundo modo de un juego */
+#miniGamesScreen[data-fs] .mini-games-header,#miniGamesScreen[data-fs] #arcScene{display:none}
+#miniGamesScreen[data-fs] #miniGameStage .dos-head{display:none}
+#miniGamesScreen[data-fs] #miniGameStage .mini-game:not(.fs){border:0;border-radius:0;background:transparent;box-shadow:none;padding-top:0}
+#miniGamesScreen[data-fs] #miniGameStage .mini-game:not(.fs)::before{display:none}
+.fs-bar{margin:0 0 8px;width:100%;max-width:760px;margin-left:auto;margin-right:auto}
+.fs-bar.hidden{display:none}
+.fs-top{position:sticky}
+#miniGamesScreen[data-alt]{transition:background .35s}
+#miniGamesScreen[data-alt="stop"],#miniGamesScreen[data-alt="stop"] .mini-games-shell{background:repeating-linear-gradient(0deg,#0000 0 27px,#cfe0f7 27px 28px),#fff8e1!important}
+#miniGamesScreen[data-alt="domino"],#miniGamesScreen[data-alt="domino"] .mini-games-shell{background:linear-gradient(#7fcbff 0,#d6efff 34%,#57b157 34.300%,#2f8a35 100%)!important}
+#miniGamesScreen[data-alt="war"],#miniGamesScreen[data-alt="war"] .mini-games-shell{background:radial-gradient(ellipse at 50% 0,#7a1a22,#2a0a0e 75%)!important}
+#miniGamesScreen[data-alt="domino"] .games-back,#miniGamesScreen[data-alt="war"] .games-back{color:#fff}
+#miniGamesScreen[data-alt="war"] #miniGameStage .pc-menu{color:#ffe9e9}
+#miniGamesScreen[data-alt="war"] #miniGameStage .pc-hero span,#miniGamesScreen[data-alt="war"] #miniGameStage .pc-opt>b,#miniGamesScreen[data-alt="war"] #miniGameStage .pc-hint{color:#ffd9d9}
+#miniGamesScreen[data-alt="war"] .fs-top,#miniGamesScreen[data-alt="domino"] .fs-top,#miniGamesScreen[data-alt="stop"] .fs-top{background:none}
+/* 0.3.49 (V2): PARTIDA A PANTALLA COMPLETA (js/other-games.js, fsTop). Sin barra del arcade ni titulo: una fila fija con regresar · aviso · menu. */
+#miniGamesScreen:has(.mini-game.fs) .mini-games-header{display:none}
+#miniGamesScreen:has(.mini-game.fs) #arcScene{display:none}
+#miniGameStage .mini-game.fs{width:100%;max-width:760px;margin:0 auto;padding:0 8px 16px;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible}
+#miniGameStage .mini-game.fs::before{display:none}
+#miniGameStage .mini-game.fs>.mini-game-head{display:none}
+#miniGameStage .mini-game.fs .arc-msg{display:none}
+.fs-top{position:sticky;top:0;z-index:20;display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:8px;height:56px;box-sizing:border-box;margin:0 -8px 8px;padding:max(6px,env(safe-area-inset-top)) 8px 6px;background:linear-gradient(#f4f7fc 70%,#f4f7fc00)}
+.fs-btn{display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;border-radius:14px;background:#fff;color:#0b3d91;box-shadow:0 3px 0 #d5dfee,0 6px 12px #0b3d9114;cursor:pointer;touch-action:manipulation}
+.fs-btn svg{width:22px;height:22px}.fs-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #d5dfee}.fs-btn.on{background:#0b3d91;color:#fff}
+.fs-msg{display:grid;align-content:center;justify-items:center;height:44px;min-width:0;padding:0 12px;border-radius:14px;background:linear-gradient(135deg,#0b3d91,#1761b2);color:#fff;text-align:center;overflow:hidden;box-shadow:0 3px 0 #082f73}
+.fs-msg small{font-size:9px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;opacity:.75;line-height:1.1;white-space:nowrap}
+.fs-msg b{max-width:100%;font-size:12.500px;font-weight:800;line-height:1.200;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-menu{position:absolute;right:8px;top:54px;z-index:21;display:grid;gap:4px;min-width:200px;padding:6px;border-radius:16px;background:#fff;box-shadow:0 14px 34px #07172b55,inset 0 0 0 2px #dce4ef}
+.fs-menu.hidden{display:none}
+.fs-menu button{min-height:44px;padding:8px 14px;border:0;border-radius:11px;background:#f4f7fc;color:#10213b;font:inherit;font-size:14px;font-weight:800;text-align:left;cursor:pointer;touch-action:manipulation}
+.fs-menu button:active{background:#dbe8fb}.fs-menu button:disabled{opacity:.45}
+html[data-theme="dark"] .fs-top{background:linear-gradient(#0f1829 70%,#0f182900)}
+html[data-theme="dark"] .fs-btn{background:#16233a;color:#9fc0ff;box-shadow:0 3px 0 #0a1324}
+html[data-theme="dark"] .fs-menu{background:#16233a;box-shadow:0 14px 34px #000a,inset 0 0 0 2px #2b3a52}html[data-theme="dark"] .fs-menu button{background:#1b2a44;color:#e6edf7}
+/* 0.3.47: Fichas deslizantes - la cabecera no cambia entre «piedra, papel o tijera» y la partida (la mesa subia 26 px una vez) */
+#miniGameStage .mini-game:has(.arc-slide) .mini-game-head small{display:none}
+/* 0.3.47 (V2): Mesa 3D - el aspecto lo pone quien saca: fondo (sc-*), dominos (tl-*) y sillas (ch-*) + animacion de cambio (lookfx) */
+.d3.tl-green .d3-t svg rect,.d3.tl-green .d3-held svg rect{fill:#1f9d55;stroke:#0e5a2e}
+.d3.tl-green .d3-my svg rect{fill:#1f9d55}
+.d3.tl-green .d3-my:not(.ok) svg rect{stroke:#0e5a2e}
+.d3.tl-green .d3-t svg g,.d3.tl-green .d3-my svg g,.d3.tl-green .d3-held svg g{fill:#fff}
+.d3.tl-green .d3-t svg line,.d3.tl-green .d3-my svg line,.d3.tl-green .d3-held svg line{stroke:#d7ffe6}
+.d3.tl-green .d3-rack i{background:#1f9d55}
+.d3.tl-green .d3-rack.t i{box-shadow:0 -9px 0 #2fb86a,0 -9px 0 1px #0e5a2e}
+.d3.tl-green .d3-rack.l i{box-shadow:5px -7px 0 #2fb86a}.d3.tl-green .d3-rack.r i{box-shadow:-5px -7px 0 #2fb86a}
+.d3.tl-green .d3-t{filter:drop-shadow(0 2.500px 0 #0e5a2e) drop-shadow(0 5px 4px #0008)}
+.d3.ch-green .d3-chair path:first-child{fill:#2fb86a;stroke:#167a40}
+.d3.ch-green .d3-chair rect{fill:#3fd27c;stroke:#167a40}
+.d3.ch-green .d3-chair path{stroke:#167a40}
+.d3.lookfx::after{content:"";position:absolute;inset:0;z-index:12;pointer-events:none;background:radial-gradient(circle at 50% 55%,#fff 0,#ffe27a 30%,#ffffff00 70%);animation:d3LookFx 1.100s ease-out forwards}
+.d3.lookfx .d3-stage{animation:d3LookPop .7s cubic-bezier(.2,1.4,.4,1)}
+.d3.lookfx .d3-bg,.d3.lookfx .d3-fig{animation:d3LookIn .8s ease-out}
+@keyframes d3LookFx{0%{opacity:0;transform:scale(.2)}25%{opacity:1}100%{opacity:0;transform:scale(2.200)}}
+@keyframes d3LookPop{0%{transform:scale(.92) rotate(-2deg)}}
+@keyframes d3LookIn{0%{opacity:.2;filter:saturate(0)}}
+@media(prefers-reduced-motion:reduce){.d3.lookfx::after,.d3.lookfx .d3-stage,.d3.lookfx .d3-bg,.d3.lookfx .d3-fig{animation:none}.d3.lookfx::after{display:none}}
+.shop-prev.g-d3scene,.shop-prev.g-d3tiles,.shop-prev.g-d3chairs{background:#e9f0fb;box-shadow:inset 0 0 0 2px #d5dfee}
+.shop-prev.g-d3scene i,.shop-prev.g-d3tiles i,.shop-prev.g-d3chairs i{width:46px;height:46px}
+/* 0.3.46 (V2): Mesa 3D - los personajes tienen piernas y piesitos; el que esta borracho mueve los pies */
+.d3-legs path{transform-box:fill-box}
+.d3-fig.drunk .d3-legs path:nth-child(3){animation:d3Foot .5s ease-in-out infinite alternate}
+.d3-fig.drunk .d3-legs path:nth-child(4){animation:d3Foot .5s ease-in-out -.25s infinite alternate}
+@keyframes d3Foot{to{transform:translateY(-3px)}}
+@media(prefers-reduced-motion:reduce){.d3-fig.drunk .d3-legs path{animation:none}}
+/* 0.3.45 (V2): EL TABLERO YA NO SALTA. La cabecera de cada juego tenia alto variable: el mensaje de turno ocupaba 1 o 2 lineas y los botones
+   bajaban a otra fila segun el texto, y eso empujaba el tablero arriba y abajo en cada jugada (parecia que vibraba).
+   Ahora: fila 1 = titulo + botones (nunca se parten), fila 2 = mensaje con sitio fijo para 2 lineas. */
+#miniGameStage .mini-game-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 8px;margin-bottom:10px}
+#miniGameStage .mini-game-head>div:first-child{display:contents}
+#miniGameStage .mini-game-head h2{grid-column:1;grid-row:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#miniGameStage .mini-game-head .mini-game-actions{grid-column:2;grid-row:1;flex-wrap:nowrap;max-width:none;min-width:0}
+#miniGameStage .mini-game-head .mini-game-actions>*{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#miniGameStage .mini-game-head .turn-indicator{max-width:92px}
+#miniGameStage .mini-game-head small{grid-column:1/-1;grid-row:2;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;height:2.600em;margin:0;line-height:1.300}
+#miniGameStage .arc-msg{display:grid;align-content:center;box-sizing:border-box;height:calc(2.600em + 18px);overflow:hidden;line-height:1.300;border-radius:18px}
+/* 0.3.44 (V2): tienda - fondo de la vitrina segun el juego (4 en linea azul, Parchimi claro) */
+.shop-prev.g-connect4{background:linear-gradient(145deg,#1f86e0,#0b3d91)}
+.shop-prev.g-parchis{background:#f4f1e6;box-shadow:inset 0 0 0 2px #d9d2bd}.shop-prev.g-parchis i+i{margin-left:4px}
+/* 0.3.43 (V2): Parchimi - muralla: con pareja, brillan solo las fichas que la abren; las otras tuyas quedan apagadas (y al tocarlas sale el aviso) */
+.pc-board.wallmode .pc-piece.can{box-shadow:0 0 0 .18em #ffd54a,0 0 .7em .25em #ffd54a;z-index:5}
+.pc-board.wallmode .pc-piece.nope{filter:brightness(.72) saturate(.7);cursor:help}
+/* 0.3.42 (V2): fila «Continuar» con las partidas guardadas (js/other-games.js) */
+.park-card{position:relative;flex:none}
+.park-card .recent-card small{display:block;margin-top:1px;font-size:9.500px;font-weight:700;opacity:.9;line-height:1.2}
+.park-card .recent-card{box-shadow:0 0 0 2.500px #ffd54a,0 6px 14px #0b3d9126}
+.park-x{position:absolute;right:-6px;top:-6px;z-index:2;display:grid;place-items:center;width:24px;height:24px;padding:0;border:2px solid #fff;border-radius:50%;background:#10213b;color:#fff;font-size:11px;font-weight:900;line-height:1;cursor:pointer;touch-action:manipulation}
+.games-recent.parked{padding-top:8px}
+/* 0.3.41 (V2): arreglos tras la prueba del dueno - Parchimi (circulo del turno), Perfil (Logros se toca), Domino (fichas mas chicas, mesa con aire) */
+.pc-nestc.turn{animation:pcNestTurn .8s ease-in-out infinite alternate}
+@keyframes pcNestTurn{from{stroke-width:.85;filter:drop-shadow(0 0 0 currentColor)}to{stroke-width:1.700;filter:drop-shadow(0 0 1.200px currentColor) drop-shadow(0 0 .600px #fff)}}
+@media(prefers-reduced-motion:reduce){.pc-nestc.turn{animation:none;stroke-width:1.500}}
+/* -- Domino clasico: fichas de la mano en vertical y mas chicas (las 7 caben en una fila), boton Ordenar, mesa con aire y fichas levemente torcidas -- */
+#miniGameStage .arc-domino .d-hand{flex-wrap:nowrap;gap:3px}
+#miniGameStage .arc-domino .d-hand .dbtn{flex:0 1 44px;min-width:0;padding:2px}
+#miniGameStage .arc-domino .d-hand .dtile{flex-direction:column;width:100%;height:auto;aspect-ratio:1/1.900}
+#miniGameStage .arc-domino .d-hand .dtile u{width:70%;height:2px}
+#miniGameStage .arc-domino .d-hand .dh{flex:1 1 0;width:100%;height:auto;min-height:0;padding:3px}
+#miniGameStage .arc-domino .d-hand .dh i{width:5px;height:5px}
+.dm-sortrow{display:flex;justify-content:center;margin:0 0 6px}
+.dm-sortbtn,.d3-sortbtn{padding:5px 12px;border:0;border-radius:999px;background:#eef3fb;color:#203653;font:inherit;font-size:11.500px;font-weight:900;cursor:pointer;box-shadow:0 2px 0 #d5dfee;touch-action:manipulation}
+.dm-sortbtn:active,.d3-sortbtn:active{transform:translateY(2px);box-shadow:none}
+#miniGameStage .dm-board .dmt{transform:scale(.93) rotate(var(--tilt,0deg))}
+/* -- Mesa 3D: fichas del atril mas chicas, boton Ordenar -- */
+.d3 .d3-sortbtn{position:absolute;right:74px;bottom:104px;z-index:6;background:#ffffffe6}
+.d3 .d3-myrack .d3-my{touch-action:none;cursor:grab}
+.st-cards .st-go{cursor:pointer;box-shadow:inset 0 0 0 2px #0b3d91,0 3px 0 #9dbcea}.st-cards .st-go small{color:#0b3d91;font-weight:900}.st-cards .st-go:active{transform:translateY(2px)}
 /* 0.3.38 (V2): monedas y TIENDA DE SKINS (js/shop.js) + quinta pestana en la barra de abajo */
 body.tab-page #shopScreen{align-items:stretch;padding:0 0 calc(62px + env(safe-area-inset-bottom,0px));background:radial-gradient(ellipse at 50% 0,#fff 0,#f4f7fc 55%,#eaf0f8 100%);-webkit-backdrop-filter:none;backdrop-filter:none}
 body.tab-page #shopScreen .tut-card{width:min(760px,100%);height:100%;max-height:none;border-radius:0;background:transparent;box-shadow:none}

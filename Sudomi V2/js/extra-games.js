@@ -155,7 +155,8 @@ function applyDomino(g,p,a){
  // 0.3.14: CAPICÚA = ganar la mano con una ficha (que no sea doble) que encaja en los DOS extremos de la mesa
  const cap=!!e&&h.length===1&&e[0]!==e[1]&&t[0]!==t[1]&&((t[0]===e[0]&&t[1]===e[1])||(t[0]===e[1]&&t[1]===e[0]));
  h.splice(a.i,1);
- if(!e){g.row.push([t[0],t[1]]);g.mid=0;g.first=null}                      // g.mid = index of the opening tile (the table layout snakes out from it in both directions)
+ if(!e){g.row.push([t[0],t[1]]);g.mid=0;g.first=null;                      // g.mid = index of the opening tile (the table layout snakes out from it in both directions)
+  g.look=(g.seats&&g.seats[p]&&g.seats[p].look)||{};g.lookN=(g.lookN|0)+1}   // 0.3.47: QUIEN SACA pone el aspecto de la mesa (fondo, dominós y sillas de la Mesa 3D, js/domino-3d.js)
  else if(side==='L'){g.row.unshift(t[1]===e[0]?[t[0],t[1]]:[t[1],t[0]]);g.mid=(g.mid|0)+1}
  else g.row.push(t[0]===e[1]?[t[0],t[1]]:[t[1],t[0]]);
  g.sel=-1;g.fx=[e?side:'R'];g.passes=0;g.lastPlayer=p;g.ts=(g.ts|0)+1;
@@ -758,7 +759,8 @@ function dBoard(g){
   const vert=t.h>t.w;
   const [p,q]=vert?(t.d[1]>0?[t.inn,t.out]:[t.out,t.inn]):(t.d[0]>0?[t.inn,t.out]:[t.out,t.inn]);
   const pop=(g.fx[0]==='L'&&t.k===0)||(g.fx[0]==='R'&&t.k===last);
-  return `<button type="button" class="dmt${pop?' pop':''}" data-p="${p}" data-q="${q}" style="left:${(t.x/DU*100).toFixed(3)}%;top:${(t.y/rows*100).toFixed(3)}%;width:${(t.w/DU*100).toFixed(3)}%;height:${(t.h/rows*100).toFixed(3)}%" aria-label="Ficha ${p}-${q}. Toca para verla grande">${dSvg(p,q,vert)}</button>`;
+  const tilt=(((p*5+q*11+(p+1)*(q+2))%7)-3)*.9;   // 0.3.41: un poco de aire y cada ficha levemente torcida (siempre igual para la misma ficha)
+  return `<button type="button" class="dmt${pop?' pop':''}" data-p="${p}" data-q="${q}" style="left:${(t.x/DU*100).toFixed(3)}%;top:${(t.y/rows*100).toFixed(3)}%;width:${(t.w/DU*100).toFixed(3)}%;height:${(t.h/rows*100).toFixed(3)}%;--tilt:${tilt.toFixed(1)}deg" aria-label="Ficha ${p}-${q}. Toca para verla grande">${dSvg(p,q,vert)}</button>`;
  }).join('');
  return `<div class="dm-board" style="aspect-ratio:${DU}/${rows}">${tiles||''}</div>`;
 }
@@ -767,7 +769,9 @@ function drawDomino(g,ctx,I){
  const row=g.row.length?dBoard(g):`<div class="dm-board empty" style="aspect-ratio:1"><span class="arc-hint">La mesa está vacía: ${I.mine&&playing?'juega la ficha indicada para empezar.':'espera la primera ficha.'}</span></div>`;
  const sideChoice=I.mine&&playing&&e&&g.sel>=0&&h[g.sel]
   ?`<div class="d-side"><span>¿Dónde la colocas?</span><button type="button" class="d-sidebtn L" data-a="play" data-i="${g.sel}" data-side="L" aria-label="Poner la ficha junto a la ficha ${g.row[0][0]}-${g.row[0][1]}, extremo ${e[0]}">${dSvg(g.row[0][0],g.row[0][1],false)}</button><button type="button" class="d-sidebtn R" data-a="play" data-i="${g.sel}" data-side="R" aria-label="Poner la ficha junto a la ficha ${g.row[g.row.length-1][0]}-${g.row[g.row.length-1][1]}, extremo ${e[1]}">${dSvg(g.row[g.row.length-1][0],g.row[g.row.length-1][1],false)}</button></div>`:'';
- const hand=h.map((t,i)=>{const ok=I.mine&&playing&&dFits(g,t);return `<button class="dbtn ${ok?'ok':'no'}${g.sel===i?' picked':''}" data-a="play" data-i="${i}" ${ok?'':'disabled'} aria-label="Ficha ${t[0]}-${t[1]}">${dtile(t)}</button>`}).join('');
+ // 0.3.41: botón «Ordenar» (D.dsort): las fichas de tu mano se muestran de mayor a menor; es solo cómo se ven (data-i sigue siendo su lugar real)
+ const dRank=D.dsort?h.map((t,i)=>[Math.max(t[0],t[1])*10+Math.min(t[0],t[1]),i]).sort((a,b)=>b[0]-a[0]).map(x=>x[1]):h.map((_,i)=>i);
+ const hand=dRank.map(i=>{const t=h[i],ok=I.mine&&playing&&dFits(g,t);return `<button class="dbtn ${ok?'ok':'no'}${g.sel===i?' picked':''}" data-a="play" data-i="${i}" ${ok?'':'disabled'} aria-label="Ficha ${t[0]}-${t[1]}">${dtile(D.dsort?[Math.max(t[0],t[1]),Math.min(t[0],t[1])]:t)}</button>`}).join('');
  // the table: avatar + name + tile count for every seat (you at the bottom, your partner in front of you), the chain in the middle, a bottle (js/domino-table.js)
  const DM=window.SudomiDomino,seatOf=k=>(me+k)%4;
  const av=(p,pos,label)=>{
@@ -777,13 +781,13 @@ function drawDomino(g,ctx,I){
  // 0.2.65: every player sits at their own side of the table (partner in front, rivals left and right) and their tiles are shown in front of them, face down, so you can see how many are left
  const backs=(p,cls)=>`<div class="dm-backs ${cls}" aria-label="${(g.hands[p]||[]).length} fichas">${(g.hands[p]||[]).map(()=>'<i></i>').join('')}</div>`;
  const drunkN=DM&&DM.drunk?DM.drunk(me):0,drunk=drunkN>0;
- const arena=`<div class="dm-arena"><div class="dm-a dm-at">${av(seatOf(2),'top','Compañero')}${backs(seatOf(2),'h')}</div><div class="dm-a dm-al">${av(seatOf(1),'left','Rival')}${backs(seatOf(1),'v')}</div><div class="dm-a dm-ab">${e?`<div class="d-ends"><span>◀ ${e[0]}</span><span>${e[1]} ▶</span></div>`:''}${row}</div><div class="dm-a dm-ar">${av(seatOf(3),'right','Rival')}${backs(seatOf(3),'v')}</div></div>`;
- const score=`<div class="dm-score"><span class="mine">Tu equipo <b>${g.score[myTeam]}</b></span><i>meta ${DOM_TARGET}</i><span>Rivales <b>${g.score[1-myTeam]}</b></span></div><p class="dm-dir">↻ Se juega de izquierda a derecha</p>`;
+ const arena=`<div class="dm-arena"><div class="dm-a dm-at">${av(seatOf(2),'top','Compañero')}${backs(seatOf(2),'h')}</div><div class="dm-a dm-al">${av(seatOf(3),'left','Rival')}${backs(seatOf(3),'v')}</div><div class="dm-a dm-ab"><div class="d-ends"${e?'':' style="visibility:hidden"'}><span>◀ ${e?e[0]:0}</span><span>${e?e[1]:0} ▶</span></div>${row}</div><div class="dm-a dm-ar">${av(seatOf(1),'right','Rival')}${backs(seatOf(1),'v')}</div></div>`;   // 0.3.41 (dueño): se juega hacia la derecha — el siguiente jugador (asiento +1) va a tu derecha
+ const score=`<div class="dm-score"><span class="mine">Tu equipo <b>${g.score[myTeam]}</b></span><i>meta ${DOM_TARGET}</i><span>Rivales <b>${g.score[1-myTeam]}</b></span></div><p class="dm-dir">↺ Se juega hacia la derecha</p>`;
  const sum=reveal&&g.summary?`<div class="dm-sum"><h4>${g.over?'🏆 Fin de la partida':`Mano ${g.handNo}`}</h4>${[0,1,2,3].map(p=>{const s=(g.seats&&g.seats[p])||{name:`Jugador ${p+1}`};return `<div class="dm-sum-row ${dTeam(p)===myTeam?'mine':''}"><b>${esc(s.name)}</b><span>${(g.hands[p]||[]).map(t=>dtile(t,'sm')).join('')||'<em>sin fichas</em>'}</span><i>${g.summary.pips[p]}</i></div>`}).join('')}${g.over?'':'<div class="arc-actions"><button class="arc-btn big" data-a="next">Siguiente mano ▶</button></div>'}</div>`:'';
  // 0.3.30: MESA 3D (js/domino-3d.js) — otra forma de pintar la misma partida; se elige con el interruptor del menú de Dominó
  if(window.SudomiDomino3D&&SudomiDomino3D.on())return SudomiDomino3D.draw(g,I,{dLayout,dSvg,dFits,dEnds,dPlayable,dTeam,esc,msg,sum,DOM_TARGET,D3_SIPS,DU});
  return `<div class="arc-felt dom dm-table" data-n="${g.row.length}" data-turn="${g.turn}" data-over="${g.over?1:0}" data-viewer="${me}">${score}${arena}<div class="dm-foot">${av(me,'bottom','Tú')}${DM?DM.bottle(me):''}</div></div>
-  ${msg(g)}${sum}${reveal?'':`${sideChoice}${drunk?`<p class="dm-drunk-note">🥴 Estás mareado: las fichas se ven borrosas ${drunkN>1?'durante '+drunkN+' turnos más':'durante este turno'}.</p>`:''}<div class="d-hand${drunk?' drunk':''}">${hand||'<span class="arc-hint">Sin fichas</span>'}</div>${I.mine&&playing&&g.row.length&&!dPlayable(g,me)?'<div class="arc-actions"><button class="arc-btn pulse" data-a="pass">✋ Pasar · no tengo ficha</button></div>':''}`}`;
+  ${msg(g)}${sum}${reveal?'':`${sideChoice}${drunk?`<p class="dm-drunk-note">🥴 Estás mareado: las fichas se ven borrosas ${drunkN>1?'durante '+drunkN+' turnos más':'durante este turno'}.</p>`:''}<div class="d-hand${drunk?' drunk':''}">${hand||'<span class="arc-hint">Sin fichas</span>'}</div>${h.length>1?`<div class="dm-sortrow"><button type="button" class="dm-sortbtn" data-a="dsort">${D.dsort?'↩ Como salieron':'⇅ Ordenar fichas'}</button></div>`:''}${I.mine&&playing&&g.row.length&&!dPlayable(g,me)?'<div class="arc-actions"><button class="arc-btn pulse" data-a="pass">✋ Pasar · no tengo ficha</button></div>':''}`}`;
 }
 
 /* ---------- Memoria ---------- */
@@ -1046,6 +1050,7 @@ function bind(id,g,ctx){
   if(act.a==='stopsubmit'){act.a='submit';act.answers=D.stop.slice()}
   else if(act.a==='votesubmit'){act.a='votes';act.v=D.votes.slice()}
   else if(act.a==='hint'){showHint(g,ctx);return}
+  else if(act.a==='dsort'){D.dsort=!D.dsort;ctx.render();return}          // 0.3.41: ordenar las fichas del dominó en tu mano (solo cambia cómo se ven)
   D.hint=null;ctx.dispatch(act);
  }});
  // STOP answer boxes: keep what was typed even if a Wi-Fi update re-draws the screen.

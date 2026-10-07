@@ -145,7 +145,7 @@
   }
   function banner(inv) {
     let b = $('#frBanner'); if (b) b.remove();
-    b = document.createElement('div'); b.id = 'frBanner'; b.className = 'fr-banner'; b.setAttribute('role', 'alert');
+    b = document.createElement('div'); b.id = 'frBanner'; b.className = 'fr-banner'; b.setAttribute('role', 'alert'); b.dataset.room = norm(inv.room);
     b.innerHTML = `<div class="fr-b-who"><span>${esc(inv.avatar)}</span><div>${esc(`${inv.name} te invita a jugar ${inv.gameName}`)}</div></div>
       <div class="fr-b-btns"><button type="button" class="fr-go" id="frGo">Unirme</button><button type="button" id="frNo">Ahora no</button>${inv.known ? '' : '<button type="button" id="frAdd">+ Amigo</button>'}<button type="button" id="frBlock" aria-label="Bloquear">🚫</button></div>`;
     document.body.appendChild(b); play('bonus');
@@ -283,6 +283,8 @@
   function invite(opts) {
     if (!window.SudomiScreen) return;
     const room = norm(opts.room), game = opts.game, gameName = opts.gameName || '';
+    // 0.3.41: «Invitar de nuevo» (alguien se salió de tu sala) — se olvida que ya lo habías invitado; si no, salía marcado «✓ Invitación enviada» y no se podía reenviar
+    if (opts.again) Object.keys(sent).forEach(k => { if (k.indexOf(room) === 0) delete sent[k] });
     SudomiScreen.open('friendsInvite', '👥 Invitar amigos', (body, a) => {
       const sel = new Set(S.list.map(f => f.code));          // por defecto, todos marcados
       const paint = () => {
@@ -315,6 +317,8 @@
   /* ---------- 0.2.77: aceptar una invitación y la lista de avisos ---------- */
   async function acceptInvite(n) {         // → true si entró; false si la sesión ya terminó
     const r = await probeRoom(n.game, n.room);
+    // 0.3.41: si aceptas desde la pestaña Amigos, el aviso flotante de esa misma invitación se quita (antes se quedaba en pantalla)
+    const fb = $('#frBanner'); if (fb && fb.dataset.room === norm(n.room)) fb.remove();
     if (r === 'gone') { removeNotif(n.id); return false }
     removeNotif(n.id); delete seenInv[n.room];
     if (!S.list.some(f => f.code === n.code)) { addFriend(n.code, n.name, n.avatar); notifyAdd(n.code) }
@@ -371,7 +375,7 @@
     if (!b) { b = document.createElement('div'); b.id = 'frAwayBar'; b.className = 'fr-awaybar'; b.setAttribute('role', 'status'); document.body.appendChild(b) }
     b.dataset.k = key;
     b.innerHTML = `<span>${esc('📴 ' + info.names.join(', ') + ' sin conexión')}</span><div><button type="button" class="fr-go" id="frAwayInv">Invitar de nuevo</button><button type="button" id="frAwayShare">📤 Compartir enlace</button></div>`;
-    b.querySelector('#frAwayInv').onclick = () => invite({ game: info.game, gameName: info.gameName || '', room: info.room, url: roomUrl(info.game, info.room) });
+    b.querySelector('#frAwayInv').onclick = () => invite({ game: info.game, gameName: info.gameName || '', room: info.room, url: roomUrl(info.game, info.room), again: true });
     b.querySelector('#frAwayShare').onclick = () => {
       const url = roomUrl(info.game, info.room), text = t('Juega conmigo en SUDOMI');
       if (navigator.share) navigator.share({ title: 'SUDOMI', text, url }).catch(() => {});

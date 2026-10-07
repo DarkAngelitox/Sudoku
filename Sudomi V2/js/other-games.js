@@ -67,10 +67,12 @@ function sendProfile(){const me=myProfile();wifi.names[wifi.player]=me;if(me)wif
 /* 0.3.39 (dueño): EL RIVAL VE TU SKIN. Al conectarse, cada jugador manda qué skin lleva puesta en cada juego ({checkers:'caps'}); se guarda en
  * wifi.skins[asiento del otro]. Solo viaja el nombre de la skin y solo se acepta si existe en la tienda de este teléfono (js/shop.js).
  * skinOf(juego, asiento) dice con qué skin se pintan las piezas de ese asiento: online, la del dueño de ese lado; sin conexión, la tuya en los dos lados. */
-function sendSkins(){const S=window.SudomiSkins;if(!S)return;const o={};S.list().forEach(s=>{if(S.active(s.game)===s.id)o[s.game]=s.id});wifiSend('skins',o)}
-function takeSkins(p){const S=window.SudomiSkins,o={};if(S&&p&&typeof p==='object')S.list().forEach(s=>{if(p[s.game]===s.id)o[s.game]=s.id});wifi.skins=wifi.skins||[];wifi.skins[1-wifi.player]=o}
-function skinOf(gameId,seat){const S=window.SudomiSkins;if(!S)return '';if(wifi.active&&seat!==wifi.player)return (wifi.skins&&wifi.skins[seat]&&wifi.skins[seat][gameId])||'';return S.active(gameId)}
-window.addEventListener('sudomi-skins',()=>{if(wifi.active)sendSkins()});
+function sendSkins(){const S=window.SudomiShopSkins;if(!S)return;const o={};S.list().forEach(s=>{if(S.active(s.game)===s.id)o[s.game]=s.id});wifiSend('skins',o)}
+function takeSkins(p){const S=window.SudomiShopSkins,o={};if(S&&p&&typeof p==='object')S.list().forEach(s=>{if(p[s.game]===s.id)o[s.game]=s.id});wifi.skins=wifi.skins||[];wifi.skins[1-wifi.player]=o}
+// 0.3.45 (dueño): la skin es SOLO de tus piezas. Contra la máquina tú eres el asiento 0 y la máquina juega con las piezas normales; en el mismo teléfono las llevan los dos lados.
+function skinOf(gameId,seat){const S=window.SudomiShopSkins;if(!S)return '';if(wifi.active&&seat!==wifi.player)return (wifi.skins&&wifi.skins[seat]&&wifi.skins[seat][gameId])||'';if(!wifi.active&&game&&game.mode==='pve'&&seat!==0)return '';return S.active(gameId)}
+window.addEventListener('sudomi-shop-skins',()=>{if(wifi.active)sendSkins()});
+const c4Skin=v=>{const k=skinOf('connect4',v==='R'?0:1);return k?'sk-'+k:''};   // 0.3.44: en 4 en línea, rojas = asiento 0, amarillas = asiento 1
 function takeProfile(p){if(!p||typeof p.name!=='string')return;const name=p.name.replace(/\s+/g,' ').trim().slice(0,14);if(!name)return;const P=window.SudomiProfile;wifi.names[1-wifi.player]={name,avatar:P&&P.validAvatar(p.avatar)?p.avatar:'👤'}}
 /* 0.2.63 — names. The computer players get a person's name (the owner's list, one drawn per game); in "Multijugador local" (one device) player 1 is
  * the profile and the second person is "Invitado". Everything is done on the text the screen is about to show, like the online names. */
@@ -148,10 +150,12 @@ function navPlaying(){
 function navConfirm(go){
  if(!navPlaying())return go();
  const m=$('#modal');
- m.innerHTML='<div class="modal-card"><h2>¿Salir de la partida?</h2><p>Si sales ahora, la partida que estás jugando se pierde.</p><div class="modal-actions"><button class="primary-action" id="arcStay">Seguir jugando</button><button class="secondary-action" id="arcLeave">Salir</button></div></div>';
+ const keep=canPark();   // 0.3.42: esta partida se puede guardar para continuarla después
+ m.innerHTML=keep?'<div class="modal-card"><h2>¿Salir de la partida?</h2><p>Tu partida se guarda: puedes retomarla en «Continuar», en la lista de juegos.</p><div class="modal-actions"><button class="primary-action" id="arcStay">Seguir jugando</button><button class="secondary-action" id="arcLeave">Guardar y salir</button></div></div>'
+  :'<div class="modal-card"><h2>¿Salir de la partida?</h2><p>Si sales ahora, la partida que estás jugando se pierde.</p><div class="modal-actions"><button class="primary-action" id="arcStay">Seguir jugando</button><button class="secondary-action" id="arcLeave">Salir</button></div></div>';
  m.classList.remove('hidden');
  $('#arcStay').onclick=()=>m.classList.add('hidden');
- $('#arcLeave').onclick=()=>{m.classList.add('hidden');go()};
+ $('#arcLeave').onclick=()=>{m.classList.add('hidden');if(keep)park();go()};
 }
 // cierra lo que haya en el escenario (cualquier juego, con o sin sala) y vuelve a mostrar el menú
 function exitStage(){
@@ -186,8 +190,31 @@ function arcadeChrome(){
    if(!A||!it||!h)return;const sub=p?p.textContent.trim():'';
    h.insertAdjacentHTML('beforebegin',A.banner(navId,it[2],/ELIGE TU PARTIDA/.test(sub)?'':sub));h.classList.add('arc-sr');if(p)p.remove();if(ic)ic.remove();   /* el h2 se queda (oculto): lo usan los lectores de pantalla y js/game-tutorials.js */
   });
-  paintNav();
+  paintNav();fsBar();
  };
+ /* 0.3.50 — PANTALLA COMPLETA TAMBIÉN EN LOS JUEGOS CON ARCHIVO PROPIO (DOS, STOP, Parchimi, Dominópolis, Batalla naval, Mahjong, Blackjack, Póker).
+  * Esos juegos repintan su pantalla a su manera, así que la fila de arriba va FUERA del escenario: #fsBar, una sola, que este archivo muestra cuando
+  * hay un juego abierto que no trae su propia fila (.fs-top de shell()). ← llama a navBack(); ⋯ ofrece Reglas (pulsa el botón de reglas del juego) y Sonido.
+  * La pantalla lleva data-fs="1" mientras se juega: con eso el CSS esconde la barra del arcade y la cabecera vieja de cada juego. */
+ let barKey='';
+ function fsBar(){
+  let bar=document.getElementById('fsBar');
+  if(!bar){bar=document.createElement('div');bar.id='fsBar';bar.className='fs-top fs-bar hidden';stage.parentNode.insertBefore(bar,stage)}
+  const play=navLevel()==='play',own=!!stage.querySelector('.mini-game.fs'),show=play&&!own;
+  if(play)screen.dataset.fs='1';else delete screen.dataset.fs;
+  const it=games.find(g=>g[0]===navId),key=show?'1:'+(it?it[0]:''):'0';
+  if(key===barKey)return;barKey=key;
+  bar.classList.toggle('hidden',!show);if(!show){bar.innerHTML='';return}
+  bar.innerHTML=`<button type="button" class="fs-btn" id="fsBarBack" aria-label="Regresar">${FS_IC.back}</button><div class="fs-msg"><small>SUDOMI ARCADE</small><b>${it?it[2]:''}</b></div><button type="button" class="fs-btn" id="fsBarMore" aria-label="Más opciones">${FS_IC.more}</button><div class="fs-menu hidden" id="fsBarMenu"><button type="button" data-fb="rules">Reglas del juego</button><button type="button" data-fb="sound">Sonido: ${window.SudomiSound&&SudomiSound.cfg&&!SudomiSound.cfg.sound?'apagado':'activado'}</button></div>`;
+  const menu=bar.querySelector('#fsBarMenu'),more=bar.querySelector('#fsBarMore');
+  bar.querySelector('#fsBarBack').onclick=()=>{menu.classList.add('hidden');navBack()};
+  more.onclick=()=>{menu.classList.toggle('hidden');more.classList.toggle('on',!menu.classList.contains('hidden'))};
+  bar.querySelectorAll('[data-fb]').forEach(x=>x.onclick=()=>{
+   menu.classList.add('hidden');more.classList.remove('on');
+   if(x.dataset.fb==='rules'){const r=stage.querySelector('[aria-label="Reglas"],#dosRules,#spRules,#pcRules,.gt-mini')||[...stage.querySelectorAll('button')].find(b=>['?','📘'].includes(b.textContent.trim()));if(r)r.click()}
+   else if(window.SudomiSound){SudomiSound.set({sound:!SudomiSound.cfg.sound});x.textContent='Sonido: '+(SudomiSound.cfg.sound?'activado':'apagado')}
+  });
+ }
  let queued=false;const later=()=>{if(queued)return;queued=true;setTimeout(()=>{queued=false;tidy()},0)};   // como mucho una pasada por cada tanda de cambios
  new MutationObserver(later).observe(hub,{childList:true,subtree:true});
  new MutationObserver(later).observe(stage,{childList:true,subtree:true});
@@ -202,7 +229,12 @@ const GROUPS=[['Fiesta',['dos','stop','dominopolis','parchis']],['Tablero',['dom
 const PLAYERS={dos:'1–8 jugadores',stop:'1–8 jugadores',dominopolis:'2–8 jugadores',parchis:'2–4 jugadores',domino:'4 en parejas',mines:'1 jugador'};
 const recentGames=()=>{try{const v=JSON.parse(localStorage.getItem('sudomi-recent'));return Array.isArray(v)?v.slice(0,3):[]}catch(_){return []}};
 const markRecent=id=>{try{localStorage.setItem('sudomi-recent',JSON.stringify([id,...recentGames().filter(x=>x!==id)].slice(0,3)))}catch(_){}};
+/* 0.3.50 (dueño): los juegos con DOS MODOS cambian el fondo al encender su interruptor, para que se note que es otro modo.
+ * altMode('stop' | 'domino' | 'war' | '') pone data-alt en la pantalla del arcade; los colores están en css/main.css. Se quita al volver a la lista de juegos. */
+function altMode(k){const sc=$('#miniGamesScreen');if(!sc)return;if(k)sc.dataset.alt=k;else delete sc.dataset.alt}
+window.SudomiAltMode=altMode;
 function renderHub(){
+ altMode('');
  const saved=window.SudomiLAN&&!SudomiLAN.session?SudomiLAN.saved:null,item=saved&&games.find(g=>g[0]===saved.session.game);
  const resume=item?`<div class="wifi-resume"><span>📶</span><div><strong>Partida ${netInfo().label} en curso</strong><small>${item[2]} · sala ${saved.session.room}</small></div><button id="resumeWifi">Reconectar</button><button id="dropWifi" aria-label="Descartar">✕</button></div>`:'';
  // 0.3.2 (V2, Fase 3): la lista va por GRUPOS, con una fila «Continuar» (los últimos juegos abiertos) y etiquetas (jugadores · Online) en vez del botón «Elegir modo»
@@ -210,9 +242,12 @@ function renderHub(){
  const byId=id=>games.find(g=>g[0]===id),rec=recentGames().map(byId).filter(Boolean);
  hub.innerHTML=`<p class="games-intro">Elige un juego y selecciona cómo quieres jugar.</p>${resume}
   ${(()=>{const dg=byId(dailyGame()),ok=!!dailyData().done[dayKey()],st=dailyStreak();return dg?`<button class="daily-arc${ok?' done':''}" data-game="${dg[0]}"><span>${ok?'✅':'🎯'}</span><div><b>${ok?'Reto de hoy cumplido':'Reto de hoy: gana en '+dg[2]}</b><small>${ok?'Vuelve mañana por otro juego':'+'+DAILY_XP+' XP'}${st?' · racha de '+st+(st===1?' día':' días'):''}</small></div><i>›</i></button>`:''})()}
-  ${rec.length?`<h3 class="games-group-h">Continuar</h3><div class="games-recent">${rec.map(([id,icon,name])=>{const art=window.SudomiGameArt&&SudomiGameArt[id];return `<button class="recent-card" data-game="${id}"><span class="rc-art">${art||icon}</span><b>${name}</b></button>`}).join('')}</div>`:''}
+  ${(()=>{const pk=parked();return pk.length?`<h3 class="games-group-h">Continuar</h3><div class="games-recent parked">${pk.map((p,i)=>{const it=byId(p.id),art=window.SudomiGameArt&&SudomiGameArt[p.id];return `<div class="park-card"><button class="recent-card" data-park="${i}"><span class="rc-art">${art||it[1]}</span><b>${it[2]}</b><small>${PARK_MODES[p.mode]||''} · ${parkAgo(p.ts)}</small></button><button type="button" class="park-x" data-unpark="${i}" aria-label="Descartar esta partida">✕</button></div>`}).join('')}</div>`:''})()}
+  ${rec.length?`<h3 class="games-group-h">Jugados hace poco</h3><div class="games-recent">${rec.map(([id,icon,name])=>{const art=window.SudomiGameArt&&SudomiGameArt[id];return `<button class="recent-card" data-game="${id}"><span class="rc-art">${art||icon}</span><b>${name}</b></button>`}).join('')}</div>`:''}
   ${GROUPS.map(([title,ids])=>`<h3 class="games-group-h">${title}</h3><div class="games-grid">${ids.map(byId).filter(Boolean).map(card).join('')}</div>`).join('')}`;
  hub.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>{chooseMode(b.dataset.game)});
+ hub.querySelectorAll('[data-park]').forEach(b=>b.onclick=()=>resumeParked(+b.dataset.park));
+ hub.querySelectorAll('[data-unpark]').forEach(b=>b.onclick=()=>{const p=parked()[+b.dataset.unpark];if(p)unpark(p.id,p.mode);renderHub()});
  if(item){$('#resumeWifi').onclick=()=>resumeWifi(saved);$('#dropWifi').onclick=()=>{SudomiLAN.forget();try{localStorage.removeItem(HOST_KEY)}catch(_){}renderHub()}}
 }
 // 0.2.58: every game offers the same two ways to play: PVE (you against the computer) and Multijugador (people; empty seats are filled by the computer)
@@ -241,6 +276,7 @@ function chooseMode(id){
  const item=games.find(g=>g[0]===id);
  const choices=id==='mines'?mineLevelsHTML()+'<button data-mode="clock"><strong>⏱ Contra el reloj</strong><small>Completa el tablero y mejora tu tiempo</small></button><button data-mode="practice"><strong>🧘 Práctica</strong><small>Juega sin cronómetro</small></button><button data-mode="daily"><strong>📅 Tablero del día</strong><small>'+(mineDaily()[dayKey()]?'Hecho hoy en '+clockText(mineDaily()[dayKey()])+' · mejora tu tiempo':'El mismo tablero para todos · nivel Medio')+'</small></button>':modeButtons(id);
  markRecent(id);
+ altMode(id==='stop'&&window.SudomiStopClasico&&stopClassic()?'stop':id==='domino'&&window.SudomiDomino3D&&SudomiDomino3D.on()?'domino':'');
  navId=id;   // 0.2.95: sin cuadro, con el banner del juego (lo pone arcadeChrome) y una animación distinta en cada opción
  hub.innerHTML=`<button class="games-back mode-back" id="backToGames">‹ Todos los juegos</button><div class="mode-picker arc-plain"><span class="mode-game-icon">${item[1]}</span><p>ELIGE TU PARTIDA</p><h2>${item[2]}</h2>${id==='domino'&&window.SudomiDomino3D?`<label class="sc-switch${SudomiDomino3D.on()?' on':''}"><input type="checkbox" id="dom3dSw" ${SudomiDomino3D.on()?'checked':''}><span><b>🪑 Mesa 3D</b><small>Sentado a la mesa: personajes en sus sillas, vaso de cerveza y tu mano pone las fichas.</small></span><i></i></label>`:''}${id==='stop'&&window.SudomiStopClasico?`<label class="sc-switch${stopClassic()?' on':''}"><input type="checkbox" id="stopClassicSw" ${stopClassic()?'checked':''}><span><b>📝 Modo clásico</b><small>La hoja de siempre: 6 columnas, 5 rondas y piedra, papel o tijera para poner la letra.</small></span><i></i></label>`:''}${AI_GAMES.includes(id)?`<div class="ai-levels" role="group" aria-label="Nivel de la máquina"><span>Nivel de la máquina</span>${[['easy','Fácil'],['normal','Normal'],['hard','Difícil']].map(([k,n])=>`<button type="button" data-ail="${k}" class="${aiLevel()===k?'on':''}">${n}</button>`).join('')}</div>`:''}<div class="mode-choices">${choices}</div></div>`;
  hub.querySelectorAll('[data-ail]').forEach(b=>b.onclick=()=>{try{localStorage.setItem('sudomi-ai-level',b.dataset.ail)}catch(_){}hub.querySelectorAll('[data-ail]').forEach(x=>x.classList.toggle('on',x===b))});
@@ -334,6 +370,32 @@ const QR_GAMES=['checkers','tictactoe','connect4','dotsboxes','memory'];
 // 0.2.58: the QR option now lives INSIDE the Multijugador lobby (button '📷 Sin internet (QR)'), not as a separate mode
 async function qrOffer(id){}
 function qrLobby(id){SudomiQR.activate();wifiLobby(id,{qr:true})}
+/* 0.3.42 (dueño) — PARTIDAS GUARDADAS: al salir de una partida a medias se guarda, y la fila «Continuar» del arcade la retoma donde quedó.
+ *   · Se guardan las últimas PARK_MAX (3), en este teléfono ('sudomi-parked'). Una por juego y modo: si guardas otra del mismo, sustituye a la anterior.
+ *   · Vale para los juegos que viven en este archivo y en extra-games.js, sin conexión: Ajedrez, Damas, 4 en línea, Tres en raya, Buscaminas,
+ *     Dominó, Memoria, Puntos y cajas, Escoba, Rummy, Fichas deslizantes. NO vale (todavía) para los que tienen archivo propio
+ *     (DOS, STOP, Parchimi, Dominópolis, Batalla naval, Mahjong, Blackjack, Póker) ni para partidas online.
+ *   · Se guarda lo mismo que ya se mandaba al otro teléfono en una partida Wi-Fi (fullState) y se repone con applyWifiSnapshot.
+ *   · También se guarda sola si cierras la app en medio de la partida (pagehide). Al terminar la partida, la copia se borra (render). */
+const PARK_KEY='sudomi-parked',PARK_MAX=3;
+const PARK_MODES={pve:'Contra la máquina',pvp:'En este dispositivo',clock:'Contra el reloj',practice:'Práctica',daily:'Reto diario'};
+function parked(){try{const v=JSON.parse(localStorage.getItem(PARK_KEY));return Array.isArray(v)?v.filter(x=>x&&x.snap&&games.some(g=>g[0]===x.id)).slice(0,PARK_MAX):[]}catch(_){return []}}
+function parkWrite(l){try{localStorage.setItem(PARK_KEY,JSON.stringify(l.slice(0,PARK_MAX)))}catch(_){}}
+const canPark=()=>!!game&&!!current&&!wifi.active&&!(game.over||game.done)&&!stage.classList.contains('hidden');
+function park(){
+ if(!canPark())return false;
+ let snap;try{snap=JSON.parse(JSON.stringify(fullState()))}catch(_){return false}
+ const l=parked().filter(x=>!(x.id===current&&x.mode===game.mode));
+ l.unshift({id:current,mode:game.mode,ts:Date.now(),ai:aiPick||null,snap});parkWrite(l);return true;
+}
+function unpark(id,mode){const l=parked();if(l.some(x=>x.id===id&&x.mode===mode))parkWrite(l.filter(x=>!(x.id===id&&x.mode===mode)))}
+function resumeParked(i){
+ const p=parked()[i];if(!p)return;
+ try{launch(p.id,p.mode);if(p.ai)aiPick=p.ai;applyWifiSnapshot(p.snap);render()}
+ catch(e){console.warn('SUDOMI: no se pudo retomar la partida',e);unpark(p.id,p.mode);exitStage();renderHub()}
+}
+const parkAgo=ts=>{const m=Math.max(0,Math.round((Date.now()-ts)/60000));return m<1?'ahora mismo':m<60?`hace ${m} min`:m<1440?`hace ${Math.round(m/60)} h`:`hace ${Math.round(m/1440)} d`};
+window.addEventListener('pagehide',()=>{try{park()}catch(_){}});
 function launch(id,mode='pve'){current=id;navId=id;if(mode==='pve')aiPick=randomAi(3);wifi.active=mode==='wifi';game=create(id,mode==='wifi'?'pvp':mode);if(wifi.active)game.wifi=true;hub.classList.add('hidden');stage.classList.remove('hidden');render();}
 function wifiLobby(id,opts={}){
  if(!window.SudomiLAN){hub.innerHTML='<p>No se cargó el módulo de conexión.</p>';return}
@@ -493,9 +555,10 @@ function publishWifi(){if(wifi.active){wifiSend('state',wifiSnapshot());persistW
 function localTurn(){if(!wifi.active)return true;if(current==='fleet'){if(game.phase==='setup')return game.turn===wifi.player;if(game.phase==='handoff')return game.afterWait==='setup'?game.turn===wifi.player: wifi.player===0;return game.turn===wifi.player}if(current==='chess')return game.turn===(wifi.player===0?'w':'b');if(current==='checkers')return game.turn===(wifi.player===0?'r':'b');if(current==='tictactoe')return game.turn===(wifi.player===0?'X':'O');if(current==='connect4')return game.turn===(wifi.player===0?'R':'Y');if(games.findIndex(g=>g[0]===current)>=6)return game.turn===wifi.player;return false}
 // 0.2.58: Dominó is a 4-player game: you (seat 0) + a computer partner against two computers
 // 0.2.63: right rival, partner and left rival take the three names drawn for this game (aiPick)
-function pveSeats(){const me=myProfile(),a=aiPick;return [{name:me?me.name:'Tú',avatar:me?me.avatar:'🦊'},{name:a[0][0],avatar:a[0][1],bot:true},{name:a[1][0],avatar:a[1][1],bot:true},{name:a[2][0],avatar:a[2][1],bot:true}]}
+const d3Look=()=>{try{return window.SudomiDomino3D&&SudomiDomino3D.look?SudomiDomino3D.look():{}}catch(_){return {}}};   // 0.3.47: mi fondo, dominós y sillas de la tienda (los lleva mi asiento)
+function pveSeats(){const me=myProfile(),a=aiPick;return [{name:me?me.name:'Tú',avatar:me?me.avatar:'🦊',look:d3Look()},{name:a[0][0],avatar:a[0][1],bot:true},{name:a[1][0],avatar:a[1][1],bot:true},{name:a[2][0],avatar:a[2][1],bot:true}]}
 // one device, 4 people: the profile and three guests
-function localSeats(){const me=myProfile();return [{name:me?me.name:'Jugador 1',avatar:me?me.avatar:'🦊'},{name:'Invitado',avatar:'👤'},{name:'Invitado 2',avatar:'👤'},{name:'Invitado 3',avatar:'👤'}]}
+function localSeats(){const me=myProfile();return [{name:me?me.name:'Jugador 1',avatar:me?me.avatar:'🦊',look:d3Look()},{name:'Invitado',avatar:'👤'},{name:'Invitado 2',avatar:'👤'},{name:'Invitado 3',avatar:'👤'}]}
 function create(id,mode){if(id==='mines')return new Mines(mode);if(id==='fleet')return new Fleet(mode);if(id==='chess')return new Chess(mode);if(id==='checkers')return new Checkers(mode);if(id==='connect4')return new Connect4(mode);if(games.findIndex(g=>g[0]===id)>=6)return SudomiExtraGames.create(id,mode,id==='domino'&&mode==='pve'?{seats:pveSeats()}:id==='domino'&&mode==='pvp'?{seats:localSeats()}:undefined);return new TicTacToe(mode);}
 // 0.2.58: the computer player of the card/tile games. After every drawing it asks for the computer's next step and plays it after a short pause.
 let botTimer=null;
@@ -522,8 +585,30 @@ function turnInfo(){if(current==='mines')return game.mode==='clock'?`⏱ ${clock
 function clockText(s){return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`}
 function resetMatch(){if(wifi.active&&wifi.player!==0)return;const mode=wifi.active?'pvp':game.mode;game=create(current,mode);if(wifi.active)game.wifi=true;render();publishWifi()}
 function shell(title,subtitle,content){const result=resultInfo();if(!result&&acknowledgedWin===game)acknowledgedWin=null;   // 0.2.16: a rematch on the same room celebrates again
-const waiting=localWinPending(result),score=current==='tictactoe'||current==='connect4'?game.scoreMarkup():'';stage.innerHTML=withNames(`<div class="mini-game ${waiting?'local-win-active':''}"><div class="mini-game-head"><div><p>ARCADE SUDOMI · ${modeLabel()}</p><h2>${title}</h2><small>${subtitle}</small></div><div class="mini-game-actions"><span class="turn-indicator">${turnInfo()}</span><button class="game-restart" id="gameListBtn">Juegos</button><button class="game-restart" id="sudokuBtn">Sudoku</button><button class="game-restart" id="changeMode">Modos</button>${score?'<button class="game-restart" id="resetScore">Reiniciar marcador</button>':''}<button class="game-restart" id="restartMini" ${wifi.active&&wifi.player!==0?'disabled title="El creador de la sala reinicia la partida"':''}>↻</button></div></div>${vsBar()}${waiting?`<p class="victory-awaiting"><strong>🏆 ${result.winner}</strong><span>${victoryPrompt(result)}</span></p>${winnerHere()?'':'<button class="win-tap-catcher" type="button" aria-label="Ver el resultado"></button>'}`:''}${score}${content}${result&&!waiting?`<div class="game-end-overlay"><div class="game-end-card"><div class="res-ic">${window.SudomiResult?SudomiResult.icon('win'):''}</div><p>PARTIDA TERMINADA</p><h3>${result.title}</h3><strong>${result.winner}</strong><small>${result.detail}</small><div><button id="playAgain" ${wifi.active&&wifi.player!==0?'disabled':''}>${wifi.active&&wifi.player!==0?'El creador de la sala inicia otra':'↻ Revancha'}</button><button id="endShare">📤 Compartir</button><button id="endGames">Todos los juegos</button></div></div></div>`:''}</div>`);$('#restartMini').onclick=()=>wifi.active?resetMatch():(game=create(current,game.daily?'daily':game.mode),render());const reset=$('#resetScore');if(reset)reset.onclick=()=>{game.record.scores=[0,0];publishWifi();render()};$('#gameListBtn').onclick=toHub;$('#sudokuBtn').onclick=back;$('#changeMode').onclick=()=>{if(wifi.active)leaveWifi();game=null;stage.classList.add('hidden');hub.classList.remove('hidden');chooseMode(current)};if(result&&!waiting){$('#playAgain').onclick=resetMatch;$('#endGames').onclick=toHub;$('#endShare').onclick=()=>{if(window.SudomiResult)SudomiResult.share(`${result.title} en SUDOMI: ${result.winner}. ¡Juega conmigo!`)}}   /* 0.3.11: mismos botones que la pantalla de resultado común (js/result.js) */armLocalWinTap(waiting)}
-function render(){emoteSync();if(current==='mines')renderMines();else if(current==='fleet')renderFleet();else if(current==='chess')renderChess();else if(current==='checkers')renderCheckers();else if(current==='connect4')renderConnect4();else if(games.findIndex(g=>g[0]===current)>=6){const x=SudomiExtraGames.render(current,game,{wifi:wifi.active,player:wifi.player,names:wifi.names,profile:myProfile(),publish:publishWifi,render,dispatch:dispatchExtra});shell(games.find(g=>g[0]===current)[2],game.message||'Toma tu turno',x.html);x.bind();scheduleBot()}else renderTtt();}
+const waiting=localWinPending(result),score=current==='tictactoe'||current==='connect4'?game.scoreMarkup():'';stage.innerHTML=withNames(`<div class="mini-game fs ${waiting?'local-win-active':''}">${fsTop(title,subtitle,!!score)}<div class="mini-game-head"><div><p>ARCADE SUDOMI · ${modeLabel()}</p><h2>${title}</h2><small>${subtitle}</small></div><div class="mini-game-actions"><span class="turn-indicator">${turnInfo()}</span><button class="game-restart" id="gameListBtn">Juegos</button><button class="game-restart" id="sudokuBtn">Sudoku</button><button class="game-restart" id="changeMode">Modos</button>${score?'<button class="game-restart" id="resetScore">Reiniciar marcador</button>':''}<button class="game-restart" id="restartMini" ${wifi.active&&wifi.player!==0?'disabled title="El creador de la sala reinicia la partida"':''}>↻</button></div></div>${vsBar()}${waiting?`<p class="victory-awaiting"><strong>🏆 ${result.winner}</strong><span>${victoryPrompt(result)}</span></p>${winnerHere()?'':'<button class="win-tap-catcher" type="button" aria-label="Ver el resultado"></button>'}`:''}${score}${content}${result&&!waiting?`<div class="game-end-overlay"><div class="game-end-card"><div class="res-ic">${window.SudomiResult?SudomiResult.icon('win'):''}</div><p>PARTIDA TERMINADA</p><h3>${result.title}</h3><strong>${result.winner}</strong><small>${result.detail}</small><div><button id="playAgain" ${wifi.active&&wifi.player!==0?'disabled':''}>${wifi.active&&wifi.player!==0?'El creador de la sala inicia otra':'↻ Revancha'}</button><button id="endShare">📤 Compartir</button><button id="endGames">Todos los juegos</button></div></div></div>`:''}</div>`);$('#restartMini').onclick=()=>wifi.active?resetMatch():(game=create(current,game.daily?'daily':game.mode),render());const reset=$('#resetScore');if(reset)reset.onclick=()=>{game.record.scores=[0,0];publishWifi();render()};$('#gameListBtn').onclick=toHub;$('#sudokuBtn').onclick=back;$('#changeMode').onclick=()=>{if(wifi.active)leaveWifi();game=null;stage.classList.add('hidden');hub.classList.remove('hidden');chooseMode(current)};if(result&&!waiting){$('#playAgain').onclick=resetMatch;$('#endGames').onclick=toHub;$('#endShare').onclick=()=>{if(window.SudomiResult)SudomiResult.share(`${result.title} en SUDOMI: ${result.winner}. ¡Juega conmigo!`)}}   /* 0.3.11: mismos botones que la pantalla de resultado común (js/result.js) */armLocalWinTap(waiting);fsBind()}
+/* 0.3.49 (dueño) — PARTIDA A PANTALLA COMPLETA. Dentro de una partida ya no se ve la barra del arcade (logo, luna, perfil) ni el título con sus botones.
+ * Queda una sola fila de ALTO FIJO: ← regresar · el aviso de turno · ⋯ (menú con Reglas, Reiniciar y Sonido). Como esa fila nunca cambia de alto,
+ * el tablero no se mueve. La cabecera vieja (.mini-game-head) sigue en la página pero escondida: el menú ⋯ pulsa sus botones de siempre. */
+let fsOpen=false;
+const FS_IC={back:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.500 5L7.500 12l7 7M8 12h9.500" fill="none" stroke="currentColor" stroke-width="2.600" stroke-linecap="round" stroke-linejoin="round"/></svg>',more:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2.200" fill="currentColor"/><circle cx="12" cy="12" r="2.200" fill="currentColor"/><circle cx="19" cy="12" r="2.200" fill="currentColor"/></svg>'};
+function fsTop(title,subtitle,hasScore){
+ const snd=window.SudomiSound&&SudomiSound.cfg?SudomiSound.cfg.sound:true;
+ return `<div class="fs-top"><button type="button" class="fs-btn" id="fsBack" aria-label="Regresar">${FS_IC.back}</button><div class="fs-msg"><small>${title}</small><b>${subtitle||''}</b></div><button type="button" class="fs-btn${fsOpen?' on':''}" id="fsMore" aria-label="Más opciones" aria-expanded="${fsOpen}">${FS_IC.more}</button>
+  <div class="fs-menu${fsOpen?'':' hidden'}" id="fsMenu"><button type="button" data-fs="rules">Reglas del juego</button><button type="button" data-fs="restart" ${wifi.active&&wifi.player!==0?'disabled':''}>Reiniciar partida</button>${hasScore?'<button type="button" data-fs="score">Reiniciar marcador</button>':''}<button type="button" data-fs="sound">Sonido: ${snd?'activado':'apagado'}</button></div></div>`;
+}
+function fsBind(){
+ const b=$('#fsBack'),m=$('#fsMore');if(!b||!m)return;
+ b.onclick=()=>{fsOpen=false;navBack()};
+ m.onclick=()=>{fsOpen=!fsOpen;const menu=$('#fsMenu');if(menu)menu.classList.toggle('hidden',!fsOpen);m.classList.toggle('on',fsOpen);m.setAttribute('aria-expanded',fsOpen)};
+ stage.querySelectorAll('[data-fs]').forEach(x=>x.onclick=()=>{
+  const k=x.dataset.fs;fsOpen=false;const menu=$('#fsMenu');if(menu)menu.classList.add('hidden');m.classList.remove('on');
+  if(k==='rules'){const r=stage.querySelector('.mini-game-actions .gt-mini');if(r)r.click()}
+  else if(k==='restart'){const r=$('#restartMini');if(r)r.click()}
+  else if(k==='score'){const r=$('#resetScore');if(r)r.click()}
+  else if(k==='sound'&&window.SudomiSound){SudomiSound.set({sound:!SudomiSound.cfg.sound});x.textContent='Sonido: '+(SudomiSound.cfg.sound?'activado':'apagado')}
+ });
+}
+function render(){emoteSync();if(game&&current&&(game.over||game.done)&&!wifi.active)unpark(current,game.mode);   /* 0.3.42: una partida terminada ya no se puede «continuar» */if(current==='mines')renderMines();else if(current==='fleet')renderFleet();else if(current==='chess')renderChess();else if(current==='checkers')renderCheckers();else if(current==='connect4')renderConnect4();else if(games.findIndex(g=>g[0]===current)>=6){const x=SudomiExtraGames.render(current,game,{wifi:wifi.active,player:wifi.player,names:wifi.names,profile:myProfile(),publish:publishWifi,render,dispatch:dispatchExtra});shell(games.find(g=>g[0]===current)[2],game.message||'Toma tu turno',x.html);x.bind();scheduleBot()}else renderTtt();}
 
 // Minesweeper: safe first click, flags and recursive reveal.
 // 0.2.30: six difficulties (board size + number of mines) and the best time of each one saved on this device.
@@ -607,7 +692,7 @@ function c4Ghost(col,on){
  if(!on||!game||game.over||game.busy)return;
  for(let r=5;r>=0;r--){if(!game.b[r*7+col]){const s=slots[r*7+col];if(s)s.classList.add('ghost','ghost-'+(game.turn==='Y'?'Y':'R'));return}}
 }
-function renderConnect4(){let g=game,celebrate=localWinPending();const win=g.over&&g.winnerLine&&g.winnerLine.length?g.winnerLine:null,fall=c4Fall(g);shell('4 en línea',g.busy?'La computadora está pensando…':g.msg,`<div class="connect-board${win?' has-win':''}">${Array.from({length:42},(_,i)=>{let r=i/7|0,c=i%7,v=g.b[i],blocked=g.over||g.busy||g.b[c]||!localTurn();return `<button class="connect-slot ${v==='R'?'red-disc':v==='Y'?'yellow-disc':''} ${fall&&fall.i===i?'falling-disc':''} ${win&&win.includes(i)?'winning-disc':''}" style="${fall&&fall.i===i?`--rows:${fall.rows};--dur:${fall.dur.toFixed(2)}s;--delay:-${fall.el.toFixed(2)}s;`:''}${win&&win.includes(i)?`--k:${win.indexOf(i)}`:''}" data-col="${c}" ${blocked?'disabled':''} aria-label="Fila ${r+1}, columna ${c+1}${v?`, ficha ${v==='R'?'roja':'amarilla'}`:''}">${v?'●':''}</button>`}).join('')}</div><p class="board-hint">${g.mode==='pve'?'Tú: rojo · Computadora: amarillo':wifi.active?`Estás jugando como Jugador ${wifi.player+1}.`:'Rojo: Jugador 1 · Amarillo: Jugador 2'}</p>`);stage.querySelectorAll('.connect-slot:not(:disabled)').forEach(b=>{b.onclick=()=>{if(!localTurn())return;c4Ghost(0,false);g.play(+b.dataset.col);publishWifi();render()};b.onmouseenter=b.onfocus=()=>c4Ghost(+b.dataset.col,true);b.onmouseleave=b.onblur=()=>c4Ghost(0,false)})}
+function renderConnect4(){let g=game,celebrate=localWinPending();const win=g.over&&g.winnerLine&&g.winnerLine.length?g.winnerLine:null,fall=c4Fall(g);shell('4 en línea',g.busy?'La computadora está pensando…':g.msg,`<div class="connect-board${win?' has-win':''}">${Array.from({length:42},(_,i)=>{let r=i/7|0,c=i%7,v=g.b[i],blocked=g.over||g.busy||g.b[c]||!localTurn();return `<button class="connect-slot ${v==='R'?'red-disc':v==='Y'?'yellow-disc':''} ${v?c4Skin(v):''} ${fall&&fall.i===i?'falling-disc':''} ${win&&win.includes(i)?'winning-disc':''}" style="${fall&&fall.i===i?`--rows:${fall.rows};--dur:${fall.dur.toFixed(2)}s;--delay:-${fall.el.toFixed(2)}s;`:''}${win&&win.includes(i)?`--k:${win.indexOf(i)}`:''}" data-col="${c}" ${blocked?'disabled':''} aria-label="Fila ${r+1}, columna ${c+1}${v?`, ficha ${v==='R'?'roja':'amarilla'}`:''}">${v?'●':''}</button>`}).join('')}</div><p class="board-hint">${g.mode==='pve'?'Tú: rojo · Computadora: amarillo':wifi.active?`Estás jugando como Jugador ${wifi.player+1}.`:'Rojo: Jugador 1 · Amarillo: Jugador 2'}</p>`);stage.querySelectorAll('.connect-slot:not(:disabled)').forEach(b=>{b.onclick=()=>{if(!localTurn())return;c4Ghost(0,false);g.play(+b.dataset.col);publishWifi();render()};b.onmouseenter=b.onfocus=()=>c4Ghost(+b.dataset.col,true);b.onmouseleave=b.onblur=()=>c4Ghost(0,false)})}
 
 // Checkers: local two-player, diagonal movement, captures, kings and chained jumps.
 /* Checkers engine used only by the computer player (same rules as the board: forced captures, multi-jumps, kings). */

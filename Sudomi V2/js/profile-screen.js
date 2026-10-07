@@ -19,10 +19,10 @@
   const api=S.open('profileScreen','👤 Perfil',(body,api)=>{
    const p=P.get()||{name:'Sin perfil',avatar:'👤',none:true},i=window.SudomiXP?SudomiXP.info:{L:1,title:'Novato',into:0,span:100,xp:0},n=numbers(),pct=Math.round(i.into/i.span*100);
    body.innerHTML=`<div class="pf-card"><div class="pf-av">${p.avatar}</div><div class="pf-main"><b>${String(p.name).replace(/[<>&]/g,'')}</b><span>Nivel ${i.L} · ${i.title}</span><div class="lv-bar"><i style="width:${pct}%"></i></div><small>${fmt(i.into)} / ${fmt(i.span)} XP · ${fmt(i.xp)} XP en total</small></div></div>
-   <div class="st-cards"><div><b>${fmt(n.wins)}</b><small>Victorias</small></div><div><b>${n.rate}%</b><small>% de victorias</small></div><div><b>${fmt(n.top)}</b><small>Mejor puntuación</small></div><div><b>${n.streak}</b><small>Mejor racha</small></div><div><b>${n.ach}/${n.achTotal}</b><small>Logros</small></div><div><b>${n.time?dur(n.time):'—'}</b><small>Tiempo jugado</small></div></div>
+   <div class="st-cards"><div><b>${fmt(n.wins)}</b><small>Victorias</small></div><div><b>${n.rate}%</b><small>% de victorias</small></div><div><b>${fmt(n.top)}</b><small>Mejor puntuación</small></div><div><b>${n.streak}</b><small>Mejor racha</small></div><div id="pfAch" class="st-go" role="button" tabindex="0" aria-label="Ver mis logros"><b>${n.ach}/${n.achTotal}</b><small>Logros ›</small></div><div><b>${n.time?dur(n.time):'—'}</b><small>Tiempo jugado</small></div></div>
    ${n.king?'<p class="pf-king">👑 Eres el <b>Rey del Sudomi</b></p>':''}
    <div class="tc-btns"><button type="button" id="pfEdit" class="main">${p.none?'👤 Crear mi perfil':'✏️ Editar perfil'}</button>${p.none?'':'<button type="button" id="pfShare">📤 Compartir mi perfil</button>'}</div>
-   <div class="tc-btns small"><button type="button" id="pfAch">🏆 Mis logros</button><button type="button" id="pfStats">📊 Mis estadísticas</button></div>
+   <div class="tc-btns small"><button type="button" id="pfStats">📊 Mis estadísticas</button></div>
    <p class="pf-more-h">Más de SUDOMI</p><div class="pf-more">${more().map(([id,ic,n,d])=>`<button type="button" data-go="${id}"><span>${ic}</span><b>${n}</b><small>${d}</small></button>`).join('')}</div>
    <p class="st-note" id="pfMsg">Tu nombre y avatar son lo que ven tus amigos en las salas online.</p>`;
    body.querySelector('#pfEdit').onclick=()=>{if(p.none)P.ensure(()=>api.redraw());else P.edit()};

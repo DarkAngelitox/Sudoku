@@ -43,9 +43,10 @@
  const status=t=>{const e=$('#dpStatus');if(e)e.textContent=t};
 
  /* ---------- host ---------- */
+ const myLook=()=>{try{return window.SudomiDomino3D&&SudomiDomino3D.look?SudomiDomino3D.look():{}}catch(_){return {}}};
  async function host(){
   status('Creando la sala…');
-  const me=prof();room={humans:[{id:'host',name:me.name,avatar:me.avatar}],started:false,bots:aiList()};role='host';mySeat=0;
+  const me=prof();room={humans:[{id:'host',name:me.name,avatar:me.avatar,look:myLook()}],started:false,bots:aiList()};role='host';mySeat=0;
   try{
    net=await P().host('domino4',onHost);
    code=net.code;
@@ -54,7 +55,7 @@
  }
  function seatsFromRoom(){
   const seats=[null,null,null,null];
-  room.humans.forEach((h,k)=>{seats[HUMAN_ORDER[k]]={name:h.name,avatar:h.avatar,human:true,id:h.id}});
+  room.humans.forEach((h,k)=>{seats[HUMAN_ORDER[k]]={name:h.name,avatar:h.avatar,human:true,id:h.id,look:h.look||{}}});   // 0.3.47: look = su fondo, dominós y sillas de la tienda (Mesa 3D)
   for(let s=0;s<4;s++)if(!seats[s]){const b=(room.bots||aiList())[s-1]||['IA','🤖'];seats[s]={name:b[0],avatar:b[1],bot:true}}
   return seats;
  }
@@ -67,7 +68,7 @@
    if(!known){
     if(room.started){net.reject(e.id,'La partida ya empezó.');return}
     if(room.humans.length>=4){net.reject(e.id,'La sala está llena (4 jugadores).');return}
-    room.humans.push({id:e.id,name:String(meta.name||'Jugador').slice(0,14),avatar:meta.avatar||'👤'});
+    room.humans.push({id:e.id,name:String(meta.name||'Jugador').slice(0,14),avatar:meta.avatar||'👤',look:window.SudomiDomino3D&&SudomiDomino3D.okLook?SudomiDomino3D.okLook(meta.look):{}});
    }
    if(known&&known.gone&&game)restoreSeat(known);
    if(room.started){sendState(e.id);publish()}else{lobbyView();broadcastLobby()}
@@ -142,7 +143,7 @@
  function join(c){
   const me=prof();code=c;role='guest';room={humans:[],started:false};game=null;
   status('Conectando…');
-  net=P().join('domino4',c,{name:me.name,avatar:me.avatar},e=>{
+  net=P().join('domino4',c,{name:me.name,avatar:me.avatar,look:myLook()},e=>{
    if(!alive||role!=='guest')return;
    if(e.type==='open'){status('Conectado. Esperando al anfitrión…');try{window.SudomiFriends&&SudomiFriends.track({game:'domino4',gameName:'Dominó',room:c,role:'guest'})}catch(_){}}
    else if(e.type==='closed'){const m=e.message||'La sala se cerró.';close();menu(m)}
