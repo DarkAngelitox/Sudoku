@@ -196,13 +196,27 @@ function arcadeChrome(){
   * Esos juegos repintan su pantalla a su manera, así que la fila de arriba va FUERA del escenario: #fsBar, una sola, que este archivo muestra cuando
   * hay un juego abierto que no trae su propia fila (.fs-top de shell()). ← llama a navBack(); ⋯ ofrece Reglas (pulsa el botón de reglas del juego) y Sonido.
   * La pantalla lleva data-fs="1" mientras se juega: con eso el CSS esconde la barra del arcade y la cabecera vieja de cada juego. */
- let barKey='';
+ let barKey='',fitT=0;
+ // 0.3.51: la fila mide lo mismo que el juego que tiene debajo (cada juego tiene su ancho): se mide el bloque más ancho del juego y se copia
+ function fitBar(bar){
+  clearTimeout(fitT);
+  fitT=setTimeout(()=>{
+   if(bar.classList.contains('hidden'))return;
+   let L=1e9,R=0;
+   stage.querySelectorAll('.mini-game > *, .mini-game > * > *').forEach(e=>{if(e.classList.contains('dos-head'))return;const r=e.getBoundingClientRect();if(r.width>250&&r.height>60){L=Math.min(L,r.left);R=Math.max(R,r.right)}});
+   const w=R-L;if(!(w>250))return;
+   const want=Math.round(Math.min(w,stage.getBoundingClientRect().width))+24+'px';
+   if(bar.style.width!==want)bar.style.width=want;
+  },120);
+ }
+ window.addEventListener('resize',()=>{const b=document.getElementById('fsBar');if(b&&!b.classList.contains('hidden'))fitBar(b)});
  function fsBar(){
   let bar=document.getElementById('fsBar');
   if(!bar){bar=document.createElement('div');bar.id='fsBar';bar.className='fs-top fs-bar hidden';stage.parentNode.insertBefore(bar,stage)}
   const play=navLevel()==='play',own=!!stage.querySelector('.mini-game.fs'),show=play&&!own;
   if(play)screen.dataset.fs='1';else delete screen.dataset.fs;
   const it=games.find(g=>g[0]===navId),key=show?'1:'+(it?it[0]:''):'0';
+  if(show)fitBar(bar);
   if(key===barKey)return;barKey=key;
   bar.classList.toggle('hidden',!show);if(!show){bar.innerHTML='';return}
   bar.innerHTML=`<button type="button" class="fs-btn" id="fsBarBack" aria-label="Regresar">${FS_IC.back}</button><div class="fs-msg"><small>SUDOMI ARCADE</small><b>${it?it[2]:''}</b></div><button type="button" class="fs-btn" id="fsBarMore" aria-label="Más opciones">${FS_IC.more}</button><div class="fs-menu hidden" id="fsBarMenu"><button type="button" data-fb="rules">Reglas del juego</button><button type="button" data-fb="sound">Sonido: ${window.SudomiSound&&SudomiSound.cfg&&!SudomiSound.cfg.sound?'apagado':'activado'}</button></div>`;

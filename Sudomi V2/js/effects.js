@@ -89,7 +89,8 @@
  function finale(){
   if(!cfg.on)return;
   const g=window.SudomiCore&&SudomiCore.ui&&SudomiCore.ui.game;
-  if(g){const idx=[...Array(81).keys()];wave(idx,idx.map(i=>(Math.floor(i/9)+i%9)*.6),i=>'hsl('+((Math.floor(i/9)+i%9)*22)+',90%,60%)',.3,.55,0)}
+  const own=window.SudomiShopSkins&&SudomiShopSkins.active('sudokuwin');   // 0.3.61: con una animación final de la tienda, la ola de colores no sale (el confeti sí)
+  if(g&&!own){const idx=[...Array(81).keys()];wave(idx,idx.map(i=>(Math.floor(i/9)+i%9)*.6),i=>'hsl('+((Math.floor(i/9)+i%9)*22)+',90%,60%)',.3,.55,0)}
   confetti(innerWidth*.2,innerHeight*.45,70,1);confetti(innerWidth*.8,innerHeight*.45,70,1);
   setTimeout(()=>confetti(innerWidth/2,innerHeight*.3,90,1.2),450);
  }

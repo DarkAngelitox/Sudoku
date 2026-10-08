@@ -155,11 +155,13 @@
   return m;
  }
  // hace daño a una ficha; devuelve true si se quedó sin vidas (vuelve a casa, curada). by = color que hizo el daño
+ // 0.3.54: anota la animacion de captura de quien manda la ficha a casa (tambien en guerra: duelos y cartas). Devuelve lo que dura, o 0 si no lleva ninguna
+ const killMark=(c,i,by,sp)=>{const k=by!=null&&g.seats[by]?g.seats[by].kill:'';if(!KILLS[k])return 0;g.kill={c,i,by,k,x:sp[0],y:sp[1],n:(g.killN=(g.killN||0)+1)};return KILLS[k]};
  function damage(c,i,n,by){
   if(g.shield[c][i]>0||g.pos[c][i]<0||g.pos[c][i]===GOAL)return false;
   const d=Math.min(n,g.hp[c][i]);g.hp[c][i]-=d;g.stats[c].taken+=d;if(by!=null)g.stats[by].dmg+=d;
   if(g.hp[c][i]>0)return false;
-  g.pos[c][i]=-1;g.hp[c][i]=0;g.shield[c][i]=0;if(by!=null)g.stats[by].kills++;return true;   // sin vidas: a casa, y hacen falta dos 5 para volver a salir
+  killMark(c,i,by,spot(c,i));g.pos[c][i]=-1;g.hp[c][i]=0;g.shield[c][i]=0;if(by!=null)g.stats[by].kills++;return true;   // sin vidas: a casa, y hacen falta dos 5 para volver a salir
  }
  /* ---- armas ---- */
  function cardTargets(c,key,first){
@@ -344,10 +346,56 @@
  const cardTime=()=>g.war&&!g.over&&(g.phase==='roll'||g.phase==='pick');
  const SLOT=[[[21.15,21.15],[15.85,21.15]],[[21.15,.85],[15.85,.85]],[[.85,.85],[6.15,.85]],[[.85,21.15],[6.15,21.15]]];   // los dos huecos de carta en las esquinas de cada casa
  let lastFx=0,fxTimer=null;
+ /* 0.3.52 - animaciones de captura (objetos de la tienda, ranura «parchiskill»). La ve toda la mesa cuando quien come la lleva puesta; el anfitrion espera lo que dura (KILLS) antes de seguir.
+    killshots: la ficha sale volando, recibe cuatro disparos, se rompe y los pedazos se juntan en su casa.
+    0.3.53 - killbat: un bate le da un batazo y la rompe. killbomb: se le pega una bomba, explota y sale un corazon que dice «sorry :(». */
+ const KILLS={killshots:2250,killbat:2200,killbomb:3050};let lastKill=0;
+ function killFx(k){
+  const bd=$('.pc-board'),el=$(`.pc-piece[data-c="${k.c}"][data-i="${k.i}"]`);if(!bd||!el)return;
+  try{if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)return}catch(_){}
+  const C=COLORS[k.c];
+  killRun(bd,el,k,C.hex,()=>(g&&g.pos[k.c]&&g.pos[k.c][k.i]<0)?spot(k.c,k.i):[C.nest[0],C.nest[1]],()=>!!ui&&bd.isConnected,n=>{try{window.SudomiSound&&SudomiSound.play(n)}catch(_){}});
+ }
+ // bd = el tablero (cuadrado, 22 unidades) · el = la ficha de verdad · hex = su color · home() = adonde vuelve · live() = sigue en pantalla · snd(n) = sonido
+ function killRun(bd,el,k,hex,home,live,snd){
+  const kind=KILLS[k.k]?k.k:'killshots',T=KILLS[kind],later=(ms,f)=>setTimeout(()=>{if(live())f()},ms);
+  const mk=(cls,x,y)=>{const e=document.createElement('i');e.className=cls;e.style.setProperty('--pc-c',hex);e.style.left=pct(x);e.style.top=pct(y);bd.appendChild(e);return e};
+  const lim=v=>Math.min(21.2,Math.max(.8,v)),shake=()=>{bd.classList.remove('kshake');void bd.offsetWidth;bd.classList.add('kshake')};
+  const back=extra=>{(extra||[]).forEach(f=>f.remove());bd.classList.remove('kshake');el.classList.remove('kout');el.classList.add('kback');snd('good');setTimeout(()=>el.classList.remove('kback'),450)};
+  // la ficha se rompe en ocho pedazos (a0/spread = hacia donde salen) y a los 400 ms vuelan a su casa
+  const shatter=(x,y,a0,spread,r0,r1)=>{const fr=[0,1,2,3,4,5,6,7].map(n=>{const f=mk('pc-kfrag f'+n,x,y),a=(a0+(n/7-.5)*spread+Math.random()*20-10)*Math.PI/180,r=r0+Math.random()*(r1-r0);
+    later(20,()=>{f.style.left=pct(lim(x+Math.cos(a)*r));f.style.top=pct(lim(y+Math.sin(a)*r));f.style.transform=`rotate(${Math.round(Math.random()*540-270)}deg)`});return f});
+   later(400,()=>{const h=home();fr.forEach((f,n)=>{f.classList.add('back');f.style.transitionDelay=(n*15)+'ms';f.style.left=pct(h[0]);f.style.top=pct(h[1]);f.style.transform='rotate(0deg) scale(.55)'})});return fr};
+  el.classList.add('kout');
+  const ax=Math.min(18,Math.max(4,k.x+(11-k.x)*.25)),ay=Math.min(18,Math.max(4,k.y-2.2)),gh=mk('pc-kghost',k.x,k.y);
+  later(30,()=>{gh.style.left=pct(ax);gh.style.top=pct(ay);gh.classList.add('up')});
+  if(kind==='killbat'){
+   const bat=mk('pc-kbat',ax-4.1,ay+.2);
+   later(380,()=>bat.classList.add('in'));later(640,()=>bat.classList.add('swing'));
+   later(760,()=>{gh.remove();shake();snd('bad');const pow=mk('pc-kpow',ax,ay);later(20,()=>pow.classList.add('on'));later(420,()=>pow.remove());
+    const fr=shatter(ax,ay,-15,130,2.6,5.2);later(380,()=>bat.classList.add('out'));later(T-760,()=>back(fr.concat(bat)))});
+   return;
+  }
+  if(kind==='killbomb'){
+   const bomb=mk('pc-kbomb',ax+.75,ay-4.5);
+   later(380,()=>{bomb.style.top=pct(ay-.75);bomb.classList.add('in')});
+   [0,1,2].forEach(n=>later(780+n*240,()=>{bomb.classList.remove('tick');void bomb.offsetWidth;bomb.classList.add('tick');snd('tap')}));
+   later(1520,()=>{gh.remove();bomb.remove();shake();snd('bad');const boom=mk('pc-kboom',ax,ay);later(20,()=>boom.classList.add('on'));later(520,()=>boom.remove());
+    const heart=mk('pc-kheart',ax,ay);heart.innerHTML='<svg viewBox="0 0 100 92" aria-hidden="true"><path d="M50 88C12 58 3 38 3 25A22.500 22.500 0 0 1 50 17A22.500 22.500 0 0 1 97 25C97 38 88 58 50 88Z" fill="#ff3b6b" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><text x="50" y="47" text-anchor="middle" font-family="system-ui,Arial,sans-serif" font-size="17" font-weight="900" fill="#fff">sorry :(</text></svg>';
+    later(40,()=>heart.classList.add('on'));
+    later(T-1520-520,()=>{const h=home();heart.classList.add('go');heart.style.left=pct(h[0]);heart.style.top=pct(h[1])});
+    later(T-1520,()=>back([heart]))});
+   return;
+  }
+  [0,1,2,3].forEach(n=>later(520+n*190,()=>{const h=document.createElement('b');h.className='pc-kshot';h.style.left=(22+Math.random()*56)+'%';h.style.top=(22+Math.random()*56)+'%';gh.appendChild(h);
+   gh.classList.remove('hit');void gh.offsetWidth;gh.classList.add('hit');shake();snd('tap')}));
+  later(1300,()=>{gh.remove();snd('bad');const fr=shatter(ax,ay,0,315,1.6,3.2);later(T-1300,()=>back(fr))});
+ }
  function update(local){
   if(!g||!ui||!$('.pc-board'))return;
   if(!g.over)endSent=false;else if(!endSent){endSent=true;const hs=g.players.filter(c=>g.seats[c].kind==='human'),L=net.role!=='solo'?net.me:hs.length===1?hs[0]:-1;if(L>=0){try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:'parchis',won:g.war?g.team[L]===g.winner:g.winner===L}}))}catch(_){}}
    try{const root=$('.pc-board').closest('.mini-game'),won=L>=0?(g.war?g.team[L]===g.winner:g.winner===L):null;if(window.SudomiResult&&root)setTimeout(()=>{if(g&&g.over)SudomiResult.show(root,{kind:won===null?'end':won?'win':'lose',game:'PARCHIMI',title:won?'¡Ganaste!':won===false?'Perdiste':'Partida terminada',sub:String(g.msg||'').replace(/^🏆\s*/,''),exit:leave})},1400)}catch(_){}}   /* 0.3.28: tarjeta de resultado común */   /* 0.3.2: avisa el resultado a logros y estadísticas (no si hay varias personas en el mismo teléfono) */
+  if(g.kill&&g.kill.n!==lastKill){lastKill=g.kill.n;killFx(g.kill)}
   const c=g.players[g.turn],me=mine(c)&&!g.over,opts=g.phase==='pick'&&me?g.opts:[],W=g.war;
   ui.stage.querySelectorAll('.pc-nestc').forEach(e=>e.classList.toggle('turn',!g.over&&+e.dataset.c===c));   // 0.3.41: solo el círculo de color de quien juega
   if(opts.length&&!opts.some(o=>o.d===selDie))selDie=opts[0].d;
@@ -501,12 +549,13 @@
  /* 0.3.45 (dueño) — DADOS ÚNICOS: la skin de dados (tienda, js/shop.js) es de cada jugador. Va guardada en su asiento (seats[c].dice) y los dados
   * se pintan con la skin de QUIEN TIRA: los tuyos negros si la tienes, los de los demás como los tengan ellos. Online viaja al entrar a la sala (meta.d). */
  const myDice=()=>{try{return (window.SudomiShopSkins&&SudomiShopSkins.active('parchis'))||''}catch(_){return ''}};
+ const myKill=()=>{try{return (window.SudomiShopSkins&&SudomiShopSkins.active('parchiskill'))||''}catch(_){return ''}};
  const okDice=d=>/^[a-z0-9]{1,20}$/.test(String(d||''))?String(d):'';
  function start(){
   const players=ORDER[setup.n],seats={},names=AI.slice().sort(()=>Math.random()-.5);
   players.forEach((c,k)=>{
-   if(k===0)seats[c]={kind:'human',name:myName(),avatar:myAvatar(),dice:myDice()};
-   else if(mode==='pvp')seats[c]={kind:'human',name:'Jugador '+(k+1),avatar:['🙂','😎','🤠','🥳'][k],dice:myDice()};
+   if(k===0)seats[c]={kind:'human',name:myName(),avatar:myAvatar(),dice:myDice(),kill:myKill()};
+   else if(mode==='pvp')seats[c]={kind:'human',name:'Jugador '+(k+1),avatar:['🙂','😎','🤠','🥳'][k],dice:myDice(),kill:myKill()};
    else seats[c]={kind:'ai',name:names[k][0],avatar:names[k][1]};
   });
   stopGame();newGame(players,seats,setup.war,setup.n4);renderGame();run(++token);
@@ -551,7 +600,7 @@
    if(list.length>1){choice={list};update(true);return}
    sendPick(o.d,list[0].k);
   });
-  applyTheme();fitUnit();place();update();
+  lastKill=g.kill?g.kill.n:0;applyTheme();fitUnit();place();update();
  }
  window.addEventListener('resize',()=>{if(ui&&g)fitUnit()});
 
@@ -595,13 +644,13 @@
    const v=m.duel,r=await duel({c,i},v,t);if(r==null)return false;
    g.phase='anim';
    // 0.2.94: quien pierde el duelo vuelve a su casa con una vida menos (si era la última, queda sin vidas)
-   const L=r==='a'?v:{c,i},Wn=r==='a'?c:v.c;if(r!=='a')lost=true;
+   const L=r==='a'?v:{c,i},Wn=r==='a'?c:v.c,kn=g.killN||0,ksp=spot(L.c,L.i);if(r!=='a')lost=true;
    if(damage(L.c,L.i,1,Wn))say(`${nm(Wn)} ganó el duelo: la ficha de ${nm(L.c)} se quedó sin vidas y vuelve a casa`);
-   else{g.pos[L.c][L.i]=-1;g.shield[L.c][L.i]=0;say(`${nm(Wn)} ganó el duelo: la ficha de ${nm(L.c)} vuelve a casa con una vida menos`)}
+   else{killMark(L.c,L.i,Wn,ksp);g.pos[L.c][L.i]=-1;g.shield[L.c][L.i]=0;say(`${nm(Wn)} ganó el duelo: la ficha de ${nm(L.c)} vuelve a casa con una vida menos`)}
    play('bad');
-   place();if(!await sleep(850,t))return false;
+   place();update();if(!await sleep((g.killN||0)>kn?KILLS[g.kill.k]+250:850,t))return false;
   }
-  if(m.capture){const v=m.capture;g.pos[v.c][v.i]=-1;place();play('bad');say(`${nm(c)} se comió una ficha de ${nm(v.c)}: cuenta 20`);g.bonus.push(20);if(!await sleep(750,t))return false}
+  if(m.capture){const v=m.capture,kf=killMark(v.c,v.i,c,spot(v.c,v.i));g.pos[v.c][v.i]=-1;place();play('bad');say(`${nm(c)} se comió una ficha de ${nm(v.c)}: cuenta 20`);g.bonus.push(20);if(!await sleep(kf?kf+250:750,t))return false}
   if(!lost&&g.pos[c][i]===GOAL){
    if(W){play('bonus');if(teamDone(g.team[c])){endWar(c);return true}say(`${nm(c)} llevó una ficha a la meta: 3 puntos`);if(!await sleep(650,t))return false}
    else{
@@ -684,9 +733,9 @@
  }
 
  /* ================= sala online ================= */
- const snapshot=()=>({wall:!!g.wall,pos:g.pos,turn:g.turn,phase:g.phase,dice:g.dice,used:g.used,diePos:g.diePos,doubles:g.doubles,opts:g.opts,msg:g.msg,over:g.over,winner:g.winner,
+ const snapshot=()=>({wall:!!g.wall,kill:g.kill||null,pos:g.pos,turn:g.turn,phase:g.phase,dice:g.dice,used:g.used,diePos:g.diePos,doubles:g.doubles,opts:g.opts,msg:g.msg,over:g.over,winner:g.winner,
   hp:g.hp,shield:g.shield,cards:g.cards,frozen:g.frozen,stats:g.stats,duel:g.duel,turbo:g.turbo,fx:g.fx,score:g.score,away:Object.fromEntries(g.players.map(c=>[c,!!g.seats[c].away]))});
- const pubSeats=()=>net.seats.map(s=>({c:s.c,kind:s.kind,name:s.name,avatar:s.avatar,away:!!s.away,dice:s.dice||''}));
+ const pubSeats=()=>net.seats.map(s=>({c:s.c,kind:s.kind,name:s.name,avatar:s.avatar,away:!!s.away,dice:s.dice||'',kill:s.kill||''}));
  function bcast(msg){if(net.role!=='host'||!net.room)return;net.seats.forEach(s=>{if(s.kind==='human'&&s.id&&s.id!=='host')net.room.send(s.id,msg)})}
  function inviteUrl(){const base=location.origin&&location.origin!=='null'?location.origin+location.pathname:location.href.split(/[?#]/)[0];return `${base}?game=${GAME}&room=${net.code}`}
  function pushLobby(){if(net.role!=='host')return;net.seats.forEach(s=>{if(s.kind==='human'&&s.id&&s.id!=='host'&&net.room)net.room.send(s.id,{t:'lobby',seats:pubSeats(),you:s.c,code:net.code,war:setup.war,n4:setup.n4})});if(!net.started)renderLobby()}
@@ -707,7 +756,7 @@
   if(!window.SudomiParty){net.status='Este navegador no puede crear salas.';return renderMenu()}
   const players=ORDER[setup.n],my=++net.tok;
   Object.assign(net,{role:'host',code:'',started:false,status:'',me:players[0],room:null});
-  net.seats=players.map((c,k)=>k===0?{c,kind:'human',id:'host',name:myName(),avatar:myAvatar(),dice:myDice()}:{c,kind:'open'});
+  net.seats=players.map((c,k)=>k===0?{c,kind:'human',id:'host',name:myName(),avatar:myAvatar(),dice:myDice(),kill:myKill()}:{c,kind:'open'});
   renderLobby();
   try{const room=await SudomiParty.host(GAME,onHost);if(my!==net.tok){room.close();return}net.room=room;net.code=room.code;renderLobby()}
   catch(e){if(my!==net.tok)return;net.role='solo';net.status=(e&&e.message)||'No se pudo crear la sala.';renderMenu()}
@@ -720,7 +769,7 @@
    const meta=e.meta||{};
    if(seat){seat.away=false;if(g&&g.seats[seat.c])g.seats[seat.c].away=false}
    else if(net.started){net.room.reject(e.id,'La partida ya empezó.');return}
-   else{seat=net.seats.find(s=>s.kind==='open');if(!seat){net.room.reject(e.id,'La sala está llena.');return}Object.assign(seat,{kind:'human',id:e.id,name:clean(meta.n)||'Amigo',avatar:String(meta.a||'🙂').slice(0,4),dice:okDice(meta.d)})}
+   else{seat=net.seats.find(s=>s.kind==='open');if(!seat){net.room.reject(e.id,'La sala está llena.');return}Object.assign(seat,{kind:'human',id:e.id,name:clean(meta.n)||'Amigo',avatar:String(meta.a||'🙂').slice(0,4),dice:okDice(meta.d),kill:okDice(meta.k)})}
    pushLobby();
    if(net.started&&g){net.room.send(e.id,startMsg(seat.c));update()}
   }else if(e.type==='leave'){
@@ -739,7 +788,7 @@
  function startOnline(){
   if(net.role!=='host'||!net.room)return;
   const names=AI.slice().sort(()=>Math.random()-.5),seats={};
-  net.seats.forEach((s,k)=>{if(s.kind==='open')Object.assign(s,{kind:'ai',name:names[k][0],avatar:names[k][1]});seats[s.c]={kind:s.kind,name:s.name,avatar:s.avatar,away:!!s.away,dice:s.dice||''}});
+  net.seats.forEach((s,k)=>{if(s.kind==='open')Object.assign(s,{kind:'ai',name:names[k][0],avatar:names[k][1]});seats[s.c]={kind:s.kind,name:s.name,avatar:s.avatar,away:!!s.away,dice:s.dice||'',kill:s.kill||''}});
   net.started=true;stopGame();newGame(net.seats.map(s=>s.c),seats,setup.war,setup.n4);
   net.seats.forEach(s=>{if(s.kind==='human'&&s.id!=='host')net.room.send(s.id,startMsg(s.c))});
   renderGame();run(++token);
@@ -750,7 +799,7 @@
   stopGame();leaveNet();
   const my=++net.tok;Object.assign(net,{role:'guest',code:SudomiParty.normCode(code),started:false,status:'Conectando con la sala…',seats:[],me:-1});
   renderLobby();
-  net.conn=SudomiParty.join(GAME,code,{n:myName(),a:myAvatar(),d:myDice()},e=>{if(my===net.tok)onGuest(e)});
+  net.conn=SudomiParty.join(GAME,code,{n:myName(),a:myAvatar(),d:myDice(),k:myKill()},e=>{if(my===net.tok)onGuest(e)});
  }
  function onGuest(e){
   if(e.type==='open'){net.status='';if(!net.started)renderLobby();return}
@@ -762,7 +811,7 @@
   if(d.t==='lobby'){net.seats=d.seats;net.me=d.you;net.code=d.code||net.code;net.war=!!d.war;net.n4=d.n4;if(!net.started)renderLobby()}
   else if(d.t==='start'){
    net.started=true;net.seats=d.seats;net.me=d.you;token++;rollTok++;rolling=false;
-   const seats={};d.seats.forEach(s=>seats[s.c]={kind:s.kind,name:s.name,avatar:s.avatar,away:!!s.away,dice:okDice(s.dice)});
+   const seats={};d.seats.forEach(s=>seats[s.c]={kind:s.kind,name:s.name,avatar:s.avatar,away:!!s.away,dice:okDice(s.dice),kill:okDice(s.kill)});
    newGame(d.players,seats,d.war,d.n4);renderGame();
   }
   else if(d.t==='s'&&g){const s=d.s;Object.keys(s.away||{}).forEach(c=>{if(g.seats[c])g.seats[c].away=s.away[c]});delete s.away;Object.assign(g,s);place();update(true)}
@@ -783,5 +832,11 @@
   if(m==='join'){mode='online';joinRoom(code);return}
   mode=m==='pvp'||m==='online'?m:'pve';renderMenu();
  }
- window.SudomiParchis={open,close,join:code=>joinRoom(code),themes:THEMES,cards:CARDS,_state:()=>g,_net:()=>net,_ev:e=>onHost(e),_legal:legal,_useCard:useCard,_targets:cardTargets,_setState:s=>{Object.assign(g,s);place();update()}};
+ function demoKill(box,kind){
+  if(!box||!KILLS[kind])return;box.innerHTML='<i class="shop-nest"></i><button type="button" class="pc-piece" style="--pc-c:#e53935" disabled></button>';
+  const el=box.querySelector('.pc-piece'),A=[15,16],H=[5,5.5],at=p=>{el.style.left=pct(p[0]);el.style.top=pct(p[1])};
+  const loop=()=>{if(!box.isConnected)return;el.style.transition='none';at(A);setTimeout(()=>{if(!box.isConnected)return;at(H);killRun(box,el,{k:kind,x:A[0],y:A[1]},'#e53935',()=>H,()=>box.isConnected,()=>{});setTimeout(loop,KILLS[kind]+900)},700)};
+  loop();
+ }
+ window.SudomiParchis={demoKill,open,close,join:code=>joinRoom(code),themes:THEMES,cards:CARDS,_state:()=>g,_net:()=>net,_ev:e=>onHost(e),_legal:legal,_useCard:useCard,_targets:cardTargets,_setState:s=>{Object.assign(g,s);place();update()}};
 })();
