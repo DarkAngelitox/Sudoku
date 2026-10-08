@@ -266,6 +266,18 @@ class Game{
   if(isComplete(this.board,this.solution))this.win();return true
  }
  toggleNote(n){const i=this.selected;if(this.board[i])return;this.push();if(this.notes[i].has(n))this.notes[i].delete(n);else this.notes[i].add(n);this.save();this.ui.render()}
+ // 0.3.10 (V2, con permiso del dueño para abrir el Core): NOTAS AUTOMÁTICAS. Llena cada casilla vacía con los números que todavía
+ // no están en su fila, columna ni cuadro. Se puede deshacer. No da ni quita puntos y no gasta pistas.
+ autoNotes(){
+  if(this.paused||!this.running)return false;
+  this.push();
+  for(let i=0;i<81;i++){
+   if(this.board[i]){this.notes[i].clear();continue}
+   const used=new Set();for(const p of peers(i))if(this.board[p])used.add(this.board[p]);
+   this.notes[i]=new Set([1,2,3,4,5,6,7,8,9].filter(n=>!used.has(n)));
+  }
+  this.save();this.ui.render();return true;
+ }
  cleanNotes(i,n){for(const p of peers(i))this.notes[p].delete(n);this.notes[i].clear()}
  erase(){if(this.selected===null||this.paused)return;const i=this.selected;if(this.puzzle[i])return;if(!this.board[i]&&!this.notes[i].size)return;this.push();this.board[i]=0;this.notes[i].clear();this.save();this.ui.render()}
  undo(){if(!this.history.length||this.paused)return;const errors=this.errors;this.future.push(this.snapshot());this.restore(this.history.pop());this.errors=errors;this.save();this.ui.render()}
@@ -289,6 +301,7 @@ class UI{
   $('#pauseBtn').onclick=()=>this.game.togglePause();$('#resumeBtn').onclick=()=>this.game.togglePause();
   $('#undoBtn').onclick=()=>this.game.undo();$('#redoBtn').onclick=()=>this.game.redo();$('#newBtn').onclick=()=>this.game.newGame(this.getDifficulty());
   $('#notesBtn').onclick=()=>{this.notesMode=!this.notesMode;$('#notesBtn').classList.toggle('active',this.notesMode);this.render()};
+  const an=$('#autoNotesBtn');if(an)an.onclick=()=>this.game.autoNotes();
   $('#eraseBtn').onclick=()=>this.game.erase();$('#hintBtn').onclick=()=>{if(!this.game.hint())this.flashHint()};
   document.addEventListener('keydown',e=>{if(e.key==='Escape')this.closeHomeMenu();if(e.key>='1'&&e.key<='9')this.game.setNumber(+e.key);if(e.key==='Backspace'||e.key==='Delete')this.game.erase();if(e.key==='z'&&(e.ctrlKey||e.metaKey))this.game.undo();if(e.key==='y'&&(e.ctrlKey||e.metaKey))this.game.redo()})
  }

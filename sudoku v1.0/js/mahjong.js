@@ -11,10 +11,33 @@
  * solo se mandan el avance {t:'p',n}. El invitado avisa {t:'fin'} y el anfitrión decide quién ganó y lo anuncia con {t:'over',w,ms}. */
 (()=>{
  const GAME='mahjong',NAME='Duelo Mahjong',LOCK=2000;
- const FACES=['🌴','🥥','🍍','🎺','🥁','🐓','🌞','⚾','🚲','🦜','🍌','☕',
-  '😺','😸','😹','😻','😼','😽','❤️','🧡','💛','💚','💙','💜',
-  '😀','😃','😄','😁','😆','😊','🙂','😉','😋','😛','😜','😝','😗','😙','😚','😮'];
- const PAIRS=FACES.length;
+ /* 0.3.4 (V2, Fase 5): FICHAS DIBUJADAS, ya no emojis (se veían distintas en cada teléfono). Son las 40 fichas de un mahjong de verdad,
+  * ordenadas de muy distintas a muy parecidas: 6 símbolos, 3 dragones, 4 vientos, 9 de números, 9 de bambú y 9 de círculos.
+  * face(n) devuelve el dibujo SVG de la ficha n (caja de 40×50). */
+ const PAIRS=40;
+ const DOTS={1:[[20,25]],2:[[20,13],[20,37]],3:[[10,11],[20,25],[30,39]],4:[[12,13],[28,13],[12,37],[28,37]],5:[[11,11],[29,11],[20,25],[11,39],[29,39]],
+  6:[[12,10],[28,10],[12,25],[28,25],[12,40],[28,40]],7:[[9,8],[20,14],[31,20],[12,33],[28,33],[12,44],[28,44]],8:[[12,7],[28,7],[12,19],[28,19],[12,31],[28,31],[12,43],[28,43]],
+  9:[[9,9],[20,9],[31,9],[9,25],[20,25],[31,25],[9,41],[20,41],[31,41]]};
+ const DR=[0,9,6.5,5.5,6,5.2,5,4.2,4.2,4.4],INK=['#1565c0','#c62828','#2e7d32'];
+ const SYM=[
+  '<path d="M20 5l4.700 10.400 11.300 1.200-8.500 7.600 2.500 11.100L20 29.500 10 35.300l2.500-11.100L4 16.600l11.300-1.200z" fill="#f9a825" stroke="#b26a00" stroke-width="1.200" stroke-linejoin="round"/>',
+  '<circle cx="20" cy="25" r="8" fill="#ef6c00"/><g stroke="#ef6c00" stroke-width="2.600" stroke-linecap="round"><path d="M20 8v5M20 37v5M3 25h5M32 25h5M8 13l3.500 3.500M28.500 33.500L32 37M32 13l-3.500 3.500M11.500 33.500L8 37"/></g>',
+  '<path d="M26 7a18 18 0 1 0 0 36A14 14 0 0 1 26 7z" fill="#3949ab"/>',
+  '<path d="M20 5c12 8 13 24 0 40C7 29 8 13 20 5z" fill="#2e7d32"/><path d="M20 10v32" stroke="#c8e6c9" stroke-width="1.800" stroke-linecap="round"/>',
+  '<path d="M20 42C4 30 3 15 11 11c4-2 7 0 9 4 2-4 5-6 9-4 8 4 7 19-9 31z" fill="#d81b60"/>',
+  '<g fill="#8e24aa"><circle cx="20" cy="13" r="6"/><circle cx="31" cy="21" r="6"/><circle cx="27" cy="34" r="6"/><circle cx="13" cy="34" r="6"/><circle cx="9" cy="21" r="6"/></g><circle cx="20" cy="25" r="5" fill="#ffd54a"/>'
+ ];
+ const CJK=(ch,col,lat)=>`<text x="20" y="35" text-anchor="middle" font-size="28" font-weight="900" fill="${col}" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">${ch}</text>${lat?`<text x="5" y="11" font-size="9" font-weight="900" fill="${col}" font-family="sans-serif">${lat}</text>`:''}`;
+ function face(n){
+  let g='';
+  if(n<6)g=SYM[n];
+  else if(n<9)g=n===6?CJK('中','#c62828'):n===7?CJK('發','#2e7d32'):'<rect x="8" y="9" width="24" height="32" rx="3" fill="none" stroke="#1565c0" stroke-width="3.500"/><rect x="13" y="14" width="14" height="22" rx="1.500" fill="none" stroke="#1565c0" stroke-width="1.500"/>';
+  else if(n<13)g=CJK('東南西北'[n-9],'#10213b','ESON'[n-9]);
+  else if(n<22){const k=n-12;g=`<text x="20" y="24" text-anchor="middle" font-size="22" font-weight="900" fill="#10213b" font-family="sans-serif">${k}</text><text x="20" y="44" text-anchor="middle" font-size="17" font-weight="900" fill="#c62828" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">萬</text>`}
+  else if(n<31){const k=n-21;g=DOTS[k].map(([x,y],j)=>{const h=k===1?30:k<4?15:k<7?12:9.500,w=k===1?7:4.200,c=k===1?'#2e7d32':INK[(j%2)*2];return `<rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="${w/2}" fill="${c}"/><path d="M${x-w/2} ${y}h${w}" stroke="#fff" stroke-width=".9"/>`}).join('')}
+  else{const k=n-30;g=DOTS[k].map(([x,y],j)=>`<circle cx="${x}" cy="${y}" r="${DR[k]}" fill="${INK[(j+k)%3]}"/><circle cx="${x}" cy="${y}" r="${DR[k]*.42}" fill="#fff" opacity=".85"/>`).join('')}
+  return `<svg viewBox="0 0 40 50" aria-hidden="true">${g}</svg>`;
+ }
  const T=[];[[8,6,0],[6,4,1],[4,2,2]].forEach(([w,h,o],z)=>{for(let r=0;r<h;r++)for(let c=0;c<w;c++)T.push({z,r:r+o,c:c+o})});
  const IDX=new Map(T.map((t,i)=>[t.z*100+t.r*10+t.c,i]));
  const at=(z,r,c)=>{const i=IDX.get(z*100+r*10+c);return i===undefined?-1:i};
@@ -56,12 +79,17 @@
   const online=umode==='online';
   ui.stage.innerHTML=`<div class="mini-game mz">${head()}<div class="mz-menu">${net.status?`<p class="pc-note bad">${esc(net.status)}</p>`:''}
    <div class="pc-hero">🀄<b>${NAME}</b><span>Carrera de parejas: cada quien con su tablero de ${T.length} fichas. Fallar te bloquea ${LOCK/1000} segundos. Gana quien termine primero.</span></div>
-   <div class="mz-sample"><span>${FACES[0]}</span><span>${FACES[5]}</span><i>→</i><span>${FACES[18]}</span><span>${FACES[21]}</span><i>→</i><span>${FACES[24]}</span><span>${FACES[26]}</span><small>De muy distintas a muy parecidas</small></div>
-   <button class="arc-btn pc-big" id="mzStart">${online?'🌐 Crear sala':'▶ Jugar'}</button></div></div>`;
+   <div class="mz-sample"><span>${face(0)}</span><span>${face(5)}</span><i>→</i><span>${face(15)}</span><span>${face(18)}</span><i>→</i><span>${face(33)}</span><span>${face(34)}</span><small>De muy distintas a muy parecidas</small></div>
+   <button class="arc-btn pc-big" id="mzStart">${online?'🌐 Crear sala':'▶ Jugar'}</button>${online?'':`<button class="arc-btn ghost pc-big" id="mzSolo">⏱ Solitario contra el reloj${bestSolo()?' · récord '+clock(bestSolo()):''}</button>`}</div></div>`;
   net.status='';$('#mzRules').onclick=()=>sheet(rulesHTML());
-  $('#mzStart').onclick=online?createRoom:startLocal;
+  $('#mzStart').onclick=online?createRoom:()=>startLocal(false);const so=$('#mzSolo');if(so)so.onclick=()=>startLocal(true);
  }
- function startLocal(){
+ // 0.3.12: SOLITARIO — el mismo tablero sin rival, contra el reloj; se guarda tu mejor tiempo en localStorage 'sudomi-mahjong-best'
+ const bestSolo=()=>{try{return Math.max(0,+localStorage.getItem('sudomi-mahjong-best')||0)}catch(_){return 0}};
+ let lastSolo=false;
+ function startLocal(solo){
+  lastSolo=!!solo;
+  if(solo){begin(deal(),[{name:myName(),avatar:myAvatar()},{name:'Tu récord',avatar:'⏱',solo:true}],0);return}
   const ai=[['Maestra Li','🐼'],['Don Fichas','🦉'],['La Rápida','🦊']][Math.random()*3|0];
   begin(deal(),[{name:myName(),avatar:myAvatar()},{name:ai[0],avatar:ai[1],ai:true}],0);
  }
@@ -72,7 +100,7 @@
   ui.stage.innerHTML=`<div class="mini-game mz">${head()}
    <div class="mz-top">${[me,1-me].map(p=>`<div class="mz-p${p===me?' me':''}" data-p="${p}"><span>${esc(seats[p].avatar)}</span><b>${esc(seats[p].name)}${p===me&&net.role!=='solo'?' (tú)':''}</b><i>0/${PAIRS}</i><u><s></s></u></div>`).join('')}</div>
    <div class="mz-alert" id="mzAlert" role="status"></div>
-   <div class="mz-wrap"><div class="mz-board wait" id="mzBoard">${T.map((q,i)=>`<button type="button" class="mz-t" data-i="${i}" style="left:${q.c*12.5}%;top:${(q.r/6*100).toFixed(3)}%;--z:${q.z};z-index:${q.z*10+1}"><span>${FACES[val[i]]}</span></button>`).join('')}</div>
+   <div class="mz-wrap"><div class="mz-board wait" id="mzBoard">${T.map((q,i)=>`<button type="button" class="mz-t" data-i="${i}" style="left:${q.c*12.5}%;top:${(q.r/6*100).toFixed(3)}%;--z:${q.z};z-index:${q.z*10+1}"><span>${face(val[i])}</span></button>`).join('')}</div>
     <div class="mz-lock hidden" id="mzLock"><span>⛔</span><b>${LOCK/1000}</b><small>Te equivocaste</small></div><div class="mz-count" id="mzCount">3</div></div>
    <p class="mz-clock" id="mzClock">⏱ 0:00</p><div class="mz-ctrl" id="mzCtrl"></div></div>`;
   $('#mzRules').onclick=()=>sheet(rulesHTML());
@@ -89,7 +117,7 @@
  function draw(){
   if(!S||!els.length)return;
   els.forEach((e,i)=>{const g=S.gone[i],f=!g&&free(i,S.gone);e.classList.toggle('gone',g);e.classList.toggle('free',f);e.classList.toggle('blocked',!g&&!f);e.classList.toggle('sel',S.sel===i);e.disabled=g});
-  ui.stage.querySelectorAll('.mz-p').forEach(b=>{const p=+b.dataset.p;b.querySelector('i').textContent=(S.seats[p].away?'📴 ':'')+S.done[p]+'/'+PAIRS;b.querySelector('s').style.width=(S.done[p]/PAIRS*100)+'%'});
+  ui.stage.querySelectorAll('.mz-p').forEach(b=>{const p=+b.dataset.p;b.querySelector('i').textContent=S.seats[p].solo?(bestSolo()?clock(bestSolo()):'—'):(S.seats[p].away?'📴 ':'')+S.done[p]+'/'+PAIRS;b.querySelector('s').style.width=(S.done[p]/PAIRS*100)+'%'});
  }
  function tap(i){
   if(!S||!S.started||S.over||S.waitFin||S.gone[i]||Date.now()<S.lockUntil)return;
@@ -115,20 +143,27 @@
  }
  // la computadora no tiene tablero: solo avanza su contador, cada vez un poco más lento (las últimas fichas son las difíciles)
  function aiLoop(t){
-  const p=1-S.me,next=()=>{if(t!==token||!S||S.over)return;setTimeout(()=>{if(t!==token||!S||S.over)return;S.done[p]++;draw();if(S.done[p]>=PAIRS)decide(p,Date.now()-S.t0);else next()},2600+80*S.done[p]+Math.random()*1500)};
+  const lv=window.SudomiAILevel?SudomiAILevel():'normal',pace=lv==='easy'?[3800,110]:lv==='hard'?[1900,55]:[2600,80];   // 0.3.3: milisegundos por pareja = base + extra por cada pareja ya hecha
+  const p=1-S.me,next=()=>{if(t!==token||!S||S.over)return;setTimeout(()=>{if(t!==token||!S||S.over)return;S.done[p]++;draw();if(S.done[p]>=PAIRS)decide(p,Date.now()-S.t0);else next()},pace[0]+pace[1]*S.done[p]+Math.random()*1500)};
   next();
  }
  // quien manda la partida (solo o anfitrión) declara al ganador
  function decide(w,ms){if(!S||S.over)return;toGuest({t:'over',w,ms});finish(w,ms)}
  function finish(w,ms){
-  if(!S||S.over)return;S.over=true;S.winner=w;S.waitFin=false;clearInterval(tick);S.sel=-1;draw();
+  const solo=!!(S&&S.seats[1-S.me]&&S.seats[1-S.me].solo);let record=false;
+  if(solo&&S&&!S.over){const b0=bestSolo();if(!b0||ms<b0){record=true;try{localStorage.setItem('sudomi-mahjong-best',String(ms))}catch(_){}}}
+  if(!S||S.over)return;S.over=true;S.winner=w;if(!solo)try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:'mahjong',won:w===S.me}}))}catch(_){}S.waitFin=false;clearInterval(tick);S.sel=-1;draw();
   const mine=w===S.me,lk=$('#mzLock');if(lk)lk.classList.add('hidden');const bd=$('#mzBoard');if(bd)bd.classList.add('over');
   if($('#mzClock'))$('#mzClock').textContent='⏱ '+clock(ms);
   setAlert(mine?`🏆 ¡Ganaste! Terminaste en ${clock(ms)}`:`💀 Ganó ${S.seats[w].name} · te faltaron ${PAIRS-S.done[S.me]} parejas`,mine?'win':'danger');
   play(mine?'win':'bad');if(mine){try{window.SudomiFX&&SudomiFX.confetti&&SudomiFX.confetti()}catch(_){}}
   const c=$('#mzCtrl');if(!c)return;
   c.innerHTML=net.role==='guest'?'<p class="mz-hint">Esperando a que el anfitrión empiece otra partida…</p>':'<button class="arc-btn pc-big" type="button" id="mzAgain">↻ Jugar otra vez</button>';
-  const b=$('#mzAgain');if(b)b.onclick=()=>net.role==='host'?startOnline():startLocal();
+  const b=$('#mzAgain');if(b)b.onclick=()=>net.role==='host'?startOnline():startLocal(lastSolo);
+  // 0.3.11: pantalla de resultado común (js/result.js)
+  if(window.SudomiResult)SudomiResult.show($('.mz'),{kind:mine?'win':'lose',game:'DUELO MAHJONG',title:solo?(record?'¡Nuevo récord!':'¡Tablero despejado!'):mine?'¡Ganaste la carrera!':'Ganó '+S.seats[w].name,sub:solo?('Tu tiempo: '+clock(ms)+(record?'':' · récord '+clock(bestSolo()))):mine?'Terminaste en '+clock(ms):`Te faltaron ${PAIRS-S.done[S.me]} parejas`,
+   again:net.role==='guest'?null:()=>net.role==='host'?startOnline():startLocal(lastSolo),exit:()=>{const u=ui;close();u.stage.innerHTML='';u.exit()},
+   share:mine?`Despejé el Duelo Mahjong de SUDOMI en ${clock(ms)}. ¡Juega conmigo!`:'Jugué Duelo Mahjong en SUDOMI. ¡Juega conmigo!'});
  }
 
  /* ================= sala online (2 jugadores) ================= */

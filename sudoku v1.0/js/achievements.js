@@ -19,6 +19,12 @@
  const monthFull=()=>{const done=dailyDone(),by={};for(const k of Object.keys(done)){const m=k.slice(0,7);by[m]=(by[m]||0)+1}return Object.entries(by).some(([m,n])=>{const [y,mo]=m.split('-').map(Number);return n>=new Date(y,mo,0).getDate()})};
  const styled=()=>{const c=read('sudomi-custom');let s='';try{s=localStorage.getItem('sudomi-skin')||''}catch(_){}return !!s||(c.accent&&c.accent!=='dominicano')||c.digits==='grande'};
  const otherCount=()=>Object.keys(D.stats.otherWins).length;
+ // 0.3.2 (V2, Fase 4): los juegos con pantallas propias (DOS, STOP, Parchimi, Batalla naval, Mahjong) avisan su resultado con el evento
+ // 'sudomi-arcade' {game, won}. Se guardan en stats.arcade = {played:{juego:n}, wins:{juego:n}}; las victorias también suman en otherWins.
+ const arc=()=>D.stats.arcade||(D.stats.arcade={played:{},wins:{}});
+ const arcTotal=k=>Object.values(arc()[k]||{}).reduce((a,b)=>a+b,0);
+ const arcWins=g=>(arc().wins||{})[g]||0;
+ const chipsNow=()=>{try{return window.SudomiChips?SudomiChips.get():0}catch(_){return 0}};   // 0.3.12: fichas de juego (js/blackjack.js)
  // ---- the list: [id, group, icon, name, description, xp, secret, test(), progress()]
  const S=()=>D.stats;
  const LIST=[
@@ -55,6 +61,16 @@
   ['dpTower','Dominópolis','🏗️','Rascacielos','Construye una torre en Dominópolis',80,0,()=>(S().dp||{}).tower>=1],
   ['dpWin','Dominópolis','💰','Magnate','Gana una partida de Dominópolis',100,0,()=>(S().dp||{}).wins>=1],
   ['dpBig','Dominópolis','👑','Rey del Malecón','Gana una partida de Dominópolis contra 3 rivales o más',200,0,()=>(S().dp||{}).big>=1],
+  ['arc10','Arcade','🕹️','Jugador de arcade','Termina 10 partidas en el arcade',60,0,()=>arcTotal('played')>=10,()=>[arcTotal('played'),10]],
+  ['arcWin10','Arcade','🏅','Mano caliente','Gana 10 partidas en el arcade',100,0,()=>arcTotal('wins')>=10,()=>[arcTotal('wins'),10]],
+  ['dosWin','Arcade','🌪','¡DOS!','Gana una partida de DOS',50,0,()=>arcWins('dos')>=1],
+  ['stopWin','Arcade','📝','Rey del STOP','Gana una ronda de STOP o una partida de STOP clásico',50,0,()=>arcWins('stop')>=1],
+  ['parchisWin','Arcade','🎲','Corona de Parchimi','Gana una partida de Parchimi',50,0,()=>arcWins('parchis')>=1],
+  ['navalWin','Arcade','🚢','Almirante','Gana una Batalla naval',50,0,()=>arcWins('fleet')>=1],
+  ['mjWin','Arcade','🀄','Ojo de águila','Gana un Duelo Mahjong',50,0,()=>arcWins('mahjong')>=1],
+  ['bjWin','Arcade','🂡','Veintiuno','Gana una mano de Blackjack',40,0,()=>arcWins('blackjack')>=1],
+  ['pokerWin','Arcade','🃏','Cara de póker','Gana un bote en el Póker',50,0,()=>arcWins('poker')>=1],
+  ['chips5k','Arcade','💰','Banca llena','Junta 5,000 fichas de juego',150,0,()=>chipsNow()>=5000,()=>[chipsNow(),5000]],
   ['night','Secretos','🌙','Noctámbulo','Gana una partida entre las 12 y las 5 de la madrugada',50,1,()=>S().night>=1],
   ['lucky','Secretos','🍀','Suerte de campeón','Gana un Extremo sin errores ni pistas',500,1,()=>S().lucky>=1],
   ['calm','Secretos','🐢','Con calma','Gana una partida tardando más de una hora',30,1,()=>S().calm>=1],
@@ -119,6 +135,12 @@
   else if(d.type==='end'){s.dp.played++;if(d.won){s.dp.wins++;if(d.opponents>=3)s.dp.big++;s.otherWins.dominopolis=(s.otherWins.dominopolis||0)+1}}
   save();check();
  });
+ window.addEventListener('sudomi-arcade',e=>{
+  const d=e.detail||{},id=String(d.game||'');if(!id)return;const a=arc();
+  a.played[id]=(a.played[id]||0)+1;
+  if(d.won){a.wins[id]=(a.wins[id]||0)+1;D.stats.otherWins[id]=(D.stats.otherWins[id]||0)+1}
+  save();check();
+ });
  const origLose=ui.lose.bind(ui);
  ui.lose=function(g){try{const sig=g.puzzle.join('');if(!D.stats.losses.includes(sig)){D.stats.losses.push(sig);if(D.stats.losses.length>60)D.stats.losses.shift();save()}}catch(_){}return origLose(g)};
  // ---- results of the other games (the end-of-game card)
@@ -129,7 +151,8 @@
    const card=scr.querySelector('.game-end-card');if(!card||card.dataset.ach)return;card.dataset.ach='1';
    const h=scr.querySelector('.mini-game-head h2'),id=h&&GAMES[E(h.textContent.trim()).toLowerCase()];
    const win=E((card.querySelector('strong')||{}).textContent||'');
-   if(id&&!/computadora|\(IA\)|sin ganador/i.test(win)){D.stats.otherWins[id]=(D.stats.otherWins[id]||0)+1;save();check()}
+   // 0.3.22: los juegos sencillos avisan igual que los demás (evento 'sudomi-arcade'), así cuentan como partida jugada, para los logros del arcade y para el reto del día
+   if(id){try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:id,won:!/computadora|\(IA\)|sin ganador|empate/i.test(win)}}))}catch(_){}}
   }).observe(scr,{childList:true,subtree:true});
  }
  // ---- screen

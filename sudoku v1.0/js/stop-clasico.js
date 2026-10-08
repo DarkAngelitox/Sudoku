@@ -25,6 +25,7 @@
  const esc=t=>String(t).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
  const cleanN=a=>Array.from({length:NC},(_,i)=>String(a&&a[i]!=null?a[i]:'').replace(/\s+/g,' ').trim().slice(0,40));
  const grid=n=>Array.from({length:n},()=>Array(NC).fill(''));
+ const isKnown=(col,a)=>{const W=WORDS();return (SRC[col]||[]).some(k=>(W[k]||'').split('|').some(x=>norm(x)===norm(a)))};
 
  /* ================= 1. reglas (solo en quien manda) ================= */
  let S=null,sess={order:null,used:[],turn:0};
@@ -52,10 +53,12 @@
  function go(p){
   const s=S;if(s.phase!=='letter'||p!==s.picker||!s.pend)return false;
   s.letter=s.pend;s.pend='';sess.used.push(s.letter);sess.turn++;s.phase='start';s.left=2;
-  s.aiAt=s.kinds.map(k=>k==='ai'?ANSWER_TIME-(28+Math.floor(Math.random()*45)):-1);return true;
+  s.aiAt=s.kinds.map(k=>k==='ai'?ANSWER_TIME-(28+AI_LV().wait+Math.floor(Math.random()*45)):-1);return true;
  }
  const startsOk=txt=>{const a=norm(txt);return !!a&&a[0]===S.letter.toLowerCase()};
- function aiAnswers(){const W=WORDS(),L=S.letter.toLowerCase();return COLS.map(c=>{const list=SRC[c].flatMap(k=>(W[k]||'').split('|')).filter(w=>norm(w)[0]===L);return list.length&&Math.random()<.8?list[Math.floor(Math.random()*list.length)]:''})}
+ function aiAnswers(){const W=WORDS(),L=S.letter.toLowerCase();return COLS.map(c=>{const list=SRC[c].flatMap(k=>(W[k]||'').split('|')).filter(w=>norm(w)[0]===L);return list.length&&Math.random()<AI_LV().know?list[Math.floor(Math.random()*list.length)]:''})}
+ // 0.3.3: nivel de la máquina (el del arcade): segundos de más o de menos antes de escribir, y cuántas palabras «se sabe»
+ function AI_LV(){const lv=window.SudomiAILevel?SudomiAILevel():'normal';return lv==='easy'?{wait:30,know:.6}:lv==='hard'?{wait:-14,know:.95}:{wait:0,know:.8}}
  function stop(p,list){
   const s=S;if(s.phase!=='answer'||s.done[p])return false;
   const a=cleanN(list);if(!a.every(Boolean))return false;
@@ -144,6 +147,7 @@
  const needProfile=fn=>{if(P()&&!P().get()){P().ensure(fn);return true}return false};
  const play=n=>{try{window.SudomiSound&&SudomiSound.play(n)}catch(_){}};
  let ui=null,mode=null,V=null,net=null,gsend=null,seats=[],size=2,roomCode='',clock=null,status='',offline=false,busy=false,showRules=false,screen='';
+ let resShown=false;
  let draft=Array(NC).fill(''),draftKey='',focus=-1,lockF=-1,snapKey='',lastKey='',lastPhase='',sendTimer=null;
  const $=sel=>ui.stage.querySelector(sel);
  function reset(){clearInterval(clock);clock=null;clearTimeout(sendTimer);if(net){try{net.close()}catch(_){}}net=null;gsend=null;S=null;V=null;seats=[];status='';roomCode='';offline=false;mode=null;busy=false;lastKey='';lastPhase='';screen='';sess={order:null,used:[],turn:0}}
@@ -269,7 +273,7 @@
   const dk=v.round+':'+v.letter+':'+v.hist.length;if(draftKey!==dk){draftKey=dk;draft=Array(NC).fill('');focus=-1;lockF=-1;snapKey=''}
   // al llegar el STOP: se guarda qué casilla estaba escribiendo y se manda la hoja tal como iba
   if(v.phase==='stopped'&&snapKey!==dk){const ae=document.activeElement;if(ae&&ae.dataset&&ae.dataset.sc!=null&&ui.stage.contains(ae))focus=+ae.dataset.sc;snapKey=dk;lockF=v.stopBy===me?-1:focus;if(v.stopBy!==me)saveDraft(true)}
-  if(v.phase!==lastPhase){if(v.phase==='start')play('bonus');if(v.phase==='stopped')play('bad');lastPhase=v.phase}
+  if(v.phase!==lastPhase){if(v.phase==='start')play('bonus');if(v.phase==='stopped')play('bad');if(v.phase==='final'){const mx=Math.max(...v.totals);try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:'stop',won:v.totals[me]===mx}}))}catch(_){}}lastPhase=v.phase}
   const sub=mode==='solo'?'CONTRA LA MÁQUINA':`ONLINE · ${v.n} JUGADORES`,pk=esc(v.names[v.picker]||'');
   const timer=total=>`<div class="stop-timer"><span><b id="scTimer">${v.left}</b> s</span><div class="bar"><i id="scBar" style="width:${Math.max(0,Math.min(100,v.left/total*100))}%"></i></div></div>`;
   let body='',fx='';
@@ -299,8 +303,8 @@
    const L=v.letter.toLowerCase();
    body=`<div class="stop-top small"><div class="stop-letter">${v.letter}</div>${timer(VOTE_TIME)}</div>
     <p class="arc-msg">${v.voted[me]?'✔ Listo. Esperando a los demás…':'Toca las respuestas que <b>no aceptas</b> (❌). Cuando termines, toca <b>Listo</b>.'}</p>${chips(v,i=>v.voted[i])}
-    <div class="sp-vote">${COLS.map((c,q)=>`<section><h4>${c}</h4>${v.names.map((n,p)=>{const a=v.answers[p][q],bad=a&&norm(a)[0]!==L,mine=v.myMarks.includes(p+':'+q),cnt=v.markCount[p][q];
-      return `<button class="sp-ans ${!a?'empty':''} ${bad?'bad':''} ${mine?'no':''}" data-p="${p}" data-q="${q}" ${p===me||!a||bad||v.voted[me]?'disabled':''}><i>${avatar(p)}</i><b>${a?esc(a):'—'}</b>${bad?'<em>no empieza con '+v.letter+'</em>':cnt?`<em>❌ ${cnt}</em>`:''}</button>`}).join('')}</section>`).join('')}</div>
+    <div class="sp-vote">${COLS.map((c,q)=>`<section><h4>${c}</h4>${v.names.map((n,p)=>{const a=v.answers[p][q],bad=a&&norm(a)[0]!==L,mine=v.myMarks.includes(p+':'+q),cnt=v.markCount[p][q],known=a&&!bad&&isKnown(c,a);
+      return `<button class="sp-ans ${!a?'empty':''} ${bad?'bad':''} ${mine?'no':''}" data-p="${p}" data-q="${q}" ${p===me||!a||bad||v.voted[me]?'disabled':''}><i>${avatar(p)}</i><b>${a?esc(a):'—'}</b>${known?'<u class="sp-ok" title="Está en el diccionario del juego">✓</u>':''}${bad?'<em>no empieza con '+v.letter+'</em>':cnt?`<em>❌ ${cnt}</em>`:''}</button>`}).join('')}</section>`).join('')}</div>
     ${v.voted[me]?'':'<div class="arc-actions"><button class="arc-btn big" id="scReady">Listo</button></div>'}`;
   }else{
    const fin=v.phase==='final',order=v.names.map((_,i)=>i).sort((a,b)=>v.totals[b]-v.totals[a]||v.points[b]-v.points[a]),last=v.round>=ROUNDS;
@@ -331,7 +335,15 @@
   ui.stage.querySelectorAll('.sp-ans:not(:disabled)').forEach(b=>b.onclick=()=>act({t:'mark',p:+b.dataset.p,q:+b.dataset.q}));
   const rd=$('#scReady');if(rd)rd.onclick=()=>act({t:'ready'});
   const nx=$('#scNext');if(nx)nx.onclick=()=>{if(next())pushState()};
-  const ag=$('#scAgain');if(ag)ag.onclick=()=>{newGame(seats.map(x=>x.name),seats.map(x=>x.kind));startClock();pushState()};
+  const again=()=>{newGame(seats.map(x=>x.name),seats.map(x=>x.kind));startClock();pushState()};
+  const ag=$('#scAgain');if(ag)ag.onclick=again;
+  // 0.3.11: pantalla de resultado común (js/result.js) al terminar las 5 rondas
+  if(v.phase!=='final')resShown=false;
+  else if(!resShown&&window.SudomiResult){
+   resShown=true;const top=Math.max(...v.totals),win=v.totals[me]===top,best=v.totals.indexOf(top);
+   SudomiResult.show($('.sc'),{kind:win?'win':'lose',game:'STOP CLÁSICO',title:win?'¡Ganaste la partida!':'Ganó '+v.names[best],sub:`Tus puntos: ${v.totals[me]}`,detail:v.names.map((n,i)=>`${n} ${v.totals[i]}`).join(' · '),
+    again:mode==='guest'?null:again,exit:leave,share:`Hice ${v.totals[me]} puntos en STOP clásico de SUDOMI. ¡Juega conmigo!`});
+  }
  }
 
  window.SudomiStopClasico={open,close,solo,create,adopt,guest,leave,active:()=>!!mode,playing:()=>!!V&&screen==='game'&&V.phase!=='final',_state:()=>S,_view:()=>V,_sess:()=>sess,_ev:e=>onHostEvent(e),_net:()=>net};

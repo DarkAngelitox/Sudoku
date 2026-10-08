@@ -62,7 +62,22 @@
   g.gain.setValueAtTime(.0001,t0);g.gain.exponentialRampToValueAtTime(peak,t0+.012);g.gain.exponentialRampToValueAtTime(.0001,t0+d);
   o.connect(g);g.connect(c.destination);o.start(t0);o.stop(t0+d+.03);
  } const N={C4:261.6,D4:293.7,E4:329.6,G4:392,A4:440,C5:523.3,D5:587.3,E5:659.3,G5:784,A5:880,C6:1046.5};
+ // 0.3.56: un soplo de ruido filtrado (para el lápiz sobre el papel): largo (s), volumen, cuándo empieza (s), frecuencia del filtro
+ function noise(d,v,at=0,f=3000){
+  const c=audio();if(!c)return;
+  if(c.state!=='running'&&c.resume)c.resume().catch(()=>{});
+  const n=Math.floor(c.sampleRate*d),b=c.createBuffer(1,n,c.sampleRate),a=b.getChannelData(0);
+  for(let i=0;i<n;i++)a[i]=(Math.random()*2-1)*(.55+.45*Math.sin(i/c.sampleRate*Math.PI*2*42));   // el temblor hace que suene a grafito raspando
+  const s=c.createBufferSource(),bp=c.createBiquadFilter(),g=c.createGain(),t0=c.currentTime+at,peak=Math.max(.0001,v*cfg.vol);
+  s.buffer=b;bp.type='bandpass';bp.frequency.value=f;bp.Q.value=.9;
+  g.gain.setValueAtTime(.0001,t0);g.gain.exponentialRampToValueAtTime(peak,t0+.02);g.gain.setValueAtTime(peak,t0+d*.7);g.gain.exponentialRampToValueAtTime(.0001,t0+d);
+  s.connect(bp);bp.connect(g);g.connect(c.destination);s.start(t0);s.stop(t0+d+.03);
+ }
  const SOUNDS={
+  // 0.3.56: sonidos de las skins del Sudoku (los pide js/shop.js al poner un número)
+  pencil:()=>{noise(.15,.3,0,3200);noise(.2,.26,.19,2600);noise(.1,.2,.42,3600)},
+  gold:()=>{tone(1568,.1,'triangle',.14,.38);tone(2093,.32,'sine',.13,.44);tone(3136,.25,'sine',.06,.47)},
+  neon:()=>{tone(220,.3,'sawtooth',.06,0,900);tone(990,.18,'sine',.1,.24)},
   tap:()=>tone(520,.04,'triangle',.08),
   good:combo=>{const f=480+Math.min(combo||1,14)*26;tone(f,.09,'sine',.22);tone(f*1.5,.12,'sine',.16,.07)},
   bad:()=>{tone(170,.22,'sawtooth',.2,0,95)},

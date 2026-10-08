@@ -29,7 +29,7 @@ window.SudomiGameArt=(()=>{
  dominopolis:svg('#4fb6f2',
     r(0,0,200,70,'#6cc4f5')+c(162,26,15,'#ffe27a')+c(162,26,23,'#ffe27a','opacity=".28"')+
     `<g fill="#fff" opacity=".92"><ellipse cx="40" cy="22" rx="22" ry="7"/><ellipse cx="56" cy="17" rx="14" ry="6"/><ellipse cx="108" cy="12" rx="18" ry="5"/></g>`+
-    r(0,66,200,74,'#1b8fc4')+r(0,66,200,4,'#fff','opacity=".5"')+
+    r(0,66,200,74,'#1b8fc4')+r(0,66,200,4,'#fff',0,'opacity=".5"')+
     [[22,30,16,'#dbe9f7'],[40,22,14,'#fff'],[56,34,18,'#c5d9f0'],[76,26,14,'#fff'],[96,36,17,'#dbe9f7'],[116,24,15,'#fff'],[134,32,18,'#c5d9f0']].map(([x,h,w,f])=>r(x,66-h,w,h,f,1,'opacity=".95"')+r(x+3,66-h+5,3,4,'#7aa3d8')+r(x+9,66-h+5,3,4,'#7aa3d8')+r(x+3,66-h+13,3,4,'#7aa3d8')).join('')+
     g(100,112,-5,['#8b5a2b','#6ec6f0','#e86aa8','#f28c28','#d62027','#f5cf2e','#1f9d55','#0b3d91'].map((col,i)=>r(-88+i*22,-11,20,22,col,3,'stroke="#fff" stroke-width="2"')).join(''))+
     `<g stroke="#6b4423" stroke-width="3" fill="none" stroke-linecap="round"><path d="M14 138Q22 112 16 92"/><path d="M188 138Q180 112 186 92"/></g><g fill="#178a4a"><path d="M16 92q-16-3-26 7q14-2 26-7z"/><path d="M16 92q-4-16-18-19q12 7 18 19z"/><path d="M16 92q7-15 23-14q-14 3-23 14z"/><path d="M186 92q16-3 26 7q-14-2-26-7z"/><path d="M186 92q4-16 18-19q-12 7-18 19z"/><path d="M186 92q-7-15-23-14q14 3 23 14z"/></g>`),
@@ -38,9 +38,13 @@ window.SudomiGameArt=(()=>{
     return r(x,y,22,22,open?'#f7f9fc':'#dfe7f1',4,open?'':'stroke="#b9c6d6" stroke-width="1.5"')+(num?t(x+11,y+17,15,['','#0b6bd6','#1c8a4a','#d62027'][+num],num):'')+(k===5?t(x+11,y+17,14,'#000','🚩'):'')+(k===12?t(x+11,y+17,14,'#000','💣'):'');
   })),
   fleet:svg('#1e6fb3',grid(5,8,12,8,20,2,(x,y,i,j)=>r(x,y,20,20,(i+j)%2?'#2d86cf':'#2a7fc6',3))+
-   r(56,30,64,20,'#6f8296',10)+r(74,24,20,10,'#8fa1b4',3)+r(122,74,20,42,'#6f8296',10)+
-   c(44,62,7,'#fff','opacity=".9"')+c(154,40,7,'#fff','opacity=".9"')+c(88,84,7,'#fff','opacity=".9"')+
-   c(88,40,8,'#ff4d57')+c(110,40,8,'#ff4d57')+t(88,45,13,'#fff','✹')+t(110,45,13,'#fff','✹')),
+   // 0.3.29: barcos vistos desde arriba (como en el juego), impactos y agua dibujados, sin emoji
+   `<path d="M38 40q-10-9 0-18h74q12 0 20 9q-8 9-20 9z" fill="#5d6f84" stroke="#2b3848" stroke-width="2" stroke-linejoin="round"/><path d="M44 28h64" stroke="#8fa1b4" stroke-width="2" stroke-linecap="round"/>`+
+   r(60,25,16,12,'#8fa1b4',3,'stroke="#2b3848" stroke-width="1.5"')+r(84,26,20,10,'#8fa1b4',3,'stroke="#2b3848" stroke-width="1.5"')+line(76,31,86,31,'#2b3848',2.5)+c(112,31,3,'#2b3848')+
+   `<path d="M144 126q-9-10 0-18v-28q0-10 9-17q9 7 9 17v28q9 8 0 18z" fill="#5d6f84" stroke="#2b3848" stroke-width="2" stroke-linejoin="round"/>`+
+   r(147,88,12,14,'#8fa1b4',3,'stroke="#2b3848" stroke-width="1.5"')+c(153,112,4,'#8fa1b4','stroke="#2b3848" stroke-width="1.5"')+
+   [[30,84],[176,40],[100,106]].map(([x,y])=>c(x,y,8,'none','stroke="#fff" stroke-width="2.5" opacity=".85"')+c(x,y,3,'#fff','opacity=".9"')).join('')+
+   [[74,31],[98,31]].map(([x,y])=>`<path transform="translate(${x} ${y})" d="M0-13l3.500 7.500 8-3-3 8 7.500 3.500-7.500 3.500 3 8-8-3-3.500 7.500-3.500-7.500-8 3 3-8-7.500-3.500 7.500-3.500-3-8 8 3z" fill="#ff8a1f" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>`+c(x,y,4.5,'#ffe27a')).join('')),
   chess:svg('#9b7159',grid(5,8,0,0,25,0,(x,y,i,j)=>r(x,y,25,25,(i+j)%2?'#9b7159':'#f0dfc2'))+
    t(37,45,26,'#1d2a3b','♞')+t(112,45,26,'#1d2a3b','♛')+t(162,45,26,'#1d2a3b','♜')+t(62,95,26,'#fff','♙','stroke="#23354f" stroke-width=".8"')+t(137,70,26,'#fff','♔','stroke="#23354f" stroke-width=".8"')),
   checkers:svg('#9b7159',grid(5,8,0,0,25,0,(x,y,i,j)=>r(x,y,25,25,(i+j)%2?'#9b7159':'#f0dfc2')+((i+j)%2&&i<2?c(x+12.5,y+12.5,9,'#243449','stroke="#ffffff66" stroke-width="2"'):'')+((i+j)%2&&i>2?c(x+12.5,y+12.5,9,'#d0222f','stroke="#ffffff88" stroke-width="2"'):''))+

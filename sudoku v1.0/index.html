@@ -8,13 +8,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="SUDOMI">
+<meta name="apple-mobile-web-app-title" content="SUDOMI V2">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-<title>SUDOMI 0.2.101</title>
+<title>SUDOMI V2 0.3.61</title>
 <link rel="stylesheet" href="css/main.css">
 <script src="js/i18n.js"></script>
+<script src="js/lang-v2.js"></script>
 <script src="js/avatar-art.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/customize.js"></script>
@@ -42,7 +43,7 @@
         </div>
         <a class="home-logo" href="#inicio" aria-label="SUDOMI, inicio">
           <span class="logo-sudoku" aria-hidden="true"><i>1</i><i></i><i>3</i><i></i><i></i><i>4</i><i></i><i>2</i><i>2</i><i></i><i>4</i><i></i><i></i><i>3</i><i></i><i>1</i></span>
-          <span class="logo-word"><strong>SUDOMI</strong><small>Hecho con lógica. Jugado con amor.</small></span>
+          <span class="logo-word"><strong>SUDOMI<em class="v2-chip">V2</em></strong><small>Hecho con lógica. Jugado con amor.</small></span>
         </a>
       </div>
       <span class="dom-chip"><span>🇩🇴</span> Orgullo dominicano</span>
@@ -75,7 +76,7 @@
         </nav>
       </section>
     </main>
-    <footer class="home-footer"><span>🇩🇴 <span>Hecho con orgullo dominicano</span></span><span>SUDOMI · 0.2.101 · © 2026</span></footer>
+    <footer class="home-footer"><span>🇩🇴 <span>Hecho con orgullo dominicano</span></span><span>SUDOMI V2 · 0.3.61 · © 2026</span></footer>
   </div>
 </section>
 <section id="miniGamesScreen" class="mini-games-screen hidden" aria-label="Otros juegos">
@@ -115,7 +116,7 @@
 </section>
 <div class="selection-info"><span id="selectedInfo">Selecciona una casilla</span><span id="remainingInfo">—</span></div>
 <div id="keypad" class="keypad"></div>
-<div class="mode-row"><button id="notesBtn" class="tool">✎ Notas</button><button id="eraseBtn" class="tool">⌫ Borrar</button><button id="hintBtn" class="tool">💡 Pista</button></div>
+<div class="mode-row"><button id="notesBtn" class="tool">✎ Notas</button><button id="autoNotesBtn" class="tool" type="button">✨ Auto</button><button id="eraseBtn" class="tool">⌫ Borrar</button><button id="hintBtn" class="tool">💡 Pista</button></div>
 <details class="help"><summary>Controles rápidos</summary><p>Selecciona una casilla y luego un número. Activa Notas para guardar candidatos. Las notas se limpian automáticamente cuando un número correcto ocupa su fila, columna o bloque.</p></details>
 </main></div>
 </div>
@@ -135,7 +136,7 @@
 <script src="js/dos-game.js"></script>
 <script src="js/stop-party.js"></script><script src="js/stop-clasico.js"></script>
 <script src="js/parchis.js"></script>
-<script src="js/naval.js"></script><script src="js/mahjong.js"></script>
+<script src="js/naval.js"></script><script src="js/mahjong.js"></script><script src="js/blackjack.js"></script><script src="js/poker.js"></script>
 <script src="js/smart-hints.js"></script>
 <script src="js/score.js"></script>
 <script src="js/xp.js"></script>
@@ -155,6 +156,7 @@
 <script src="js/a11y.js"></script>
 <script src="js/effects.js"></script>
 <script src="js/domino-table.js"></script>
+<script src="js/domino-3d.js"></script>
 <script src="js/domino-party.js"></script>
 <script src="js/board-art.js"></script>
 <script src="js/dominopolis-fotos.js"></script>
@@ -167,6 +169,7 @@
 <script src="js/pwa.js"></script>
 <script src="js/install.js"></script>
 <script src="js/lobby.js"></script>
-<script src="js/friends.js"></script>
+<script src="js/result.js"></script><script src="js/shop.js"></script>
+<script src="js/tabbar.js"></script><script src="js/friends.js"></script>
 </body></html>
 

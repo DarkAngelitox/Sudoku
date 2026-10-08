@@ -32,6 +32,7 @@
   'Transporte':'avión|autobús|ambulancia|avioneta|barco|bicicleta|bote|camión|carro|canoa|crucero|concho|carreta|dirigible|furgoneta|ferry|guagua|góndola|helicóptero|hidroavión|jeep|lancha|limusina|metro|motocicleta|monopatín|nave espacial|patineta|patines|planeador|remolque|submarino|scooter|taxi|tren|teleférico|tranvía|trineo|ultraligero|velero'
  };
  const CATS=Object.keys(WORDS);
+ const isKnown=(cat,a)=>!!WORDS[cat]&&WORDS[cat].split('|').some(x=>norm(x)===norm(a));
  const LETTERS='ABCDEFGHIJLMNOPRSTUV'.split('');
  const ANSWER_TIME=160,VOTE_TIME=60;       // 0.2.64: 160 s per round; STOP ends the round at once and needs all 10 boxes filled; the one who says STOP loses 20 per wrong answer
  const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();
@@ -45,12 +46,14 @@
   let letter;do{letter=LETTERS[Math.floor(Math.random()*LETTERS.length)]}while(letter===last);
   return {n,names,kinds,letter,cats:shuffle(CATS.slice()).slice(0,10),phase:'answer',left:ANSWER_TIME,stopBy:-1,
    answers:Array.from({length:n},()=>Array(10).fill('')),drafts:Array.from({length:n},()=>Array(10).fill('')),done:Array(n).fill(false),
-   aiAt:kinds.map(k=>k==='ai'?ANSWER_TIME-(55+Math.floor(Math.random()*70)):-1),
+   aiAt:kinds.map(k=>k==='ai'?ANSWER_TIME-(55+AI_LV().wait+Math.floor(Math.random()*70)):-1),
    marks:Array.from({length:n},()=>[]),voted:Array(n).fill(false),rows:null,points:null,
    totals:prev?prev.totals.slice():Array(n).fill(0),round:prev?prev.round+1:1,seq:0};
  }
  const startsOk=(s,txt)=>{const a=norm(txt);return !!a&&a[0]===s.letter.toLowerCase()};
- function aiAnswers(s){return s.cats.map(c=>{const list=WORDS[c].split('|').filter(w=>norm(w)[0]===s.letter.toLowerCase());return list.length&&Math.random()<.8?list[Math.floor(Math.random()*list.length)]:''})}
+ function aiAnswers(s){return s.cats.map(c=>{const list=WORDS[c].split('|').filter(w=>norm(w)[0]===s.letter.toLowerCase());return list.length&&Math.random()<AI_LV().know?list[Math.floor(Math.random()*list.length)]:''})}
+ // 0.3.3: nivel de la máquina (el del arcade): cuánto tarda en empezar a escribir (segundos de más o de menos) y cuántas palabras «se sabe»
+ function AI_LV(){const lv=window.SudomiAILevel?SudomiAILevel():'normal';return lv==='easy'?{wait:35,know:.6}:lv==='hard'?{wait:-25,know:.95}:{wait:0,know:.8}}
  // STOP: only with all 10 boxes filled; it ends the round immediately (everybody else's current writing is taken as it is)
  function submit(s,p,list){
   if(s.phase!=='answer'||s.done[p])return false;
@@ -116,7 +119,7 @@
  const needProfile=fn=>{if(P()&&!P().get()){P().ensure(fn);return true}return false};
  let ui=null,screen='menu',mode=null,S=null,V=null,net=null,seats=[],size=4,clock=null,status='',roomCode='',offline=false,busy=false,showRules=false;
  let draft=Array(10).fill(''),draftKey='',focus=-1,lastKey='',sendTimer=null;
- let classic=false;   // 0.2.101: la sala a la que entré es de STOP clásico -> la pantalla la lleva js/stop-clasico.js
+ let classic=false,resRound=-1;   // 0.2.101: la sala a la que entré es de STOP clásico -> la pantalla la lleva js/stop-clasico.js
  const $=sel=>ui.stage.querySelector(sel);
  window.addEventListener('sudomi-profile',()=>{if(ui&&screen==='menu')render()});
 
@@ -281,6 +284,7 @@
    return;
   }
   lastKey=key;
+  if(v.phase==='result'&&resRound!==v.round){resRound=v.round;const mx=Math.max(...v.points);try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:'stop',won:v.points[me]===mx}}))}catch(_){}}   /* 0.3.2: cada ronda cuenta como una partida para logros y estadísticas */
   const dk=v.round+':'+me;if(draftKey!==dk){draftKey=dk;draft=Array(10).fill('');focus=-1}
   const sub=mode==='solo'?'CONTRA LA MÁQUINA':`ONLINE · ${v.n} JUGADORES`;
   const timer=total=>`<div class="stop-timer"><span><b id="spTimer">${v.left}</b> s</span><div class="bar"><i id="spBar" style="width:${Math.max(0,Math.min(100,v.left/total*100))}%"></i></div></div>`;
@@ -296,8 +300,8 @@
    const L=v.letter.toLowerCase();
    body=`<div class="stop-top small"><div class="stop-letter">${v.letter}</div>${timer(VOTE_TIME)}</div>
     <p class="arc-msg">${v.voted[me]?'✔ Listo. Esperando a los demás…':'Toca las respuestas que <b>no aceptas</b> (❌). Cuando termines, toca <b>Listo</b>.'}</p>${chips(v)}
-    <div class="sp-vote">${v.cats.map((c,q)=>`<section><h4>${esc(c)}</h4>${v.names.map((n,p)=>{const a=v.answers[p][q],bad=a&&norm(a)[0]!==L,mine=v.myMarks.includes(p+':'+q),cnt=v.markCount[p][q];
-      return `<button class="sp-ans ${!a?'empty':''} ${bad?'bad':''} ${mine?'no':''}" data-p="${p}" data-q="${q}" ${p===me||!a||bad||v.voted[me]?'disabled':''}><i>${avatar(p)}</i><b>${a?esc(a):'—'}</b>${bad?'<em>no empieza con '+v.letter+'</em>':cnt?`<em>❌ ${cnt}</em>`:''}</button>`}).join('')}</section>`).join('')}</div>
+    <div class="sp-vote">${v.cats.map((c,q)=>`<section><h4>${esc(c)}</h4>${v.names.map((n,p)=>{const a=v.answers[p][q],bad=a&&norm(a)[0]!==L,mine=v.myMarks.includes(p+':'+q),cnt=v.markCount[p][q],known=a&&!bad&&isKnown(c,a);
+      return `<button class="sp-ans ${!a?'empty':''} ${bad?'bad':''} ${mine?'no':''}" data-p="${p}" data-q="${q}" ${p===me||!a||bad||v.voted[me]?'disabled':''}><i>${avatar(p)}</i><b>${a?esc(a):'—'}</b>${known?'<u class="sp-ok" title="Está en el diccionario del juego">✓</u>':''}${bad?'<em>no empieza con '+v.letter+'</em>':cnt?`<em>❌ ${cnt}</em>`:''}</button>`}).join('')}</section>`).join('')}</div>
     ${v.voted[me]?'':'<div class="arc-actions"><button class="arc-btn big" id="spReady">Listo</button></div>'}`;
   }else{
    const order=v.names.map((_,i)=>i).sort((a,b)=>v.totals[b]-v.totals[a]||v.points[b]-v.points[a]);

@@ -29,16 +29,19 @@
  const P=()=>window.SudomiProfile,myName=()=>(P()&&P().name&&P().name())||'Jugador 1',myAvatar=()=>(P()&&P().avatar&&P().avatar())||'🙂';
  let ui=null,G=null,V=null,token=0,umode='pve';
  let sel=[],abil=null,forceBoard=null,draft=null,pick=-1,prev={key:'',cells:null},lastTurnKey='';
- const waits=new Map();
+ const waits=new Map();let overSent=false,resShown=false;
  const net={role:'solo',room:null,conn:null,code:'',seats:[],me:0,started:false,status:'',tok:0};
- const setup={mode:'classic'};
+ const setup={mode:'classic',noTouch:false};
  const $=s=>ui.stage.querySelector(s);
  function play(n){try{window.SudomiSound&&SudomiSound.play(n)}catch(_){}if(net.role==='host'&&net.room&&net.seats[1]&&net.seats[1].id)net.room.send(net.seats[1].id,{t:'snd',n})}
 
  /* ================= motor ================= */
  const cellsOf=(s,N)=>Array.from({length:s.len},(_,k)=>s.v?(s.r+k)*N+s.c:s.r*N+s.c+k);
  const inside=(s,N)=>s.r>=0&&s.c>=0&&(s.v?s.r+s.len<=N&&s.c<N:s.c+s.len<=N&&s.r<N);
- function fits(fleet,s,N,skip){if(!inside(s,N))return false;const mine=cellsOf(s,N);return !fleet.some((o,k)=>k!==skip&&cellsOf(o,N).some(i=>mine.includes(i)))}
+ // 0.3.12: regla opcional «los barcos no pueden tocarse» (noTouch): entonces tampoco vale quedar pegado a otro barco, ni en diagonal
+ let noTouch=false;
+ const near=(a,b,N)=>Math.abs((a/N|0)-(b/N|0))<=1&&Math.abs(a%N-b%N)<=1;
+ function fits(fleet,s,N,skip){if(!inside(s,N))return false;const mine=cellsOf(s,N);return !fleet.some((o,k)=>k!==skip&&cellsOf(o,N).some(i=>mine.some(m=>noTouch?near(m,i,N):m===i)))}
  function randomFleet(N){
   const f=[];
   for(const S of SHIPS){for(let t=0;t<2000;t++){const s={k:S.k,len:S.len,v:Math.random()<.5,r:Math.random()*N|0,c:Math.random()*N|0};if(fits(f,s,N,-1)){f.push(s);break}}}
@@ -59,13 +62,13 @@
   return {k,ns};
  }
  function newGame(mode,seats,local){
-  const N=MODES[mode].N,z=()=>Array(N*N).fill(0);
-  G={mode,N,seats,local:!!local,fleets:[[],[]],shots:[z(),z()],scan:[z(),z()],cd:[{},{}],ready:[false,false],turn:0,phase:'setup',used:[false,false],moved:[false,false],msg:'',over:false,winner:null,turnNo:0,sim:!local,locked:[false,false],plan:[[],[]],queued:[null,null],pm:['','']};
+  const N=MODES[mode].N,z=()=>Array(N*N).fill(0);noTouch=!!setup.noTouch;
+  G={mode,N,seats,local:!!local,fleets:[[],[]],shots:[z(),z()],scan:[z(),z()],cd:[{},{}],ready:[false,false],turn:0,phase:'setup',used:[false,false],moved:[false,false],msg:'',over:false,winner:null,turnNo:0,noTouch:!!setup.noTouch,sim:!local,locked:[false,false],plan:[[],[]],queued:[null,null],pm:['','']};
  }
  // lo que puede ver el jugador v
  function viewFor(v){
   const f=1-v;
-  return {mode:G.mode,N:G.N,me:v,turn:G.turn,phase:G.phase,over:G.over,winner:G.winner,msg:G.pm[v]||G.msg,local:G.local,sim:G.sim,locked:G.locked.slice(),plan:G.plan[v],turnNo:G.turnNo,
+  return {mode:G.mode,N:G.N,noTouch:G.noTouch,me:v,turn:G.turn,phase:G.phase,over:G.over,winner:G.winner,msg:G.pm[v]||G.msg,local:G.local,sim:G.sim,locked:G.locked.slice(),plan:G.plan[v],turnNo:G.turnNo,
    names:G.seats.map(s=>s.name),avatars:G.seats.map(s=>s.avatar),away:G.seats.map(s=>!!s.away),ready:G.ready.slice(),
    fleet:G.fleets[v].map(s=>({...s,sunk:isSunk(v,s),hit:isHit(v,s)})),foe:G.fleets[f].filter(s=>isSunk(f,s)||G.over).map(s=>({...s,sunk:isSunk(f,s)})),
    inc:G.shots[v],out:G.shots[f],scan:G.scan[v],cd:G.cd[v],used:G.used[v],moved:G.moved[v],
@@ -118,13 +121,16 @@
  }
  /* ---- la computadora ---- */
  function aiTargets(p,n){
-  const f=1-p,N=G.N,sc=[];
+  const f=1-p,N=G.N,sc=[],lv=window.SudomiAILevel?SudomiAILevel():'normal';
+  // 0.3.3: nivel de la máquina. Fácil = casi al azar. Difícil = además cuenta en cuántas posiciones posibles de los barcos que quedan cabe cada casilla
+  let den=null;
+  if(lv==='hard'){den=Array(N*N).fill(0);for(const sh of G.fleets[f]){if(isSunk(f,sh))continue;for(const v of [false,true])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t={len:sh.len,v,r,c};if(!inside(t,N))continue;const cs=cellsOf(t,N);if(cs.some(i=>G.shots[f][i]===1))continue;cs.forEach(i=>den[i]++)}}}
   for(let i=0;i<N*N;i++){
    if(G.shots[f][i])continue;
-   let s=Math.random()*4+(((i/N|0)+i%N)%2?0:5);
+   let s=lv==='easy'?Math.random()*30:Math.random()*4+(((i/N|0)+i%N)%2?0:5)+(den?den[i]*.6:0);
    if(G.scan[p][i]===2)s+=100;else if(G.scan[p][i]===1)s-=100;
    const r=i/N|0,c=i%N;
-   [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].forEach(([rr,cc])=>{if(rr<0||cc<0||rr>=N||cc>=N)return;const j=rr*N+cc;if(G.shots[f][j]===2){const sh=shipAt(f,j);if(sh&&!isSunk(f,sh))s+=40}});
+   [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].forEach(([rr,cc])=>{if(rr<0||cc<0||rr>=N||cc>=N)return;const j=rr*N+cc;if(G.shots[f][j]===2){const sh=shipAt(f,j);if(sh&&!isSunk(f,sh))s+=lv==='easy'?12:40}});
    sc.push([s,i]);
   }
   return sc.sort((a,b)=>b[0]-a[0]).slice(0,n).map(x=>x[1]);
@@ -220,15 +226,18 @@
  }
 
  /* ================= dibujo ================= */
- // siluetas (vista de lado) dentro de una caja de 10 por cada casilla
+ // 0.3.16: barcos VISTOS DESDE ARRIBA (antes de lado), dentro de una caja de 10 por cada casilla. Cada dibujo es una función del largo w.
+ const DK='fill="#1c2a3f" stroke="none" opacity=".5"';
+ const hull=w=>`<path d="M1 5.100Q2.500 1.900 7 1.900H${w-5}Q${w-1.300} 2.200 ${w-.6} 5.100Q${w-1.300} 8 ${w-5} 8.300H7Q2.500 8.300 1 5.100Z"/>`;
+ const gun=x=>`<circle cx="${x}" cy="5.100" r="1.600" ${DK}/><path d="M${x} 5.100h3.200" stroke="#1c2a3f" stroke-width=".7" fill="none" opacity=".6"/>`;
  const SIL={
-  carrier:'<path d="M2 6.200L6 8.800H44L48.500 6.200V5.300H2Z"/><path d="M30 5.300V2.600H35.500V5.300Z"/><path d="M32.500 2.600V1.100M34 2.600V1.600" fill="none" stroke-width=".7"/>',
-  battle:'<path d="M1 6.600L4 8.900H36L39.300 6.600Z"/><path d="M13.500 6.600V4.700H17V3.200H22.500V4.700H26.500V6.600Z"/><path d="M6.500 6.600V5.400H11V6.600ZM29 6.600V5.400H33.500V6.600Z"/><path d="M19.700 3.200V1.300M8.500 5.400H4.500M31.500 5.400H36" fill="none" stroke-width=".7"/>',
-  destroyer:'<path d="M1 6.600L3.500 8.800H26.500L29.300 6.600Z"/><path d="M9.500 6.600V4.800H13.500V3.500H17V4.800H20.500V6.600Z"/><path d="M15.200 3.500V1.600M5.500 6.600V5.600H8" fill="none" stroke-width=".7"/>',
-  sub:'<path d="M2.500 6.600Q2.500 4.800 8 4.800H23.500Q28.300 4.800 28.300 6.600Q28.300 8.500 23.500 8.500H8Q2.500 8.500 2.500 6.600Z"/><path d="M13 4.800V2.900H17.500V4.800Z"/><path d="M15.200 2.900V1.400H16.600" fill="none" stroke-width=".7"/>',
-  boat:'<path d="M1.500 6.600L3.500 8.600H16.800L18.800 6.600Z"/><path d="M7 6.600V4.900H12.500V6.600Z"/><path d="M9.700 4.900V3.200" fill="none" stroke-width=".7"/>'
+  carrier:w=>`<path d="M1.500 2.100H${w-6}L${w-1} 5.100L${w-6} 8.100H1.500Z"/><path d="M5 5.100H${w-9}" stroke="#fff" stroke-width=".55" stroke-dasharray="2.200 1.600" fill="none"/><rect x="${w*.56}" y="2.500" width="5.500" height="1.700" rx=".5" ${DK}/>`,
+  battle:w=>hull(w)+gun(w*.24)+gun(w*.5)+gun(w*.74),
+  destroyer:w=>hull(w)+gun(w*.3)+`<rect x="${w*.46}" y="3.700" width="4" height="2.800" rx=".6" ${DK}/>`+gun(w*.72),
+  sub:w=>`<rect x="1.500" y="2.700" width="${w-3}" height="4.800" rx="2.400"/><ellipse cx="${w*.45}" cy="5.100" rx="2.800" ry="1.300" ${DK}/><path d="M${w*.45} 5.100h4" stroke="#1c2a3f" stroke-width=".6" fill="none" opacity=".6"/>`,
+  boat:w=>hull(w)+`<rect x="${w*.34}" y="3.500" width="${w*.3}" height="3.200" rx=".7" ${DK}/>`
  };
- function sil(s){const S=SHIPS.find(x=>x.k===s.k),w=s.len*10,inner=`<g fill="${S.col}" stroke="#1c2a3f" stroke-width=".45" stroke-linejoin="round">${SIL[s.k]}</g>`;
+ function sil(s){const S=SHIPS.find(x=>x.k===s.k),w=s.len*10,inner=`<g fill="${S.col}" stroke="#1c2a3f" stroke-width=".45" stroke-linejoin="round">${SIL[s.k](w)}</g>`;
   // la caja se recorta a la altura real del dibujo (de 1 a 9.2) para que el barco llene bien su casilla
   return s.v?`<svg viewBox="0.8 0 8.2 ${w}" preserveAspectRatio="none" aria-hidden="true"><g transform="translate(10 0) rotate(90)">${inner}</g></svg>`:`<svg viewBox="0 1 ${w} 8.2" preserveAspectRatio="none" aria-hidden="true">${inner}</svg>`}
  const pc=(v,N)=>(v/N*100).toFixed(3)+'%';
@@ -247,10 +256,12 @@
   ui.stage.innerHTML=`<div class="mini-game nv">${head()}<div class="nv-menu">${net.status?`<p class="pc-note bad">${esc(net.status)}</p>`:''}
    <div class="pc-hero">🚢<b>${NAME}</b><span>Esconde tu flota, elige tres casillas y fija tu ataque: los dos disparan a la vez. Hunde los cinco barcos del rival.</span></div>
    <div class="pc-opt"><b>Modo de juego</b><div class="nv-modes">${Object.keys(MODES).map(k=>`<button type="button" data-m="${k}" class="${k===setup.mode?'on':''}"><b>${MODES[k].n}</b><small>${MODES[k].d}</small></button>`).join('')}</div></div>
+   <label class="nv-check"><input type="checkbox" id="nvTouch" ${setup.noTouch?'checked':''}><span>Los barcos no pueden tocarse</span></label>
    <div class="nv-fleetrow">${SHIPS.map(S=>`<span>${sil({k:S.k,len:S.len,v:false})}<small>${S.n} · ${S.len}</small></span>`).join('')}</div>
    <button class="arc-btn pc-big" id="nvStart">${online?'🌐 Crear sala':'▶ Jugar'}</button></div></div>`;
   net.status='';$('#nvRules').onclick=()=>sheet(rulesHTML());
   ui.stage.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{setup.mode=b.dataset.m;ui.stage.querySelectorAll('[data-m]').forEach(x=>x.classList.toggle('on',x===b))});
+  $('#nvTouch').onchange=e=>{setup.noTouch=e.target.checked};
   $('#nvStart').onclick=online?createRoom:startLocal;
  }
  function startLocal(){
@@ -290,7 +301,7 @@
    if((ns.r!==s.r||ns.c!==s.c)&&fits(draft,ns,N,dg.k)){draft[dg.k]=ns;draw()}
   });
   sea.addEventListener('pointerup',()=>{dg=null});sea.addEventListener('pointercancel',()=>{dg=null});
-  sel=[];abil=null;forceBoard=null;draft=null;pick=-1;prev={key:'',cells:null};lastTurnKey='';
+  overSent=false;resShown=false;sel=[];abil=null;forceBoard=null;draft=null;pick=-1;prev={key:'',cells:null};lastTurnKey='';
  }
  function act(a){if(net.role==='guest'){if(net.conn)net.conn.send({t:'act',a});return}const v=viewer();if(v>=0)submit(v,a)}
  // qué tablero se enseña: en tu turno el mar rival; cuando te atacan, tu flota
@@ -321,6 +332,7 @@
  }
  function draw(){
   if(!V||!ui||!$('#nvSea'))return;
+  if(V.over&&!overSent&&!V.local){overSent=true;try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:'fleet',won:V.winner===V.me}}))}catch(_){}}   /* 0.3.2: avisa el resultado a logros y estadísticas */
   const N=V.N,me=V.me,foe=1-me,sim=!!V.sim,aiming=aimingNow(),myTurn=sim?aiming||(V.phase==='fire'&&V.turn===me):V.turn===me&&!V.over,tk=V.turnNo+':'+V.turn+':'+(V.phase==='fire');
   if(!aiming){sel=[];abil=null}
   if(lastTurnKey!==tk){lastTurnKey=tk;forceBoard=null}
@@ -360,6 +372,13 @@
   al.textContent=txt;al.className='nv-alert '+cls;
   $('#nvMsg').textContent=V.msg||'';
   drawCtrl(show,aiming);
+  // 0.3.11: pantalla de resultado común (js/result.js), una vez por partida
+  if(V.over&&!resShown&&window.SudomiResult){
+   resShown=true;const w=V.winner,mine=!V.local&&w===me;
+   SudomiResult.show($('.nv'),{kind:w<0?'draw':V.local||mine?'win':'lose',game:'BATALLA NAVAL',title:w<0?'¡Empate!':mine?'¡Ganaste la batalla!':'Ganó '+V.names[w],sub:V.msg||'',
+    again:net.role==='guest'?null:()=>net.role==='host'?startOnline():startLocal(),exit:()=>{const u=ui;close();u.stage.innerHTML='';u.exit()},
+    share:mine?'Gané una Batalla naval en SUDOMI. ¡Juega conmigo!':'Jugué Batalla naval en SUDOMI. ¡Juega conmigo!'});
+  }
  }
  function drawSeats(){
   $('#nvSeats').innerHTML=[0,1].map(p=>`<div class="nv-seat${(V.sim&&V.phase==='aim'?!V.locked[p]:V.turn===p)&&!V.over&&V.phase!=='setup'?' turn':''}"><span>${esc(V.avatars[p])}</span><b>${esc(V.names[p])}${net.role!=='solo'&&p===V.me?' (tú)':''}</b><i>${V.away[p]?'📴 ':''}${V.sim&&V.phase==='aim'&&V.locked[p]&&!V.over?'🔒 ':''}🚢 ${V.left[p]}/${SHIPS.length}</i></div>`).join('');
@@ -446,7 +465,7 @@
   if(e.type!=='msg')return;const d=e.data||{};
   if(d.t==='lobby'){net.seats=d.seats;net.code=d.code||net.code;net.mode=d.mode;if(!net.started)renderLobby()}
   else if(d.t==='start'){net.started=true;V=null;build(MODES[d.mode]?MODES[d.mode].N:10)}
-  else if(d.t==='v'){if(!net.started||!$('#nvSea')||(V&&V.N!==d.v.N)||(V&&V.over&&!d.v.over)){net.started=true;build(d.v.N)}V=d.v;draw()}
+  else if(d.t==='v'){if(!net.started||!$('#nvSea')||(V&&V.N!==d.v.N)||(V&&V.over&&!d.v.over)){net.started=true;build(d.v.N)}V=d.v;noTouch=!!V.noTouch;draw()}
   else if(d.t==='snd'){try{window.SudomiSound&&SudomiSound.play(d.n)}catch(_){}}
  }
  function leaveNet(){net.tok++;if(net.room){try{net.room.close()}catch(_){}}if(net.conn){try{net.conn.close()}catch(_){}}Object.assign(net,{role:'solo',room:null,conn:null,code:'',seats:[],started:false,me:0})}
