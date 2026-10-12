@@ -1042,7 +1042,11 @@ html[data-theme="dark"] .dos-prompt p{color:#ffe08a}
 .prof-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
 .prof-actions button{min-height:46px;border:0;border-radius:12px;font-size:14px;font-weight:850}
 .prof-save{background:#0b3d91;color:#fff}.prof-cancel{background:#edf3fb;color:#27456d}
-@media(max-width:380px){.prof-avatars{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:380px){.prof-avatars{grid-template-columns:repeat(6,1fr)}}
+/* 0.3.69: brazo del otro jugador llevando la ficha en la Mesa 3D (flyTile en js/domino-3d.js) */
+.d3-rarm{position:absolute;inset:0;z-index:7;width:100%;height:100%;overflow:visible;pointer-events:none}.d3-rarm path{fill:none;stroke:#111;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.d3-rhand{position:absolute;z-index:8;width:20px;height:20px;margin:-10px 0 0 -10px;border:4px solid #111;border-radius:50%;background:#fff;pointer-events:none}.d3-rhand .d3-held{width:34px}
+.prof-avatars .prof-sub{grid-column:1/-1;margin:6px 0 0;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;opacity:.65}.prof-avatars .prof-sub:first-child{margin-top:0}
 /* names in two-player online games */
 .vs-bar{display:flex;align-items:center;justify-content:center;gap:10px;margin:-6px 0 12px;padding:7px 10px;border-radius:13px;background:#eef5ff;font-size:12px;font-weight:850;color:#27456d}
 .vs-bar span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

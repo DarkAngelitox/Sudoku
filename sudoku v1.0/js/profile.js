@@ -4,7 +4,12 @@
  */
 (()=>{
  const KEY='sudomi-profile',OLD_NAME='sudomi-player-name';
- const AVATARS=['🦊','🐼','🦉','🐯','🐸','🐵','🦄','🐙','🐶','🐱','🐰','🐨','🦁','🐧','🐢','🦜'];
+ /* 0.3.69 (dueño): más fotos de perfil, CARAS de animales y de personas (en la Mesa 3D del dominó el avatar es la cabeza del muñeco, y una cara queda mejor).
+  * Son emojis de un solo símbolo: las salas recortan el avatar a 4 caracteres, así que no valen los compuestos (tonos de piel, familias…).
+  * El primero de ANIMALS sigue siendo el zorro: es el avatar por defecto. */
+ const ANIMALS=['🦊','🐼','🦉','🐯','🐸','🐵','🦄','🐙','🐶','🐱','🐰','🐨','🦁','🐧','🐢','🦜','🐻','🐷','🐮','🐭','🐹','🐺','🐴','🐔'];
+ const PEOPLE=['👦','👧','👨','👩','🧑','🧔','👱','👴','👵','👶','🤠','😎','🤓','🥳','😇','🤡'];
+ const AVATARS=ANIMALS.concat(PEOPLE);
  const esc=t=>String(t).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
  const clean=n=>String(n||'').replace(/\s+/g,' ').trim().slice(0,14);
  // avatares especiales: los dragones. Solo se pueden elegir si el nombre es Madeline (los dibujos los pone js/avatar-art.js)
@@ -47,7 +52,7 @@
    <label class="prof-label" for="profName">Nombre <small>(así te verán los demás jugadores)</small></label>
    <input id="profName" maxlength="14" autocomplete="nickname" spellcheck="false" placeholder="Escribe tu nombre" value="${esc((profile&&profile.name)||'')}">
    <p class="prof-label">Elige tu avatar</p>
-   <div class="prof-avatars" id="profAvatars">${AVATARS.map(a=>`<button type="button" data-av="${a}" class="${a===chosen?'on':''}" aria-label="Avatar ${a}">${a}</button>`).join('')}</div>
+   <div class="prof-avatars" id="profAvatars">${[['Animales',ANIMALS],['Personas',PEOPLE]].map(([t,l])=>`<p class="prof-sub">${t}</p>`+l.map(a=>`<button type="button" data-av="${a}" class="${a===chosen?'on':''}" aria-label="Avatar ${a}">${a}</button>`).join('')).join('')}</div>
    <p class="prof-err" id="profErr"></p>
    <div class="prof-actions"><button class="prof-save" type="button">Guardar</button><button class="prof-cancel" type="button">Cancelar</button></div></div>`;
   document.body.appendChild(box);
