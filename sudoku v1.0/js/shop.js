@@ -68,34 +68,47 @@
  // 0.3.59 — neón de tubo (pedido del dueño, a partir de una foto de referencia): cada número es un contorno de luz de su propio color, sobre una loseta oscura. data-n lo pone watchBoard()
  const NEON_CSS=['255,61,242','41,168,255','255,154,31','53,224,74','255,79,139','255,167,38','47,224,106','255,92,154','47,180,255'].map((c,k)=>NEON_S.map(S=>`\n${S} .cell[data-n="${k+1}"],${S} .num-btn:nth-child(${k+1}),${S} .notes .note:nth-child(${k+1}){--nc:${c}}`).join('')).join('')
   +NEON_S.map(S=>`
-${S} .num-btn{color:transparent;-webkit-text-stroke:1.400px rgb(var(--nc));text-shadow:0 0 7px rgba(var(--nc),.6);border-color:rgb(var(--nc));box-shadow:0 0 0 1px rgb(var(--nc)),0 0 10px rgba(var(--nc),.5),inset 0 0 8px rgba(var(--nc),.2);font-family:${FONT_NEON}}
+${S} .num-btn{color:rgba(var(--nc),.14);-webkit-text-stroke:1.400px rgb(var(--nc));text-shadow:none;border-color:rgb(var(--nc));box-shadow:0 0 0 1px rgb(var(--nc)),0 0 10px rgba(var(--nc),.5),inset 0 0 8px rgba(var(--nc),.2);font-family:${FONT_NEON}}
 ${S} .num-btn small{-webkit-text-stroke:0;color:rgb(var(--nc));text-shadow:none}`).join('');
  const SD_LAPIZ=[numThumb('#fff8c9','#e2cf6a',4,`fill="#3d4350" font-family='${FONT_LAPIZ.replace(/"/g,'')}'`),numThumb('#ffffff','#c9d3e2',8,`fill="#3d4350" font-family='${FONT_LAPIZ.replace(/"/g,'')}'`)];
  const SD_ORO=[numThumb('#16120a','#c79a1e',9,'fill="#f6d36b" stroke="#7a5200" stroke-width="1.500" font-family="Georgia,serif"'),numThumb('#16120a','#c79a1e',1,'fill="#f6d36b" stroke="#7a5200" stroke-width="1.500" font-family="Georgia,serif"')];
  const WIN_FLAG=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="6" y="6" width="88" height="88" rx="14" fill="#fff"/><rect x="6" y="6" width="36" height="36" rx="10" fill="#002d62"/><rect x="58" y="6" width="36" height="36" rx="10" fill="#ce1126"/><rect x="6" y="58" width="36" height="36" rx="10" fill="#ce1126"/><rect x="58" y="58" width="36" height="36" rx="10" fill="#002d62"/><rect x="6" y="6" width="88" height="88" rx="14" fill="none" stroke="#10213b" stroke-width="4"/></svg>');
  const WIN_FALL=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="6" y="6" width="88" height="88" rx="14" fill="#10213b"/><g fill="#fff" stroke="#c9d3e2" stroke-width="2"><rect x="12" y="12" width="22" height="22" rx="4"/><rect x="66" y="12" width="22" height="22" rx="4"/><rect x="38" y="30" width="22" height="22" rx="4" transform="rotate(18 49 41)"/><rect x="14" y="52" width="22" height="22" rx="4" transform="rotate(-24 25 63)"/><rect x="62" y="62" width="22" height="22" rx="4" transform="rotate(35 73 73)"/></g></svg>');
  const WIN_FIRE=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="6" y="6" width="88" height="88" rx="14" fill="#0d1030"/><g stroke-width="4" stroke-linecap="round"><g stroke="#ffd54a"><path d="M36 38v-14M36 38v14M36 38h-14M36 38h14M36 38l-10-10M36 38l10 10M36 38l-10 10M36 38l10-10"/></g><g stroke="#ff4f8b"><path d="M68 64v-11M68 64v11M68 64h-11M68 64h11M68 64l-8-8M68 64l8 8M68 64l-8 8M68 64l8-8"/></g><g stroke="#29a8ff"><path d="M72 26v-7M72 26v7M72 26h-7M72 26h7"/></g></g></svg>');
+ /* 0.3.62 — número EQUIVOCADO con skin (pedido del dueño): Neón = tubo apagado · A lápiz = el número con un borrón en zigzag encima · Oro = se vuelve piedra.
+    La casilla lleva la clase sk-bad (la pone watchBoard: app.js quita «wrong» a los 220 ms y la skin se perdería). Entran con la misma animación de cada skin. */
+ const NEON_BAD=`color:transparent!important;font-family:${FONT_NEON};font-weight:800;-webkit-text-stroke:1.600px #a3abbc;text-shadow:none`;
+ const scrib=c=>uri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M10 30 Q50 14 88 22 Q46 38 16 52 Q52 40 86 46 Q44 62 14 78 Q52 66 90 70" fill="none" stroke="${c}" stroke-width="6.500" stroke-linecap="round" stroke-linejoin="round" opacity=".88"/></svg>`);
+ const LAPIZ_BAD=`color:#0b0b0d!important;font-family:${FONT_LAPIZ};font-weight:700`;
+ const ORO_BAD=`color:#8a8e96!important;font-family:${FONT_ORO};font-weight:900;text-shadow:0 1px 0 #eceef1,0 -1px 0 #4a4d55,1px 2px 2px #0006`;
+ const BAD_CSS=`
+body.skin-sudoku-lapiz #gameScreen .cell.sk-bad:not(.given)::after{content:"";position:absolute;inset:5%;background:${scrib('#0b0b0d')} center/100% 100% no-repeat;pointer-events:none}
+html[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell.sk-bad:not(.given){color:#e9edf5!important}
+html[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell.sk-bad:not(.given)::after{background-image:${scrib('#e9edf5')}}
+body.skin-sudoku-lapiz #gameScreen .cell.sk-bad.sk-in::after{animation:skScrib .5s steps(10,end) .4s both}
+@keyframes skScrib{0%{clip-path:inset(0 100% 0 0)}100%{clip-path:inset(0)}}`;
  const sdCss=(id,r)=>[`body.skin-sudoku-${id} #gameScreen`,`#shopScreen .pv-sk-${id}`].map(S=>`
-${S} .cell:not(.given):not(.wrong){${r.num}}
+${S} .cell:not(.given):not(.wrong):not(.sk-bad){${r.num}}
 ${S} .cell.selected{background:var(--cell,#fff)!important;${r.sel}}
-${S} .cell.same:not(.given):not(.wrong){color:${r.col}!important}
+${S} .cell.same:not(.given):not(.wrong):not(.sk-bad){color:${r.col}!important}
+${S} .cell.sk-bad:not(.given){${r.bad}}
 ${S} .note.on{${r.note}}
 ${S} .num-btn,${S} .erase-key,${S} .tool{${r.key}}
 ${S} .num-btn small{${r.small}}
 ${S} .tool.active{${r.active}}
 ${S} .num-btn.exhausted{${r.off}}`).join('');
- const SD_CSS=sdCss('neon',{col:'transparent',sel:'box-shadow:inset 0 0 0 3px #00d0ff,inset 0 0 11px #00d0ffaa,inset 0 0 3px 4px #ff4fd844',num:`color:transparent;font-family:${FONT_NEON};font-weight:800;-webkit-text-stroke:1.600px rgb(var(--nc,47,180,255));text-shadow:0 0 7px rgba(var(--nc,47,180,255),.55),0 0 14px rgba(var(--nc,47,180,255),.45)`,note:`color:rgb(var(--nc,47,180,255));font-family:${FONT_NEON};font-weight:900;-webkit-text-stroke:0;text-shadow:none;filter:saturate(1.15) brightness(.82)`,   // 0.3.60: las notas llevan el color de su número, sin resplandor. Van rellenas: a ese tamaño el contorno hueco no se lee
-   key:'background:#0b1020;color:#39e6ff;border-color:#00d0ff;box-shadow:0 0 0 1px #00d0ff,0 0 10px #00d0ff80,inset 0 0 8px #00d0ff33;text-shadow:0 0 6px #00e5ff',small:'color:#ff7be3;text-shadow:0 0 5px #ff4fd8',
+ const SD_CSS=sdCss('neon',{bad:NEON_BAD,col:'rgba(var(--nc,47,180,255),.14)',sel:'box-shadow:inset 0 0 0 3px #00d0ff,inset 0 0 11px #00d0ffaa,inset 0 0 3px 4px #ff4fd844',num:`color:rgba(var(--nc,47,180,255),.14);font-family:${FONT_NEON};font-weight:800;-webkit-text-stroke:1.600px rgb(var(--nc,47,180,255));text-shadow:none`,note:`color:rgb(var(--nc,47,180,255));font-family:${FONT_NEON};font-weight:900;-webkit-text-stroke:0;text-shadow:none;filter:saturate(1.15) brightness(.82)`,   // 0.3.60: las notas llevan el color de su número, sin resplandor. Van rellenas: a ese tamaño el contorno hueco no se lee
+   key:'background:#0b1020;color:#39e6ff;border-color:#00d0ff;box-shadow:0 0 0 1px #00d0ff,0 0 10px #00d0ff80,inset 0 0 8px #00d0ff33;text-shadow:none',small:'color:#ff7be3;text-shadow:none',
    active:'background:#ff2bd0;color:#fff;border-color:#ff8be6;box-shadow:0 0 12px #ff2bd0;text-shadow:none',off:'opacity:.35;box-shadow:none;text-shadow:none'})+NEON_CSS
-  +sdCss('lapiz',{col:'#0b0b0d',sel:'outline:2.500px dashed #0b0b0d;outline-offset:-5px;box-shadow:inset 0 0 0 1.500px #0b0b0d55',num:`color:#0b0b0d;font-family:${FONT_LAPIZ};font-weight:700`,note:`color:#6a7180;font-family:${FONT_LAPIZ}`,
+  +sdCss('lapiz',{bad:LAPIZ_BAD,col:'#0b0b0d',sel:'outline:2.500px dashed #0b0b0d;outline-offset:-5px;box-shadow:inset 0 0 0 1.500px #0b0b0d55',num:`color:#0b0b0d;font-family:${FONT_LAPIZ};font-weight:700`,note:`color:#6a7180;font-family:${FONT_LAPIZ}`,
    key:`background:#fff8c9;color:#3d4350;border-color:#e2cf6a;border-radius:5px 15px 7px 13px;box-shadow:2px 3px 0 #d9c65a;font-family:${FONT_LAPIZ}`,small:'color:#8a7a2a',
    active:'background:#ffd54a;color:#2a2200;border-color:#c9a400',off:'background:#efe9c8;color:#b3ab84;box-shadow:none'})
-  +sdCss('oro',{col:'#e6a400',sel:'box-shadow:inset 0 0 0 3px #e6a400,inset 0 0 0 4.500px #fff3b0,inset 0 0 11px #ffd54acc',num:`color:#e6a400;font-family:${FONT_ORO};font-weight:900;text-shadow:0 1px 0 #fff6c8,0 -1px 0 #8a5a00,0 0 7px #ffd54acc;animation:skShine 2.6s ease-in-out infinite`,note:'color:#c98f00;text-shadow:0 0 3px #ffd54a',
+  +sdCss('oro',{bad:ORO_BAD,col:'#e6a400',sel:'box-shadow:inset 0 0 0 3px #e6a400,inset 0 0 0 4.500px #fff3b0,inset 0 0 11px #ffd54acc',num:`color:#e6a400;font-family:${FONT_ORO};font-weight:900;text-shadow:0 1px 0 #fff6c8,0 -1px 0 #8a5a00,0 0 7px #ffd54acc;animation:skShine 2.6s ease-in-out infinite`,note:'color:#c98f00;text-shadow:0 0 3px #ffd54a',
    key:`background:linear-gradient(180deg,#3a2f14,#0e0c08);color:#ffe27a;border-color:#ffcf3f;box-shadow:0 3px 0 #8a6400,0 0 9px #ffc40077,inset 0 1px 0 #fff3b088;text-shadow:0 0 6px #ffc400cc;font-family:${FONT_ORO}`,small:'color:#ffd76a;text-shadow:none',
    active:'background:linear-gradient(180deg,#fff0a0,#f0b400);color:#2a1c00;border-color:#fff7d0;text-shadow:none;box-shadow:0 3px 0 #8a6400,0 0 14px #ffd54a',off:'opacity:.4;box-shadow:none;text-shadow:none'})
-  +'\nhtml[data-theme="dark"] body.skin-sudoku-oro #gameScreen .cell:not(.given):not(.wrong){color:#ffd75e!important}\nhtml[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell:not(.given):not(.wrong){color:#e9edf5!important}\nhtml[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell.selected{outline-color:#e9edf5;box-shadow:inset 0 0 0 1.500px #e9edf555}'
+  +'\nhtml[data-theme="dark"] body.skin-sudoku-oro #gameScreen .cell:not(.given):not(.wrong):not(.sk-bad){color:#ffd75e!important}\nhtml[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell:not(.given):not(.wrong):not(.sk-bad){color:#e9edf5!important}\nhtml[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell.selected{outline-color:#e9edf5;box-shadow:inset 0 0 0 1.500px #e9edf555}'
   // 0.3.56 — animación al poner un número (la clase sk-in y el <span class="sk-num"> los pone watchBoard(), más abajo): neón sube desde abajo, a lápiz se va escribiendo, oro cae desde arriba del tablero
-  +`\n@keyframes skShine{0%,100%{text-shadow:0 1px 0 #fff6c8,0 -1px 0 #8a5a00,0 0 5px #ffd54a99}50%{text-shadow:0 1px 0 #fff,0 -1px 0 #8a5a00,0 0 12px #ffe27a,0 0 20px #ffc40099}}
+  +BAD_CSS+`\n@keyframes skShine{0%,100%{text-shadow:0 1px 0 #fff6c8,0 -1px 0 #8a5a00,0 0 5px #ffd54a99}50%{text-shadow:0 1px 0 #fff,0 -1px 0 #8a5a00,0 0 12px #ffe27a,0 0 20px #ffc40099}}
 #gameScreen .cell.sk-in{z-index:3}#gameScreen .cell .sk-num{display:inline-block;pointer-events:none}
 body.skin-sudoku-neon #gameScreen .cell.sk-in{overflow:hidden}
 body.skin-sudoku-neon #gameScreen .sk-num{animation:skNeon .5s cubic-bezier(.2,1.3,.4,1)}
@@ -111,12 +124,12 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
   const b=document.getElementById('board');if(!b||!window.MutationObserver)return;let prev=null;
   new MutationObserver(()=>{
    const cells=b.children;if(cells.length!==81){prev=null;return}
-   const cur=Array.prototype.map.call(cells,c=>c.classList.contains('given')?'g':/^[1-9]$/.test(c.textContent)?(c.dataset.n=c.textContent):'');   // data-n: qué número tiene cada casilla tuya (la skin Neón lo usa para el color)
+   const cur=Array.prototype.map.call(cells,c=>c.classList.contains('given')?'g':/^[1-9]$/.test(c.textContent)?(c.classList.toggle('sk-bad',c.classList.contains('wrong')),c.dataset.n=c.textContent):'');   // data-n: qué número tiene cada casilla tuya (la skin Neón lo usa para el color)
    const id=Skins.active('sudoku');
    if(id&&SD_SND[id]&&prev){const ch=[];for(let i=0;i<81;i++)if(cur[i]&&cur[i]!=='g'&&cur[i]!==prev[i])ch.push(i);
     if(ch.length===1){const c=cells[ch[0]];
-     if(!c.classList.contains('wrong')){const s=document.createElement('span');s.className='sk-num';s.textContent=cur[ch[0]];c.textContent='';c.appendChild(s);c.classList.add('sk-in');
-      c.style.setProperty('--fall',-(c.offsetTop+c.offsetHeight)+'px');try{window.SudomiSound&&SudomiSound.play(SD_SND[id])}catch(_){}}}}
+     {const bad=c.classList.contains('wrong');const s=document.createElement('span');s.className='sk-num';s.textContent=cur[ch[0]];c.textContent='';c.appendChild(s);c.classList.add('sk-in');
+      c.style.setProperty('--fall',-(c.offsetTop+c.offsetHeight)+'px');if(!bad||id==='lapiz')try{window.SudomiSound&&SudomiSound.play(SD_SND[id])}catch(_){}}}}
    prev=cur;
   }).observe(b,{childList:true});
  }
