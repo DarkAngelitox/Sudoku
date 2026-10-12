@@ -248,7 +248,7 @@ const markRecent=id=>{try{localStorage.setItem('sudomi-recent',JSON.stringify([i
 function altMode(k){const sc=$('#miniGamesScreen');if(!sc)return;if(k)sc.dataset.alt=k;else delete sc.dataset.alt}
 window.SudomiAltMode=altMode;
 function renderHub(){
- altMode('');
+ altMode('');dpSeed();
  const saved=window.SudomiLAN&&!SudomiLAN.session?SudomiLAN.saved:null,item=saved&&games.find(g=>g[0]===saved.session.game);
  const resume=item?`<div class="wifi-resume"><span>📶</span><div><strong>Partida ${netInfo().label} en curso</strong><small>${item[2]} · sala ${saved.session.room}</small></div><button id="resumeWifi">Reconectar</button><button id="dropWifi" aria-label="Descartar">✕</button></div>`:'';
  // 0.3.2 (V2, Fase 3): la lista va por GRUPOS, con una fila «Continuar» (los últimos juegos abiertos) y etiquetas (jugadores · Online) en vez del botón «Elegir modo»
@@ -261,7 +261,7 @@ function renderHub(){
   ${GROUPS.map(([title,ids])=>`<h3 class="games-group-h">${title}</h3><div class="games-grid">${ids.map(byId).filter(Boolean).map(card).join('')}</div>`).join('')}`;
  hub.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>{chooseMode(b.dataset.game)});
  hub.querySelectorAll('[data-park]').forEach(b=>b.onclick=()=>resumeParked(+b.dataset.park));
- hub.querySelectorAll('[data-unpark]').forEach(b=>b.onclick=()=>{const p=parked()[+b.dataset.unpark];if(p)unpark(p.id,p.mode);renderHub()});
+ hub.querySelectorAll('[data-unpark]').forEach(b=>b.onclick=()=>{const p=parked()[+b.dataset.unpark];if(p){unpark(p.id,p.mode);try{const M=p.mod&&window[p.mod];if(M&&M.parkDrop)M.parkDrop()}catch(_){}}renderHub()});
  if(item){$('#resumeWifi').onclick=()=>resumeWifi(saved);$('#dropWifi').onclick=()=>{SudomiLAN.forget();try{localStorage.removeItem(HOST_KEY)}catch(_){}renderHub()}}
 }
 // 0.2.58: every game offers the same two ways to play: PVE (you against the computer) and Multijugador (people; empty seats are filled by the computer)
@@ -385,31 +385,70 @@ const QR_GAMES=['checkers','tictactoe','connect4','dotsboxes','memory'];
 async function qrOffer(id){}
 function qrLobby(id){SudomiQR.activate();wifiLobby(id,{qr:true})}
 /* 0.3.42 (dueño) — PARTIDAS GUARDADAS: al salir de una partida a medias se guarda, y la fila «Continuar» del arcade la retoma donde quedó.
- *   · Se guardan las últimas PARK_MAX (3), en este teléfono ('sudomi-parked'). Una por juego y modo: si guardas otra del mismo, sustituye a la anterior.
+ *   · Se guardan las últimas PARK_MAX (6), en este teléfono ('sudomi-parked'). Una por juego y modo: si guardas otra del mismo, sustituye a la anterior.
  *   · Vale para los juegos que viven en este archivo y en extra-games.js, sin conexión: Ajedrez, Damas, 4 en línea, Tres en raya, Buscaminas,
- *     Dominó, Memoria, Puntos y cajas, Escoba, Rummy, Fichas deslizantes. NO vale (todavía) para los que tienen archivo propio
- *     (DOS, STOP, Parchimi, Dominópolis, Batalla naval, Mahjong, Blackjack, Póker) ni para partidas online.
+ *     Dominó, Memoria, Puntos y cajas, Escoba, Rummy, Fichas deslizantes. Los que tienen archivo propio (DOS, STOP, Parchimi, Dominópolis,
+ *     Batalla naval, Mahjong, Blackjack, Póker) se guardan desde 0.3.63 (ver PARK_MODS más abajo). NO vale para partidas online.
  *   · Se guarda lo mismo que ya se mandaba al otro teléfono en una partida Wi-Fi (fullState) y se repone con applyWifiSnapshot.
  *   · También se guarda sola si cierras la app en medio de la partida (pagehide). Al terminar la partida, la copia se borra (render). */
-const PARK_KEY='sudomi-parked',PARK_MAX=3;
-const PARK_MODES={pve:'Contra la máquina',pvp:'En este dispositivo',clock:'Contra el reloj',practice:'Práctica',daily:'Reto diario'};
+const PARK_KEY='sudomi-parked',PARK_MAX=6;   // 0.3.63: eran 3; con los juegos de archivo propio se quedaba corto y la más vieja se perdía sin avisar
+const PARK_MODES={pve:'Contra la máquina',pvp:'En este dispositivo',clock:'Contra el reloj',practice:'Práctica',daily:'Reto diario',clasico:'Modo clásico'};
 function parked(){try{const v=JSON.parse(localStorage.getItem(PARK_KEY));return Array.isArray(v)?v.filter(x=>x&&x.snap&&games.some(g=>g[0]===x.id)).slice(0,PARK_MAX):[]}catch(_){return []}}
 function parkWrite(l){try{localStorage.setItem(PARK_KEY,JSON.stringify(l.slice(0,PARK_MAX)))}catch(_){}}
-const canPark=()=>!!game&&!!current&&!wifi.active&&!(game.over||game.done)&&!stage.classList.contains('hidden');
+/* 0.3.63 (dueño) — también se guardan los juegos con ARCHIVO PROPIO (DOS, STOP y STOP clásico, Parchimi, Dominópolis, Batalla naval, Mahjong,
+ * Blackjack, Póker), solo sin conexión. Cada archivo ofrece dos funciones:
+ *   · parkState()            → null (no hay partida local) · {mode,over:true} (terminó: se borra la copia) · {mode,snap} (a medias: se guarda snap)
+ *   · parkResume(ui,snap,mode) → abre el juego con esa partida; devuelve false si la copia no sirve
+ * modSync() pregunta a todos y deja la lista igual a lo que hay. Se llama al salir (park), al cerrar o esconder la app, y cada archivo la llama
+ * en su close() ANTES de borrar la partida (window.SudomiPark.sync), así el botón «Juegos» de cada juego también guarda. */
+const PARK_MODS=[['dos','SudomiDos'],['stop','SudomiStop'],['stop','SudomiStopClasico'],['parchis','SudomiParchis'],['dominopolis','SudomiDominopolis'],['fleet','SudomiNaval'],['mahjong','SudomiMahjong'],['blackjack','SudomiBlackjack'],['poker','SudomiPoker']];
+const modStates=()=>PARK_MODS.map(([id,k])=>{let st=null;try{const M=window[k];st=M&&M.parkState?M.parkState():null}catch(_){}return st?{id,k,st}:null}).filter(Boolean);
+const modLive=()=>modStates().some(x=>!x.st.over&&x.st.snap);
+function modSync(){
+ const found=modStates();if(!found.length)return false;
+ let l=parked(),kept=false;
+ for(const {id,k,st} of found){
+  l=l.filter(x=>!(x.id===id&&x.mode===st.mode));
+  if(st.over||!st.snap)continue;
+  let snap;try{snap=JSON.parse(JSON.stringify(st.snap))}catch(_){continue}
+  l.unshift({id,mode:st.mode,ts:Date.now(),mod:k,snap});kept=true;
+ }
+ parkWrite(l);return kept;
+}
+window.SudomiPark={sync:modSync};
+// Dominópolis guarda su partida aparte ('sudomi-dominopolis-save'): la lista «Continuar» solo lleva el aviso, y aquí se pone o se quita según exista
+function dpSeed(){
+ let has=false;try{has=!!(window.SudomiDominopolis&&SudomiDominopolis.hasSave&&SudomiDominopolis.hasSave())}catch(_){}
+ const l=parked(),i=l.findIndex(x=>x.mod==='SudomiDominopolis');
+ if(has&&i<0){l.push({id:'dominopolis',mode:'pve',ts:Date.now(),mod:'SudomiDominopolis',snap:{own:1}});parkWrite(l)}
+ else if(!has&&i>=0){l.splice(i,1);parkWrite(l)}
+}
+const canParkOwn=()=>!!game&&!!current&&!wifi.active&&!(game.over||game.done)&&!stage.classList.contains('hidden');
+const canPark=()=>canParkOwn()||modLive();
 function park(){
- if(!canPark())return false;
- let snap;try{snap=JSON.parse(JSON.stringify(fullState()))}catch(_){return false}
+ const m=modSync();
+ if(!canParkOwn())return m;
+ let snap;try{snap=JSON.parse(JSON.stringify(fullState()))}catch(_){return m}
  const l=parked().filter(x=>!(x.id===current&&x.mode===game.mode));
  l.unshift({id:current,mode:game.mode,ts:Date.now(),ai:aiPick||null,snap});parkWrite(l);return true;
 }
 function unpark(id,mode){const l=parked();if(l.some(x=>x.id===id&&x.mode===mode))parkWrite(l.filter(x=>!(x.id===id&&x.mode===mode)))}
 function resumeParked(i){
  const p=parked()[i];if(!p)return;
+ if(p.mod){
+  let ok=false;current=null;game=null;navId=p.id;
+  try{const M=window[p.mod];ok=!!(M&&M.parkResume&&M.parkResume({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}},p.snap,p.mode))}
+  catch(e){console.warn('SUDOMI: no se pudo retomar la partida',e)}
+  if(ok){markRecent(p.id);altMode(p.mod==='SudomiStopClasico'?'stop':p.id==='parchis'&&p.snap&&/"war":true/.test(p.snap.ck||'')?'war':'')}
+  else{unpark(p.id,p.mode);exitStage();renderHub()}
+  return;
+ }
  try{launch(p.id,p.mode);if(p.ai)aiPick=p.ai;applyWifiSnapshot(p.snap);render()}
  catch(e){console.warn('SUDOMI: no se pudo retomar la partida',e);unpark(p.id,p.mode);exitStage();renderHub()}
 }
 const parkAgo=ts=>{const m=Math.max(0,Math.round((Date.now()-ts)/60000));return m<1?'ahora mismo':m<60?`hace ${m} min`:m<1440?`hace ${Math.round(m/60)} h`:`hace ${Math.round(m/1440)} d`};
 window.addEventListener('pagehide',()=>{try{park()}catch(_){}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){try{park()}catch(_){}}});   // 0.3.63: en el iPhone, al mandar la app al fondo no siempre llega «pagehide»
 function launch(id,mode='pve'){current=id;navId=id;if(mode==='pve')aiPick=randomAi(3);wifi.active=mode==='wifi';game=create(id,mode==='wifi'?'pvp':mode);if(wifi.active)game.wifi=true;hub.classList.add('hidden');stage.classList.remove('hidden');render();}
 function wifiLobby(id,opts={}){
  if(!window.SudomiLAN){hub.innerHTML='<p>No se cargó el módulo de conexión.</p>';return}

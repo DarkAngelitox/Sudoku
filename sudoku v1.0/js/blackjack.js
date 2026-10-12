@@ -65,8 +65,13 @@
  }
  async function deal(){
   if(!S||S.phase!=='bet'||!S.bet||S.bet>readChips())return;const t=++token;
-  writeChips(readChips()-S.bet);S.last=S.bet;S.hands=[{cards:[],bet:S.bet,done:false,doubled:false,res:''}];S.dealer=[];S.hide=true;S.phase='deal';S.msg='Repartiendo…';S.net=0;
-  for(const who of ['p','d','p','d']){(who==='p'?S.hands[0].cards:S.dealer).push(draw1());play('tap');render();if(!await sleep(380,t))return}
+  writeChips(readChips()-S.bet);S.last=S.bet;S.hands=[{cards:[],bet:S.bet,done:false,doubled:false,res:''}];S.dealer=[];S.hide=true;S.phase='deal';S.msg='Repartiendo…';S.net=0;dirty=true;
+  return dealRest(t);
+ }
+ // reparte lo que falte hasta dos cartas cada uno (tú, banca, tú, banca). Aparte de deal() para poder retomar una mano guardada a medio repartir
+ async function dealRest(t){
+  const mine=S.hands[0].cards;
+  while(mine.length<2||S.dealer.length<2){(mine.length<=S.dealer.length?mine:S.dealer).push(draw1());play('tap');render();if(!await sleep(380,t))return}
   const pb=isBJ(S.hands[0].cards),db=isBJ(S.dealer);
   if(pb||db){S.hands[0].done=true;return finish(t)}
   S.phase='play';S.cur=0;S.msg='Tu turno';render();
@@ -106,7 +111,22 @@
   play(S.net>0?'win':S.net<0?'bad':'pop');render();
   try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:'blackjack',won:S.net>0}}))}catch(_){}
  }
- function open(opts){ui=opts;ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');token++;newRound(0)}
- function close(){token++;S=null}
- window.SudomiBlackjack={open,close,playing:()=>!!S&&(S.phase==='deal'||S.phase==='play'||S.phase==='dealer'),_state:()=>S,_deck:d=>{deck=d}};
+ function open(opts){ui=opts;ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');token++;dirty=false;newRound(0)}
+ function close(){try{window.SudomiPark&&SudomiPark.sync()}catch(_){}token++;S=null}
+ /* 0.3.63 — MANO GUARDADA (ver PARK_MODS en other-games.js). Solo se guarda una mano a medias (tu apuesta ya está descontada de tus fichas):
+  * las cartas, la apuesta y el mazo. Entre mano y mano no hay nada que guardar: las fichas ya viven en 'sudomi-chips'.
+  * dirty = en esta visita se jugó o se retomó una mano → al terminarla se borra la copia guardada (si no, se podría cobrar dos veces). */
+ let dirty=false;
+ const playing=()=>!!S&&(S.phase==='deal'||S.phase==='play'||S.phase==='dealer');
+ function parkState(){return ui&&S?(playing()?{mode:'pve',snap:{S,deck}}:dirty?{mode:'pve',over:true}:null):null}
+ function parkResume(o,s){
+  const st=s&&s.S;
+  if(!st||!['deal','play','dealer'].includes(st.phase)||!Array.isArray(st.hands)||!st.hands.length||!Array.isArray(st.dealer))return false;
+  open(o);S=st;deck=Array.isArray(s.deck)?s.deck:[];dirty=true;const t=++token;
+  if(S.phase==='play'){while(S.cur<S.hands.length-1&&S.hands[S.cur].done)S.cur++;render()}
+  else if(S.phase==='deal')dealRest(t);
+  else finish(t);
+  return true;
+ }
+ window.SudomiBlackjack={open,close,parkState,parkResume,playing:()=>!!S&&(S.phase==='deal'||S.phase==='play'||S.phase==='dealer'),_state:()=>S,_deck:d=>{deck=d}};
 })();

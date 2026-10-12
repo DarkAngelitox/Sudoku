@@ -688,6 +688,7 @@
   while(g&&!g.over&&t===token){
    const c=g.players[g.turn],who=nm(c),W=g.war;
    g.opts=[];g.bonus=[];
+   if(net.role==='solo'){try{CK=JSON.stringify(g)}catch(_){CK=null}}   // 0.3.63: foto de la partida al empezar cada tirada (es lo que se guarda al salir)
    if(W&&g.frozen[c]){g.frozen[c]=false;g.phase='anim';say(`❄️ ${who} está congelado y pierde el turno`);if(!await sleep(1300,t))return;next();continue}
    g.phase='roll';
    say(g.doubles?`¡Pareja ${g.doubles} de 3! ${who} tira otra vez${g.doubles===2?' (otra pareja y pierde la última ficha que movió)':''}`:`Turno de ${who}`);   // 0.3.48: se cuenta a la vista, para que se sepa cuándo viene el castigo
@@ -824,9 +825,19 @@
   if(net.conn){try{net.conn.close()}catch(_){}}
   Object.assign(net,{role:'solo',room:null,conn:null,code:'',seats:[],started:false,me:0,war:false,n4:2});
  }
- function stopGame(){token++;rollTok++;rolling=false;g=null;aim=null;choice=null;const pend=[...waits.values()];waits.clear();pend.forEach(res=>res(null))}
+ function stopGame(){token++;rollTok++;rolling=false;g=null;CK=null;aim=null;choice=null;const pend=[...waits.values()];waits.clear();pend.forEach(res=>res(null))}
  function leave(){close();const u=ui;if(u){u.stage.innerHTML='';u.exit()}}
- function close(){stopGame();leaveNet();net.status=''}
+ function close(){try{window.SudomiPark&&SudomiPark.sync()}catch(_){}stopGame();leaveNet();net.status=''}
+ /* 0.3.63 — PARTIDA GUARDADA (contra la máquina o en este dispositivo; ver PARK_MODS en other-games.js). Se guarda la foto CK que run() toma al
+  * empezar cada tirada: al retomar, le toca tirar a quien le tocaba. Lo que se había movido en una tirada a medias se repite. */
+ let CK=null;
+ function parkState(){const m=mode==='pvp'?'pvp':'pve';return net.role==='solo'&&g?(g.over?{mode:m,over:true}:CK?{mode:m,snap:{ck:CK}}:null):null}
+ function parkResume(o,s,m){
+  let st=null;try{st=JSON.parse(s.ck)}catch(_){}
+  if(!st||!Array.isArray(st.players)||!st.pos||!st.seats)return false;
+  open(o,m==='pvp'?'pvp':'pve');stopGame();
+  g=st;g.fx=null;g.duel=null;setup.war=!!g.war;setup.n=g.players.length;if(g.war)setup.n4=g.pos[g.players[0]].length===4?4:2;renderGame();run(++token);return true;
+ }
  function open(opts,m,code){
   ui=opts;ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');
   if(m==='join'){mode='online';joinRoom(code);return}
@@ -838,5 +849,5 @@
   const loop=()=>{if(!box.isConnected)return;el.style.transition='none';at(A);setTimeout(()=>{if(!box.isConnected)return;at(H);killRun(box,el,{k:kind,x:A[0],y:A[1]},'#e53935',()=>H,()=>box.isConnected,()=>{});setTimeout(loop,KILLS[kind]+900)},700)};
   loop();
  }
- window.SudomiParchis={demoKill,open,close,join:code=>joinRoom(code),themes:THEMES,cards:CARDS,_state:()=>g,_net:()=>net,_ev:e=>onHost(e),_legal:legal,_useCard:useCard,_targets:cardTargets,_setState:s=>{Object.assign(g,s);place();update()}};
+ window.SudomiParchis={demoKill,open,close,parkState,parkResume,join:code=>joinRoom(code),themes:THEMES,cards:CARDS,_state:()=>g,_net:()=>net,_ev:e=>onHost(e),_legal:legal,_useCard:useCard,_targets:cardTargets,_setState:s=>{Object.assign(g,s);place();update()}};
 })();

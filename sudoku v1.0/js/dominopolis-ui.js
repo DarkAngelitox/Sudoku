@@ -623,10 +623,16 @@
     });
   }
   function open(opts) { ui = opts; ui.hub.classList.add('hidden'); ui.stage.classList.remove('hidden'); netMode = 'solo'; status = ''; renderMenu() }
-  function leave() { untrack(); try { if (netMode === 'host') localStorage.removeItem(HOST_KEY) } catch (_) {} token++; clearTimeout(aiTimer); const u = ui; g = null; leaveNet(); netMode = 'solo'; if (u) { u.stage.innerHTML = ''; u.exit() } }
+  // 0.3.63: la partida contra la máquina ya se guardaba sola (SAVE_KEY, tras cada jugada); ahora además sale en la fila «Continuar» del arcade
+  // (ver PARK_MODS en other-games.js). La copia sigue siendo la de SAVE_KEY: en la lista solo va un aviso de que existe.
+  const parkSync = () => { try { window.SudomiPark && SudomiPark.sync() } catch (_) {} };
+  function parkState() { return netMode === 'solo' && g && started ? (g.over ? { mode: 'pve', over: true } : getSave() ? { mode: 'pve', snap: { own: 1 } } : null) : null }
+  function parkResume(o) { if (!getSave()) return false; open(o); resumeSolo(); return true }
+  function parkDrop() { try { localStorage.removeItem(SAVE_KEY) } catch (_) {} }
+  function leave() { parkSync(); untrack(); try { if (netMode === 'host') localStorage.removeItem(HOST_KEY) } catch (_) {} token++; clearTimeout(aiTimer); const u = ui; g = null; leaveNet(); netMode = 'solo'; if (u) { u.stage.innerHTML = ''; u.exit() } }
   function joinFromInvite(code, opts) {
     if (opts && opts.role === 'host') { if (getHostSave()) return resumeHost(); untrack(); status = 'La sala ya no se puede reabrir.'; return renderMenu() }
     joinCode = code; if (ui) joinRoom(code);
   }
-  window.SudomiDominopolis = { open, join: joinFromInvite, resumeHost, soloSetup: () => renderMenu(), create: n => { setup.size = n; createRoom() }, close() { token++; g = null; leaveNet() }, _state: () => g, _refresh: () => { if (g) refresh() }, _seats: () => seats };
+  window.SudomiDominopolis = { open, join: joinFromInvite, resumeHost, soloSetup: () => renderMenu(), create: n => { setup.size = n; createRoom() }, close() { parkSync(); token++; g = null; leaveNet() }, parkState, parkResume, parkDrop, hasSave: () => !!getSave(), _state: () => g, _refresh: () => { if (g) refresh() }, _seats: () => seats };
 })();

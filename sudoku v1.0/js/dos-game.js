@@ -339,7 +339,13 @@
  }
  function reset(){emotes=[];emoOpen=false;try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}clearTimeout(aiTimer);clearTimeout(graceTimer);aiTimer=null;if(net){try{net.close()}catch(_){}}net=null;S=null;V=null;seats=[];started=false;pick=null;status='';roomCode='';offline=false;mode=null;busy=false}
  function open(opts){ui=opts;reset();screen='menu';ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');render()}
- function close(){if(!ui)return;reset();screen='menu'}
+ function close(){if(!ui)return;try{window.SudomiPark&&SudomiPark.sync()}catch(_){}reset();screen='menu'}
+ // 0.3.63: la partida contra la máquina se guarda al salir y se retoma desde «Continuar» (ver PARK_MODS en other-games.js)
+ function parkState(){return mode==='solo'&&S?(S.winner>=0?{mode:'pve',over:true}:{mode:'pve',snap:{S,seats}}):null}
+ function parkResume(o,s){
+  if(!s||!s.S||!Array.isArray(s.S.hands)||!Array.isArray(s.seats))return false;
+  open(o);mode='solo';seats=s.seats;started=true;S=s.S;shown={seq:-1,n:0,top:null,hand:[],counts:[],color:null};pushState();return true;
+ }
  function leave(){try{window.SudomiFriends&&SudomiFriends.untrack()}catch(_){}const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}}
 
  /* ----- host / solo ----- */
@@ -607,5 +613,5 @@
   if(v.winner>=0){$('#dosEndExit').onclick=leave;const again=$('#dosAgain');if(again)again.onclick=()=>{S=newGame(seats.map(x=>x.name),seats.map(x=>x.kind));pushState()}}
  }
 
- window.SudomiDos={open,close,join:code=>joinRoom(code),solo:()=>startSolo(),create:n=>createRoom(n),_engine:{newGame,act,viewFor,aiMove,canPlay}};
+ window.SudomiDos={open,close,parkState,parkResume,join:code=>joinRoom(code),solo:()=>startSolo(),create:n=>createRoom(n),_engine:{newGame,act,viewFor,aiMove,canPlay}};
 })();

@@ -193,9 +193,23 @@
   }
   return true;
  }
- async function run(t){
+ /* 0.3.63 — PARTIDA GUARDADA (contra la máquina o en este dispositivo; ver PARK_MODS en other-games.js). Se guarda la foto CK que run() toma al
+  * empezar cada ronda (o cada turno, en el mismo dispositivo), con las flotas ya colocadas: al retomar se vuelve a elegir el ataque de esa ronda.
+  * run(t,true) retoma: se salta la colocación de las flotas. */
+ let CK=null;
+ const ck=()=>{if(net.role!=='solo')return;try{CK=JSON.stringify(G)}catch(_){CK=null}};
+ function parkState(){const m=umode==='pvp'?'pvp':'pve';return net.role==='solo'&&G?(G.over?{mode:m,over:true}:CK?{mode:m,snap:{ck:CK}}:null):null}
+ function parkResume(o,s,m){
+  let st=null;try{st=JSON.parse(s.ck)}catch(_){}
+  if(!st||!MODES[st.mode]||!Array.isArray(st.fleets)||!Array.isArray(st.shots)||!Array.isArray(st.seats))return false;
+  open(o,st.local?'pvp':'pve');stop();
+  G=st;noTouch=!!G.noTouch;setup.mode=G.mode;setup.noTouch=!!G.noTouch;build(G.N);run(++token,true);return true;
+ }
+ async function run(t,resumed){
   // 1) cada quien coloca su flota
   const place=(p,a)=>{G.fleets[p]=a&&validFleet(a.ships,G.N)?a.ships.map(s=>({k:s.k,len:s.len,r:s.r,c:s.c,v:!!s.v})):randomFleet(G.N);G.ready[p]=true};
+  if(resumed){if(G.local){G.phase='pass';push();await ask(G.turn);if(t!==token)return}}
+  else{
   G.phase='setup';
   if(net.role==='host'){push();await Promise.all([0,1].map(p=>(auto(p)?Promise.resolve(null):ask(p)).then(a=>{if(t!==token)return;place(p,a);push()})));if(t!==token)return}
   else if(!G.local){G.fleets[1]=randomFleet(G.N);G.ready[1]=true;push();const a=await ask(0);if(t!==token)return;place(0,a)}
@@ -206,10 +220,11 @@
    G.turn=0;G.phase='pass';push();await ask(0);if(t!==token)return;
   }
   G.turn=0;
-  if(G.sim){while(G&&!G.over&&t===token){if(!await simRound(t))return}return}
+  }
+  if(G.sim){while(G&&!G.over&&t===token){ck();if(!await simRound(t))return}return}
   // 2) turnos (solo en el mismo teléfono)
   while(G&&!G.over&&t===token){
-   const p=G.turn,f=1-p;
+   const p=G.turn,f=1-p;ck();
    G.turnNo++;G.phase='aim';G.used[p]=false;G.moved[p]=false;Object.keys(G.cd[p]).forEach(k=>{if(G.cd[p][k]>0)G.cd[p][k]--});
    G.msg='';push();
    for(;;){
@@ -469,12 +484,12 @@
   else if(d.t==='snd'){try{window.SudomiSound&&SudomiSound.play(d.n)}catch(_){}}
  }
  function leaveNet(){net.tok++;if(net.room){try{net.room.close()}catch(_){}}if(net.conn){try{net.conn.close()}catch(_){}}Object.assign(net,{role:'solo',room:null,conn:null,code:'',seats:[],started:false,me:0})}
- function stop(){token++;G=null;V=null;const p=[...waits.values()];waits.clear();p.forEach(r=>r(null))}
- function close(){stop();leaveNet();net.status=''}
+ function stop(){token++;G=null;V=null;CK=null;const p=[...waits.values()];waits.clear();p.forEach(r=>r(null))}
+ function close(){try{window.SudomiPark&&SudomiPark.sync()}catch(_){}stop();leaveNet();net.status=''}
  function open(opts,m,code){
   ui=opts;ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');
   if(m==='join'){umode='online';joinRoom(code);return}
   umode=m==='pvp'||m==='online'?m:'pve';renderMenu();
  }
- window.SudomiNaval={open,close,join:code=>joinRoom(code),_state:()=>G,_view:()=>V,_net:()=>net,_act:act,_ev:e=>onHost(e)};
+ window.SudomiNaval={open,close,parkState,parkResume,join:code=>joinRoom(code),_state:()=>G,_view:()=>V,_net:()=>net,_act:act,_ev:e=>onHost(e)};
 })();

@@ -125,7 +125,14 @@
 
  function reset(){try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}clearInterval(clock);clock=null;clearTimeout(sendTimer);if(net){try{net.close()}catch(_){}}net=null;classic=false;S=null;V=null;seats=[];status='';roomCode='';offline=false;mode=null;busy=false;lastKey=''}
  function open(opts){ui=opts;reset();screen='menu';ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');render()}
- function close(){if(!ui)return;reset();screen='menu'}
+ function close(){if(!ui)return;try{window.SudomiPark&&SudomiPark.sync()}catch(_){}reset();screen='menu'}
+ // 0.3.63: la partida contra la máquina se guarda al salir (letra, lo escrito, segundos que quedan y puntos) y se retoma desde «Continuar»
+ function parkState(){return mode==='solo'&&S?{mode:'pve',snap:{S,seats,draft}}:null}
+ function parkResume(o,s){
+  if(!s||!s.S||!Array.isArray(s.S.cats)||!Array.isArray(s.seats))return false;
+  open(o);mode='solo';seats=s.seats;S=s.S;draft=clean10(s.draft);draftKey=S.round+':0';focus=-1;if(S.phase==='result')resRound=S.round;
+  startClock();pushState();return true;
+ }
  function leave(){try{window.SudomiFriends&&SudomiFriends.untrack()}catch(_){}const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}}
 
  /* ----- host / solo ----- */
@@ -326,5 +333,5 @@
   const lv=$('#spLeave');if(lv)lv.onclick=leave;
  }
 
- window.SudomiStop={open,close,join:code=>joinRoom(code),solo:()=>startSolo(),create:n=>createRoom(n),_engine:{newRound,submit,mark,ready,tick,viewFor,score,aiAnswers,WORDS}};
+ window.SudomiStop={open,close,parkState,parkResume,join:code=>joinRoom(code),solo:()=>startSolo(),create:n=>createRoom(n),_engine:{newRound,submit,mark,ready,tick,viewFor,score,aiAnswers,WORDS}};
 })();
