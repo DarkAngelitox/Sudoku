@@ -430,7 +430,7 @@
   // los dos huecos de carta de cada jugador, en las esquinas de su casa
   ui.stage.querySelectorAll('.pc-slot').forEach(e=>{
    const sc=+e.dataset.c,k=+e.dataset.k,key=g.cards[sc][k],ok=!!key&&cardTime()&&mine(sc)&&cardUsable(sc,key);
-   e.textContent=key?CARDS[key].e:'';e.classList.toggle('full',!!key);e.classList.toggle('on',!!aim&&aim.c===sc&&aim.idx===k);e.disabled=!ok;
+   e.textContent=key?CARDS[key].e:'';e.classList.toggle('full',!!key);e.classList.toggle('on',!!aim&&aim.c===sc&&aim.idx===k);e.disabled=!key||!mine(sc);e.classList.toggle('ready',ok);   // 0.3.64: la carta se puede tocar siempre; si ahora no sirve, explica por qué (antes no hacía nada)
    e.title=key?CARDS[key].n+': '+CARDS[key].d:'Hueco para una carta';
   });
   const info=$('#pcCardInfo');
@@ -578,7 +578,8 @@
   $('#pcAgain').onclick=()=>{if(net.role==='host')startOnline();else start()};
   $('#pcDice').onclick=()=>{if(!g||g.over||g.phase!=='roll'||!mine(g.players[g.turn]))return;aim=null;if(net.role==='guest'){net.conn.send({t:'roll'});return}answer('roll',g.players[g.turn],true)};
   ui.stage.querySelectorAll('.pc-slot').forEach(e=>e.onclick=()=>{   // tocar una carta: se elige (sale qué hace); tocarla otra vez la suelta
-   const c=+e.dataset.c,idx=+e.dataset.k,key=g&&g.cards[c][idx];if(!key||!cardTime()||!mine(c))return;
+   const c=+e.dataset.c,idx=+e.dataset.k,key=g&&g.cards[c][idx];if(!key||!mine(c))return;
+   if(!cardTime()||!cardUsable(c,key)){if(!$('.pc-sheet')&&!g.over)sheet('<h3>'+CARDS[key].e+' '+CARDS[key].n+'</h3><p>'+esc(CARDS[key].d)+'</p><p><b>Ahora no se puede usar:</b> '+(!cardTime()?'espera a que termine la jugada que se está moviendo. Las cartas se usan antes de tirar o mientras alguien elige su ficha.':key==='turbo'?'necesitas una ficha fuera de casa.':key==='motoconcho'?'no te quedan fichas en casa o tu salida está ocupada.':'no hay ninguna ficha a la que se le pueda aplicar (las que tienen escudo o están en pareja no cuentan para algunas cartas).')+'</p>');return}
    aim=aim&&aim.c===c&&aim.idx===idx?null:{c,idx,key,first:null};choice=null;update(true);
   });
   ui.stage.querySelectorAll('.pc-die').forEach(e=>e.onclick=()=>{const d=+e.dataset.d;if(g&&g.phase==='pick'&&g.opts.some(o=>o.d===d)){selDie=d;choice=null;update(true)}});
@@ -709,7 +710,7 @@
     else say(`Tres parejas seguidas: ${who} pierde el turno`);
     if(!await sleep(1400,t))return;next();continue;
    }
-   say(`${who} sacó ${a} y ${b}`);
+   say(`${who} sacó ${a} y ${b}`+(W&&g.turbo[c]?" · ⚡ Turbo: el primer dado que muevas vale el doble":""));
    if(a+b===5){   // sumando 5 también se sale de casa
     const ex=legal(c,5,false,false).filter(m=>m.from<0);
     if(ex.length){g.used=[true,true];say(`${who} sacó ${a} y ${b}: suman 5 y sale una ficha`);if(!await sleep(500,t))return;if(!await doMove(ex[0],t))return;if(!await bonuses(c,t))return}

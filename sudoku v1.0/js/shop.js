@@ -90,7 +90,7 @@ body.skin-sudoku-lapiz #gameScreen .cell.sk-bad.sk-in::after{animation:skScrib .
  const sdCss=(id,r)=>[`body.skin-sudoku-${id} #gameScreen`,`#shopScreen .pv-sk-${id}`].map(S=>`
 ${S} .cell:not(.given):not(.wrong):not(.sk-bad){${r.num}}
 ${S} .cell.selected{background:var(--cell,#fff)!important;${r.sel}}
-${S} .cell.same:not(.given):not(.wrong):not(.sk-bad){color:${r.col}!important}
+${r.col?`${S} .cell.same:not(.given):not(.wrong):not(.sk-bad){color:${r.col}!important}`:""}
 ${S} .cell.sk-bad:not(.given){${r.bad}}
 ${S} .note.on{${r.note}}
 ${S} .num-btn,${S} .erase-key,${S} .tool{${r.key}}
@@ -103,10 +103,10 @@ ${S} .num-btn.exhausted{${r.off}}`).join('');
   +sdCss('lapiz',{bad:LAPIZ_BAD,col:'#0b0b0d',sel:'outline:2.500px dashed #0b0b0d;outline-offset:-5px;box-shadow:inset 0 0 0 1.500px #0b0b0d55',num:`color:#0b0b0d;font-family:${FONT_LAPIZ};font-weight:700`,note:`color:#6a7180;font-family:${FONT_LAPIZ}`,
    key:`background:#fff8c9;color:#3d4350;border-color:#e2cf6a;border-radius:5px 15px 7px 13px;box-shadow:2px 3px 0 #d9c65a;font-family:${FONT_LAPIZ}`,small:'color:#8a7a2a',
    active:'background:#ffd54a;color:#2a2200;border-color:#c9a400',off:'background:#efe9c8;color:#b3ab84;box-shadow:none'})
-  +sdCss('oro',{bad:ORO_BAD,col:'#e6a400',sel:'box-shadow:inset 0 0 0 3px #e6a400,inset 0 0 0 4.500px #fff3b0,inset 0 0 11px #ffd54acc',num:`color:#e6a400;font-family:${FONT_ORO};font-weight:900;text-shadow:0 1px 0 #fff6c8,0 -1px 0 #8a5a00,0 0 7px #ffd54acc;animation:skShine 2.6s ease-in-out infinite`,note:'color:#c98f00;text-shadow:0 0 3px #ffd54a',
+  +sdCss('oro',{bad:ORO_BAD,col:'',sel:'box-shadow:inset 0 0 0 3px #e6a400,inset 0 0 0 4.500px #fff3b0,inset 0 0 11px #ffd54acc',num:`color:#e6a400;font-family:${FONT_ORO};font-weight:900;text-shadow:0 1px 0 #fff6c8,0 -1px 0 #8a5a00,0 0 7px #ffd54acc;animation:skShine 2.6s ease-in-out infinite`,note:'color:#c98f00;text-shadow:0 0 3px #ffd54a',
    key:`background:linear-gradient(180deg,#3a2f14,#0e0c08);color:#ffe27a;border-color:#ffcf3f;box-shadow:0 3px 0 #8a6400,0 0 9px #ffc40077,inset 0 1px 0 #fff3b088;text-shadow:0 0 6px #ffc400cc;font-family:${FONT_ORO}`,small:'color:#ffd76a;text-shadow:none',
    active:'background:linear-gradient(180deg,#fff0a0,#f0b400);color:#2a1c00;border-color:#fff7d0;text-shadow:none;box-shadow:0 3px 0 #8a6400,0 0 14px #ffd54a',off:'opacity:.4;box-shadow:none;text-shadow:none'})
-  +'\nhtml[data-theme="dark"] body.skin-sudoku-oro #gameScreen .cell:not(.given):not(.wrong):not(.sk-bad){color:#ffd75e!important}\nhtml[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell:not(.given):not(.wrong):not(.sk-bad){color:#e9edf5!important}\nhtml[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell.selected{outline-color:#e9edf5;box-shadow:inset 0 0 0 1.500px #e9edf555}'
+  +'\nhtml[data-theme="dark"] body.skin-sudoku-oro #gameScreen .cell:not(.given):not(.wrong):not(.sk-bad):not(.same){color:#ffd75e!important}\nhtml[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell:not(.given):not(.wrong):not(.sk-bad){color:#e9edf5!important}\nhtml[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell.selected{outline-color:#e9edf5;box-shadow:inset 0 0 0 1.500px #e9edf555}'
   // 0.3.56 — animación al poner un número (la clase sk-in y el <span class="sk-num"> los pone watchBoard(), más abajo): neón sube desde abajo, a lápiz se va escribiendo, oro cae desde arriba del tablero
   +BAD_CSS+`\n@keyframes skShine{0%,100%{text-shadow:0 1px 0 #fff6c8,0 -1px 0 #8a5a00,0 0 5px #ffd54a99}50%{text-shadow:0 1px 0 #fff,0 -1px 0 #8a5a00,0 0 12px #ffe27a,0 0 20px #ffc40099}}
 #gameScreen .cell.sk-in{z-index:3}#gameScreen .cell .sk-num{display:inline-block;pointer-events:none}
@@ -248,7 +248,7 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
   const mid=(side-1)/2,FX=window.SudomiFX;
   cells.forEach((c,i)=>{
    const r=Math.floor(i/side),k=i%side;c.classList.remove('wfx-flag','wfx-fall','wfx-gold');void c.offsetWidth;
-   if(id==='flag'){const cross=r===mid||k===mid;c.style.setProperty('--wc',cross?'#ffffff':(r<mid)===(k<mid)?'#002d62':'#ce1126');c.style.setProperty('--wt',cross?'#10213b':'#ffffff');c.style.setProperty('--wd',(r+k)*55+'ms');c.classList.add('wfx-flag')}
+   if(id==='flag'){const cross=r===mid||k===mid;c.style.setProperty('--wc',cross?'#ffffff':(r<mid)===(k<mid)?'#002d62':'#ce1126');c.style.setProperty('--wt',cross?'#10213b':'#ffffff');c.style.setProperty('--wd',(r+k)*55+'ms');c.classList.add('wfx-flag');const wt=cross?'#10213b':'#ffffff',d=(r+k)*55;setTimeout(()=>c.style.setProperty('color',wt,'important'),d+430);setTimeout(()=>c.style.removeProperty('color'),d+3000)}
    else if(id==='fall'){c.style.setProperty('--wd',Math.round(k*45+Math.random()*420)+'ms');c.style.setProperty('--wr',Math.round(Math.random()*120-60)+'deg');c.style.setProperty('--wy',Math.round(rect.height*(1.05-r/side)+40)+'px');c.classList.add('wfx-fall')}
    else{c.style.setProperty('--wd',Math.round(Math.hypot(r-mid,k-mid)*110)+'ms');c.classList.add('wfx-gold')}
   });

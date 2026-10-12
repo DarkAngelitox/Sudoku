@@ -205,7 +205,7 @@ function arcadeChrome(){
    let L=1e9,R=0;
    stage.querySelectorAll('.mini-game > *, .mini-game > * > *').forEach(e=>{if(e.classList.contains('dos-head'))return;const r=e.getBoundingClientRect();if(r.width>250&&r.height>60){L=Math.min(L,r.left);R=Math.max(R,r.right)}});
    const w=R-L;if(!(w>250))return;
-   const want=Math.round(Math.min(w,stage.getBoundingClientRect().width))+24+'px';
+   const want=Math.min(Math.round(Math.min(w,stage.getBoundingClientRect().width))+24,Math.round(stage.parentNode.getBoundingClientRect().width))+'px';   // 0.3.64: nunca más ancha que la pantalla (en el teléfono el botón ⋯ quedaba cortado)
    if(bar.style.width!==want)bar.style.width=want;
   },120);
  }
