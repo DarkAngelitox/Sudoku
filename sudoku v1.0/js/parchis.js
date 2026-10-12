@@ -455,11 +455,11 @@
    const D=g.duel,mineNeed=D.need.find(x=>mine(x));
    let body='';
    const K=D.kind||'rps';
-   if(D.res){const w=D.res==='tie'?'¡Empate! Otra vez…':`Gana ${nm(D.res==='a'?D.a.c:D.d.c)}`;body=`<div class="pc-duel-show"><span>${K==='rps'?RPS[D.pa]:esc(D.sa)}</span><i>vs</i><span>${K==='rps'?RPS[D.pd]:esc(D.sd)}</span></div><p>${esc(w)}</p>`}
-   else if(K!=='rps')body=`<div class="pc-duel-show roll"><span>${K==='dice'?'🎲':'🪙'}</span></div><p>${K==='dice'?'Tirando los dados… gana el número más alto':'Lanzando la moneda…'}</p>`;
+   if(D.res){const w=D.res==='tie'?'¡Empate! Otra vez…':`${K==='coin'&&D.out?'Salió la '+D.out+': gana ':'Gana '}${nm(D.res==='a'?D.a.c:D.d.c)}`;body=`<div class="pc-duel-show"><span>${K==='rps'?RPS[D.pa]:esc(D.sa)}</span><i>vs</i><span>${K==='rps'?RPS[D.pd]:esc(D.sd)}</span></div><p>${esc(w)}</p>`}
+   else if(K!=='rps')body=`<div class="pc-duel-show roll"><span>${K==='dice'?'🎲':'🪙'}</span></div><p>${K==='dice'?'Tirando los dados… gana el número más alto':`Lanzando la moneda… ${esc(nm(D.a.c))} es la ${D.la||'A'} y ${esc(nm(D.d.c))} es la ${D.ld||'B'}`}</p>`;
    else if(mineNeed!=null)body=`<p><b>${esc(nm(mineNeed))}</b>, elige en secreto:</p><div class="pc-rps">${Object.keys(RPS).map(k=>`<button type="button" data-rps="${k}" aria-label="${RPS_N[k]}">${RPS[k]}</button>`).join('')}</div>`;
    else body='<p>Esperando la elección…</p>';
-   box.innerHTML=`<h4>${K==='dice'?'🎲 Duelo de dados':K==='coin'?'🪙 Cara o cruz':'⚔️ Duelo'}: ${esc(nm(D.a.c))} contra ${esc(nm(D.d.c))}</h4>${body}`;box.classList.remove('hidden');
+   box.innerHTML=`<h4>${K==='dice'?'🎲 Duelo de dados':K==='coin'?'🪙 Moneda A o B':'⚔️ Duelo'}: ${esc(nm(D.a.c))} contra ${esc(nm(D.d.c))}</h4>${body}`;box.classList.remove('hidden');
    box.querySelectorAll('[data-rps]').forEach(b=>b.onclick=()=>{
     const v2=b.dataset.rps;
     if(net.role==='guest'){net.conn.send({t:'rps',v:v2});g.duel.need=g.duel.need.filter(x=>x!==net.me);update(true)}
@@ -508,7 +508,7 @@
   <li><b>Sin vidas:</b> la ficha vuelve a casa en 0. Necesita <b>dos 5</b>: el primero la cura a medias (1½) y el segundo la deja en ${HPMAX} y la saca.</li>
   <li><b>No hay zonas seguras.</b> Solo están protegidas <b>dos fichas del mismo equipo en la misma casilla</b>: nadie puede caerles encima ni pasar.</li>
   <li><b>Ataque:</b> si caes sobre una ficha rival sola, <b>le quitas una vida</b> y las dos se quedan juntas en la casilla.</li>
-  <li><b>Duelo:</b> si en tu próximo turno siguen juntas, antes de tirar hay un duelo al azar: <b>piedra, papel o tijera</b>, <b>dados</b> (gana el más alto) o <b>cara o cruz</b>. <b>Quien pierde, pierde una vida.</b> Se repite cada turno tuyo mientras sigan juntas.</li>
+  <li><b>Duelo:</b> si en tu próximo turno siguen juntas, antes de tirar hay un duelo al azar: <b>piedra, papel o tijera</b>, <b>dados</b> (gana el más alto) o la <b>moneda A o B</b> (cada quien lleva la letra de su equipo; sin equipos, A es quien atacó). <b>Quien pierde, pierde una vida.</b> Se repite cada turno tuyo mientras sigan juntas.</li>
   <li><b>Barreras:</b> dos fichas del mismo equipo (aunque sean de jugadores distintos) en una casilla cierran el paso.</li>
   <li><b>🎲✨ Dado de poderes:</b> si tiras y no puedes mover ninguna ficha, recibes una carta al azar (si tienes sitio).</li>
   <li><b>Con un 5</b> eliges cuál ficha sale de casa.</li>
@@ -662,12 +662,13 @@
  async function duel(a,d,t){
   const kind=['rps','dice','coin'][Math.floor(Math.random()*3)];
   if(kind!=='rps'){
-   g.phase='duel';g.duel={a,d,need:[],kind,pa:null,pd:null,sa:'',sd:'',res:null,round:1};play('clack');
-   say(kind==='dice'?`🎲 Duelo de dados: ${nm(a.c)} contra ${nm(d.c)}`:`🪙 Duelo a cara o cruz: ${nm(a.c)} (cara) contra ${nm(d.c)} (cruz)`);
+   const tm=g.players.length===4,la=tm?(g.team[a.c]?'B':'A'):'A',ld=tm?(g.team[d.c]?'B':'A'):'B';   /* 0.3.66 (dueño): la moneda tiene una A y una B en vez de cara y cruz. Con equipos, cada quien lleva la letra de su equipo; sin equipos, A = quien atacó */
+   g.phase='duel';g.duel={a,d,need:[],kind,pa:null,pd:null,sa:'',sd:'',la,ld,res:null,round:1};play('clack');
+   say(kind==='dice'?`🎲 Duelo de dados: ${nm(a.c)} contra ${nm(d.c)}`:`🪙 Moneda A o B: ${nm(a.c)} es la ${la} y ${nm(d.c)} es la ${ld}`);
    if(!await sleep(1300,t))return null;
    let w;
    if(kind==='dice'){let x,y;do{x=1+Math.floor(Math.random()*6);y=1+Math.floor(Math.random()*6)}while(x===y);w=x>y?'a':'d';Object.assign(g.duel,{sa:'🎲 '+x,sd:'🎲 '+y})}
-   else{w=Math.random()<.5?'a':'d';Object.assign(g.duel,{sa:w==='a'?'🪙 Cara':'—',sd:w==='d'?'🪙 Cruz':'—'})}
+   else{w=Math.random()<.5?'a':'d';Object.assign(g.duel,{sa:(w==='a'?'🪙 ':'')+la,sd:(w==='d'?'🪙 ':'')+ld,out:w==='a'?la:ld})}
    g.duel.res=w;play('bonus');update();
    if(!await sleep(1700,t))return null;
    g.duel=null;return w;
