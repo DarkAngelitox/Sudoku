@@ -66,7 +66,7 @@
  let ui=null,g=null,token=0,mode='pve',selDie=0,rollTok=0,rolling=false,aim=null,choice=null;
  const waits=new Map();   // lo que el motor está esperando de una persona: 'roll:c', 'pick:c', 'rps:c'
  const net={role:'solo',room:null,conn:null,code:'',seats:[],me:0,started:false,status:'',tok:0};
- const setup={n:4,war:false,n4:2,side:0,sides:[0,1,0,1],theme:(()=>{try{const t=localStorage.getItem(TKEY);return THEMES[t]?t:'clasico'}catch(_){return 'clasico'}})()};
+ const setup={n:4,war:false,n4:2,place:[0,1,2,3],theme:(()=>{try{const t=localStorage.getItem(TKEY);return THEMES[t]?t:'clasico'}catch(_){return 'clasico'}})()};
  const $=s=>ui.stage.querySelector(s);
  function play(n){try{window.SudomiSound&&SudomiSound.play(n)}catch(_){}if(net.role==='host')bcast({t:'snd',n})}
 
@@ -541,33 +541,46 @@
     <div class="pc-opt"><b>${mode==='pve'?'¿Contra cuántos?':'¿Cuántos juegan?'}</b><div class="pc-seg">${opts.map(([n,t])=>`<button type="button" data-n="${n}" class="${n===setup.n?'on':''}">${t}</button>`).join('')}</div>${online?'<small class="pc-hint">Los espacios que no se llenen los juega la IA.</small>':''}</div>
     <label class="pc-switch"><input type="checkbox" role="switch" id="pcWar" ${setup.war?'checked':''}><i></i><span><b>⚔️ Parchís guerra</b><small>Vidas, duelos de piedra, papel o tijera, armas y equipos.</small></span></label>
     <div class="pc-opt${setup.war?'':' hidden'}" id="pcN4"><b>Fichas por jugador</b><div class="pc-seg">${[2,4].map(n=>`<button type="button" data-n4="${n}" class="${n===setup.n4?'on':''}">${n} fichas${n===2?' (rápido)':''}</button>`).join('')}</div><button type="button" class="pc-link" id="pcWarRules">Ver las reglas de guerra</button></div>
-    <div class="pc-opt hidden" id="pcTeams"></div>
     ${themePick()}<div class="pc-board pc-mini">${boardSVG(false)}</div>
     <button class="arc-btn pc-big" id="pcStart">${online?'🌐 Crear sala':'▶ Jugar'}</button></div></div>`;
   net.status='';bindHead();
-  /* 0.3.65 (dueño) — SELECTOR DE EQUIPOS (guerra con 4, sin sala online): cada quien elige su lado, dos por lado. El orden de juego no cambia:
-     el equipo A juega 1.º y 3.º (amarillo y rojo) y el B 2.º y 4.º (azul y verde); start() sienta a cada uno en el color de su equipo. */
-  const drawTeams=()=>{
-   const box=$('#pcTeams');if(!box)return;const show=setup.war&&setup.n===4&&!online;box.classList.toggle('hidden',!show);if(!show){box.innerHTML='';return}
-   if(mode==='pvp'){
-    box.innerHTML=`<b>Equipos</b>${[0,1,2,3].map(k=>`<div class="pc-trow"><span>${k===0?esc(myName()):'Jugador '+(k+1)}</span><div class="pc-seg">${['A','B'].map((t,s)=>`<button type="button" data-tp="${k}" data-ts="${s}" class="${setup.sides[k]===s?'on':''}">Equipo ${t}</button>`).join('')}</div></div>`).join('')}<small class="pc-hint">Dos por equipo. El A juega 1.º y 3.º (amarillo y rojo); el B, 2.º y 4.º (azul y verde).</small>`;
-    box.querySelectorAll('[data-tp]').forEach(b=>b.onclick=()=>{
-     const k=+b.dataset.tp,s=+b.dataset.ts;if(setup.sides[k]===s)return;setup.sides[k]=s;
-     if(setup.sides.filter(x=>x===s).length>2){for(let j=3;j>=0;j--)if(j!==k&&setup.sides[j]===s){setup.sides[j]=1-s;break}}   // el lado estaba lleno: el último de ese lado pasa al otro
-     drawTeams();
-    });
-   }else{
-    box.innerHTML=`<b>Tu equipo</b><div class="pc-seg">${['A · juegas 1.º (amarillo)','B · juegas 2.º (azul)'].map((t,s)=>`<button type="button" data-side="${s}" class="${setup.side===s?'on':''}">Equipo ${t}</button>`).join('')}</div><small class="pc-hint">Tu compañero y los dos rivales son de la máquina.</small>`;
-    box.querySelectorAll('[data-side]').forEach(b=>b.onclick=()=>{setup.side=+b.dataset.side;drawTeams()});
-   }
-  };
-  drawTeams();
-  ui.stage.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>{setup.n=+b.dataset.n;ui.stage.querySelectorAll('[data-n]').forEach(x=>x.classList.toggle('on',x===b));drawTeams()});
+  ui.stage.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>{setup.n=+b.dataset.n;ui.stage.querySelectorAll('[data-n]').forEach(x=>x.classList.toggle('on',x===b))});
   ui.stage.querySelectorAll('[data-n4]').forEach(b=>b.onclick=()=>{setup.n4=+b.dataset.n4;ui.stage.querySelectorAll('[data-n4]').forEach(x=>x.classList.toggle('on',x===b))});
   const alt=()=>{try{window.SudomiAltMode&&SudomiAltMode(setup.war?'war':'')}catch(_){}};alt();   // 0.3.50: con «Parchís guerra» encendido cambia el fondo
-  $('#pcWar').onchange=e=>{setup.war=e.target.checked;$('#pcN4').classList.toggle('hidden',!setup.war);alt();drawTeams()};
+  $('#pcWar').onchange=e=>{setup.war=e.target.checked;$('#pcN4').classList.toggle('hidden',!setup.war);alt()};
   $('#pcWarRules').onclick=()=>sheet(rulesHTML(true));
-  bindTheme();applyTheme();$('#pcStart').onclick=online?createRoom:start;
+  bindTheme();applyTheme();$('#pcStart').onclick=online?createRoom:()=>setup.war&&setup.n===4?renderTeams():start();   // 0.3.67: en guerra con 4, antes de empezar se eligen equipos y colores
+ }
+ /* 0.3.67 (dueño) — EQUIPOS Y COLORES, dentro del juego y solo en guerra con 4. Dos lados: el A con sus colores (amarillo y rojo, juegan 1.º y 3.º)
+  * y el B con los suyos (azul y verde, 2.º y 4.º). Cada jugador mueve su icono al color que quiera; al elegir color eliges equipo.
+  * teamBoard() pinta el tablero (occ[color] = quién está ahí); lo usan renderTeams() (sin conexión) y la sala online (renderLobby + moveSeat). */
+ function teamBoard(occ){
+  return `<div class="pc-tb">${[0,1].map(t=>`<div class="pc-tb-side"><h4>Equipo ${'AB'[t]}</h4><small>juega ${t?'2.º y 4.º':'1.º y 3.º'}</small>${(t?[1,3]:[0,2]).map(c=>{const o=occ[c]||{};return `<button type="button" class="pc-tb-slot${o.me?' me':''}${o.sel?' sel':''}${o.free?' free':''}" data-tc="${c}" style="--pc-c:${COLORS[c].hex};--pc-ink:${COLORS[c].ink}"><i>${esc(o.avatar||'＋')}</i><b>${esc(o.name||'Libre')}${o.me?' (tú)':''}</b><em>${COLORS[c].name}</em></button>`}).join('')}</div>`).join('')}</div>`;
+ }
+ function renderTeams(){
+  stopGame();let sel=-1;const pv=mode==='pvp';
+  const who=k=>k===0?{name:myName(),avatar:myAvatar()}:pv?{name:'Jugador '+(k+1),avatar:['🙂','😎','🤠','🥳'][k]}:{name:'Máquina',avatar:'🤖'};
+  const draw=()=>{
+   ui.stage.innerHTML=`<div class="mini-game pc">${head()}<div class="pc-menu pc-teams"><div class="pc-hero">⚔️<b>Equipos y colores</b><span>${pv?'Toca a un jugador y luego el color al que quiere ir.':'Toca el color con el que quieres jugar.'} Cada equipo tiene sus dos colores.</span></div>
+    ${teamBoard(setup.place.map((k,c)=>({...who(k),me:!pv&&k===0,sel:c===sel})))}
+    <button class="arc-btn pc-big" id="pcGo">▶ Empezar</button><button class="arc-btn ghost pc-big" id="pcBackMenu">‹ Cambiar opciones</button></div></div>`;
+   bindHead();$('#pcGo').onclick=start;$('#pcBackMenu').onclick=renderMenu;
+   ui.stage.querySelectorAll('[data-tc]').forEach(b=>b.onclick=()=>{
+    const c=+b.dataset.tc,P=setup.place;
+    if(!pv){const m=P.indexOf(0);[P[m],P[c]]=[P[c],P[m]]}
+    else if(sel<0)sel=c;else{[P[sel],P[c]]=[P[c],P[sel]];sel=-1}
+    draw();
+   });
+  };
+  draw();
+ }
+ // sala online: el jugador de ese asiento se pasa al color c (si ahí no hay otra persona). Los asientos se quedan ordenados por color, que es el orden de juego
+ function moveSeat(seat,c){
+  if(net.role!=='host'||net.started||!seat||!(c>=0&&c<=3)||seat.c===c)return;
+  const other=net.seats.find(s=>s.c===c);if(!other||other.kind==='human')return;
+  other.c=seat.c;seat.c=c;net.seats.sort((x,y)=>x.c-y.c);
+  const h=net.seats.find(s=>s.id==='host');if(h)net.me=h.c;
+  pushLobby();
  }
  function newGame(players,seats,war,n4){
   const N=war?(n4===4?4:2):4;
@@ -582,12 +595,10 @@
  const okDice=d=>/^[a-z0-9]{1,20}$/.test(String(d||''))?String(d):'';
  function start(){
   const players=ORDER[setup.n],seats={},names=AI.slice().sort(()=>Math.random()-.5);
-  // 0.3.65: en guerra con 4 cada persona se sienta en un color de SU equipo (A = amarillo y rojo, B = azul y verde); si no, en el orden de siempre
-  const teams=setup.war&&setup.n===4,A=[0,2],B=[1,3];let ia=0,ib=0;
-  const colorOf=k=>!teams?players[k]:mode==='pvp'?(setup.sides[k]?B[ib++]:A[ia++]):k===0?(setup.side?1:0):-1;
+  // 0.3.67: en guerra con 4, quién va en cada color lo dice setup.place (se elige en renderTeams); si no, en el orden de siempre. Persona 0 = tú
+  const P=setup.war&&setup.n===4?setup.place:null;
   const person=k=>k===0?{kind:'human',name:myName(),avatar:myAvatar(),dice:myDice(),kill:myKill()}:{kind:'human',name:'Jugador '+(k+1),avatar:['🙂','😎','🤠','🥳'][k],dice:myDice(),kill:myKill()};
-  if(mode==='pvp')players.forEach((_,k)=>{seats[colorOf(k)]=person(k)});
-  else{seats[colorOf(0)]=person(0);players.forEach((c,k)=>{if(!seats[c])seats[c]={kind:'ai',name:names[k][0],avatar:names[k][1]}})}
+  players.forEach((c,k)=>{const who=P?P[c]:k;seats[c]=mode==='pvp'||who===0?person(who):{kind:'ai',name:names[k][0],avatar:names[k][1]}});
   stopGame();newGame(players,seats,setup.war,setup.n4);renderGame();run(++token);
  }
  function renderGame(){
@@ -826,7 +837,10 @@
   if(!window.SudomiLobby){$('#lbRoot').textContent=net.status||'Creando sala…';return}
   SudomiLobby.render($('#lbRoot'),{game:GAME,gameName:NAME,code:net.code||null,url:net.code?inviteUrl():'',host,fixed:false,
    seats:net.seats.map(s=>({state:s.c===net.me&&s.kind==='human'?'me':s.kind==='open'?'open':s.kind==='ai'?'ai':s.away?'away':'human',name:s.name,avatar:s.avatar,sub:s.kind==='open'?undefined:COLORS[s.c].name+(s.c===net.me?' · tú':'')})),
-   extra:`<p class="pc-note ${war?'war':''}">${war?`⚔️ Parchís guerra · ${(host?setup.n4:net.n4)||2} fichas por jugador`:'Parchís clásico'}</p>`+themePick(),bindExtra:root=>bindTheme(root),
+   extra:`<p class="pc-note ${war?'war':''}">${war?`⚔️ Parchís guerra · ${(host?setup.n4:net.n4)||2} fichas por jugador`:'Parchís clásico'}</p>`
+    +(war&&net.seats.length===4?`<div class="pc-opt"><b>Equipos y colores</b>${teamBoard(net.seats.reduce((o,s)=>{o[s.c]=s.kind==='open'?{free:true}:{name:s.name,avatar:s.avatar,me:s.c===net.me&&s.kind==='human'};return o},[]))}<small class="pc-hint">Toca un color libre o de la máquina para pasarte ahí. Al elegir color eliges equipo.</small></div>`:'')
+    +themePick(),
+   bindExtra:root=>{bindTheme(root);root.querySelectorAll('[data-tc]').forEach(b=>b.onclick=()=>{const c=+b.dataset.tc;if(host)moveSeat(net.seats.find(s=>s.id==='host'),c);else if(net.conn&&!net.started)net.conn.send({t:'seat',c})})},
    startLabel:'▶ Empezar la partida',canStart:!!net.code,onStart:host?startOnline:undefined,
    onRemove:i=>{if(!host||net.started||!net.seats[i]||net.seats[i].kind!=='open'||net.seats.length<=2)return;net.seats.splice(i,1);pushLobby()},
    status:net.status,hint:host?'Comparte el código o invita a tus amigos. Los espacios libres los juega la IA.':''});
@@ -857,6 +871,8 @@
    if(!net.started){Object.assign(seat,{kind:'open',id:null,name:undefined,avatar:undefined});pushLobby();return}
    seat.away=true;
    if(g&&g.seats[seat.c]){g.seats[seat.c].away=true;['roll','pick','rps'].forEach(k=>answer(k,seat.c,'auto'));if(g.duel)g.duel.need=g.duel.need.filter(x=>x!==seat.c);update()}   // mientras no vuelva, juega la IA por él
+  }else if(e.type==='msg'&&seat&&!net.started){
+   if(e.data&&e.data.t==='seat'&&setup.war&&net.seats.length===4)moveSeat(seat,+e.data.c);   // 0.3.67: en la sala, un invitado se cambia de color (y de equipo)
   }else if(e.type==='msg'&&seat&&g&&!g.over){
    const d=e.data||{},c=seat.c;
    if(d.t==='roll')answer('roll',c,true);
