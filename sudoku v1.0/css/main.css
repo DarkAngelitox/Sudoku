@@ -3917,3 +3917,6 @@ html[data-fx="off"] .pc-piece.can,html[data-fx="off"] .pc-av.turn,html[data-fx="
 @media(prefers-reduced-motion:reduce){.pc-piece.can,.pc-av.turn,.pc-dice.go{animation:none}.pc-piece{transition:none}}
 /* 0.3.64 (dueno, iPhone): en telefonos de 430 px o menos la fila de arriba del Sudoku no cabia y el boton de modo oscuro quedaba cortado a la derecha */
 @media(max-width:430px){#gameScreen .topbar{padding-left:10px;padding-right:10px;gap:8px}#gameScreen .top-actions{gap:4px}#gameScreen .game-brand-copy small{display:none}}
+.pc-tl{position:absolute;transform:translate(-50%,-50%);width:calc(var(--pc-u)*1.2);height:calc(var(--pc-u)*1.2);border-radius:50%;display:grid;place-items:center;background:#fff;color:#10213b;border:2px solid var(--pc-c);font:900 calc(var(--pc-u)*.74)/1 system-ui,sans-serif;font-style:normal;z-index:2;pointer-events:none;box-shadow:0 1px 3px #0006}
+.pc-trow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px}.pc-trow>span{font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pc-trow .pc-seg{flex:0 0 auto}
+.pc-duel-show.roll span{animation:pcSlot .35s ease-in-out infinite alternate}
