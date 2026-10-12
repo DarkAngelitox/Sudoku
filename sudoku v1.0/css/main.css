@@ -2969,6 +2969,20 @@ html[data-theme="dark"] .shop-pvcard{background:#16233a}html[data-theme="dark"] 
 .pc-kfrag.f4{clip-path:polygon(50% 50%,30% 100%,0 70%)}.pc-kfrag.f5{clip-path:polygon(50% 50%,0 70%,0 26%)}
 .pc-kfrag.f6{clip-path:polygon(50% 50%,0 26%,22% 0)}.pc-kfrag.f7{clip-path:polygon(50% 50%,22% 0,50% 0)}
 .pc-kfrag{width:11%;height:11%;margin:-5.5% 0 0 -5.5%}
+/* 0.3.70: animaciones de captura «Corte» (killslash) y «Espadas» (killswords) — js/parchis.js, killRun */
+.pc-khalf,.pc-kquad{position:absolute;width:14.5%;height:14.5%;margin:-7.25% 0 0 -7.25%;border-radius:50%;background:radial-gradient(circle at 34% 30%,#ffffffb0,#fff0 46%),var(--pc-c);pointer-events:none;z-index:9;filter:drop-shadow(0 0 1px #fff) drop-shadow(0 2px 2px #0008);transition:left .4s cubic-bezier(.1,.8,.3,1),top .4s cubic-bezier(.1,.8,.3,1),transform .4s ease-out}
+.pc-khalf.back,.pc-kquad.back{transition:left .4s cubic-bezier(.6,0,.4,1),top .4s cubic-bezier(.6,0,.4,1),transform .4s ease-in}
+.pc-khalf.l{clip-path:inset(0 51% 0 0)}.pc-khalf.r{clip-path:inset(0 0 0 51%)}
+.pc-kquad.q0{clip-path:polygon(3% 0,97% 0,50% 47%)}.pc-kquad.q1{clip-path:polygon(100% 3%,100% 97%,53% 50%)}.pc-kquad.q2{clip-path:polygon(97% 100%,3% 100%,50% 53%)}.pc-kquad.q3{clip-path:polygon(0 97%,0 3%,47% 50%)}
+.pc-kghost.pc-katk{z-index:10}.pc-kghost.pc-katk.dive{transition:top .14s cubic-bezier(.6,0,1,.6),opacity .3s}.pc-kghost.pc-katk.out{opacity:0}
+.pc-kslash,.pc-kx,.pc-ksword{position:absolute;pointer-events:none;z-index:11}
+.pc-kslash{width:1.2%;height:28%;margin:-14% 0 0 -.6%;background:linear-gradient(#fff0,#fff 25%,#fff 75%,#fff0);box-shadow:0 0 8px #fff;transform:scaleY(0);transform-origin:50% 0;transition:transform .12s ease-out,opacity .28s .12s}
+.pc-kslash.on{transform:scaleY(1);opacity:0}
+.pc-kx{width:22%;height:22%;margin:-11% 0 0 -11%;background:linear-gradient(45deg,#fff0 47%,#fff 47% 53%,#fff0 53%),linear-gradient(-45deg,#fff0 47%,#fff 47% 53%,#fff0 53%);transform:scale(.4);transition:transform .15s ease-out,opacity .3s .12s}
+.pc-kx.on{transform:scale(1.2);opacity:0}
+.pc-ksword{width:5%;height:26%;margin:-13% 0 0 -2.5%;opacity:0;background:linear-gradient(#f4f7fb 0 66%,#c9a23a 66% 72%,#6b3d12 72% 100%);clip-path:polygon(50% 0,74% 8%,74% 66%,100% 66%,100% 72%,66% 72%,66% 100%,34% 100%,34% 72%,0 72%,0 66%,26% 66%,26% 8%);filter:drop-shadow(0 2px 2px #0009);transition:opacity .15s,transform .14s cubic-bezier(.5,0,1,.6)}
+.pc-ksword.a{transform:rotate(45deg) translateY(-130%)}.pc-ksword.b{transform:rotate(-45deg) translateY(-130%)}
+.pc-ksword.in{opacity:1}.pc-ksword.a.cut{transform:rotate(45deg) translateY(0)}.pc-ksword.b.cut{transform:rotate(-45deg) translateY(0)}.pc-ksword.out{opacity:0;transition:opacity .3s}
 .pc-board.kshake{animation:pcKShake .16s linear}
 @keyframes pcKHit{0%{transform:scale(2.6) rotate(-14deg)}35%{transform:scale(2.25) rotate(9deg) translate(7%,-5%)}100%{transform:scale(2.6) rotate(-14deg)}}
 @keyframes pcKShot{0%{transform:scale(2.4)}100%{transform:scale(1)}}

@@ -354,7 +354,9 @@
  /* 0.3.52 - animaciones de captura (objetos de la tienda, ranura «parchiskill»). La ve toda la mesa cuando quien come la lleva puesta; el anfitrion espera lo que dura (KILLS) antes de seguir.
     killshots: la ficha sale volando, recibe cuatro disparos, se rompe y los pedazos se juntan en su casa.
     0.3.53 - killbat: un bate le da un batazo y la rompe. killbomb: se le pega una bomba, explota y sale un corazon que dice «sorry :(». */
- const KILLS={killshots:2250,killbat:2200,killbomb:3050};let lastKill=0;
+ /* 0.3.70 (ideas del dueño) - killslash «Corte»: la ficha que comió salta detrás y la corta en dos de arriba abajo; las dos mitades caen y vuelven a casa.
+    killswords «Espadas»: dos espadas cruzan en X y la parten en cuatro. */
+ const KILLS={killshots:2250,killbat:2200,killbomb:3050,killslash:2350,killswords:2500};let lastKill=0;
  function killFx(k){
   const bd=$('.pc-board'),el=$(`.pc-piece[data-c="${k.c}"][data-i="${k.i}"]`);if(!bd||!el)return;
   try{if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)return}catch(_){}
@@ -374,6 +376,25 @@
   el.classList.add('kout');
   const ax=Math.min(18,Math.max(4,k.x+(11-k.x)*.25)),ay=Math.min(18,Math.max(4,k.y-2.2)),gh=mk('pc-kghost',k.x,k.y);
   later(30,()=>{gh.style.left=pct(ax);gh.style.top=pct(ay);gh.classList.add('up')});
+  const glide=(list,ms)=>later(ms,()=>{const h=home();list.forEach(f=>{f.classList.add('back');f.style.left=pct(h[0]);f.style.top=pct(h[1]);f.style.transform='rotate(0deg) scale(.4)'})});   // los pedazos grandes vuelven a casa
+  if(kind==='killslash'){
+   const atk=mk('pc-kghost pc-katk',k.x,k.y);atk.style.setProperty('--pc-c',k.by!=null&&COLORS[k.by]?COLORS[k.by].hex:'#1761b2');
+   later(260,()=>{atk.style.left=pct(ax);atk.style.top=pct(lim(ay-4.4));atk.classList.add('up')});
+   later(720,()=>{atk.classList.add('dive');atk.style.top=pct(lim(ay+3.4));const sl=mk('pc-kslash',ax,ay);later(20,()=>sl.classList.add('on'));later(400,()=>sl.remove());snd('tap')});
+   later(880,()=>{gh.remove();shake();snd('bad');const L=mk('pc-khalf l',ax,ay),R=mk('pc-khalf r',ax,ay);
+    later(30,()=>{L.style.left=pct(lim(ax-2.7));L.style.top=pct(lim(ay+1.3));L.style.transform='rotate(-40deg)';R.style.left=pct(lim(ax+2.7));R.style.top=pct(lim(ay+1.3));R.style.transform='rotate(40deg)'});
+    later(300,()=>atk.classList.add('out'));glide([L,R],720);later(T-880,()=>back([L,R,atk]))});
+   return;
+  }
+  if(kind==='killswords'){
+   const s1=mk('pc-ksword a',ax,ay),s2=mk('pc-ksword b',ax,ay);
+   later(380,()=>{s1.classList.add('in');s2.classList.add('in')});
+   later(700,()=>{s1.classList.add('cut');snd('tap')});later(880,()=>{s2.classList.add('cut');snd('tap')});
+   later(1060,()=>{gh.remove();shake();snd('bad');const x=mk('pc-kx',ax,ay);later(20,()=>x.classList.add('on'));later(440,()=>x.remove());
+    const fr=[0,1,2,3].map(n=>{const f=mk('pc-kquad q'+n,ax,ay),a=(n*90-90)*Math.PI/180;later(30,()=>{f.style.left=pct(lim(ax+Math.cos(a)*2.9));f.style.top=pct(lim(ay+Math.sin(a)*2.9));f.style.transform=`rotate(${n%2?24:-24}deg)`});return f});
+    later(320,()=>{s1.classList.add('out');s2.classList.add('out')});glide(fr,660);later(T-1060,()=>back(fr.concat([s1,s2])))});
+   return;
+  }
   if(kind==='killbat'){
    const bat=mk('pc-kbat',ax-4.1,ay+.2);
    later(380,()=>bat.classList.add('in'));later(640,()=>bat.classList.add('swing'));

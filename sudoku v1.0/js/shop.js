@@ -57,6 +57,10 @@
  const KILL_HEART=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M50 92C12 62 3 42 3 29A22.500 22.500 0 0 1 50 21A22.500 22.500 0 0 1 97 29C97 42 88 62 50 92Z" fill="#ff3b6b" stroke="#fff" stroke-width="4"/><text x="50" y="52" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="900" fill="#fff">sorry :(</text></svg>');
  const KILL_A=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="#e53935" stroke="#fff" stroke-width="6"/><g fill="#1a0b0b"><circle cx="38" cy="40" r="7"/><circle cx="62" cy="34" r="6"/><circle cx="56" cy="62" r="7"/><circle cx="34" cy="64" r="5"/></g><g stroke="#ffd54a" stroke-width="3" stroke-linecap="round"><path d="M38 28v-8M27 40h-8M62 22v-7M72 34h7"/></g></svg>');
  const KILL_B=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g fill="#e53935" stroke="#fff" stroke-width="4" stroke-linejoin="round"><path d="M46 44L20 30l18-16z"/><path d="M54 44l10-30 18 14z"/><path d="M58 54l30-4-6 22z"/><path d="M52 60l14 26-24 2z"/><path d="M44 56L14 70l2-24z"/></g></svg>');
+ // 0.3.70 — miniaturas de las dos animaciones de captura nuevas (Corte y Espadas) y las fichas de madera del dueño para Damas (img/damas/)
+ const KILL_SLASH=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g fill="#e53935" stroke="#fff" stroke-width="5"><path d="M44 12A38 38 0 0 0 44 88z" transform="rotate(-10 44 50)"/><path d="M56 12A38 38 0 0 1 56 88z" transform="rotate(10 56 50)"/></g><path d="M50 4v92" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M50 4v92" stroke="#ffd54a" stroke-width="2" stroke-linecap="round"/></svg>');
+ const KILL_SWORDS=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="30" fill="#e53935" stroke="#fff" stroke-width="5"/><g stroke-linecap="round"><g transform="rotate(45 50 50)"><path d="M50 4v70" stroke="#e9eef5" stroke-width="8"/><path d="M38 74h24" stroke="#c9a23a" stroke-width="6"/><path d="M50 76v18" stroke="#5a3a1a" stroke-width="7"/></g><g transform="rotate(-45 50 50)"><path d="M50 4v70" stroke="#e9eef5" stroke-width="8"/><path d="M38 74h24" stroke="#c9a23a" stroke-width="6"/><path d="M50 76v18" stroke="#5a3a1a" stroke-width="7"/></g></g></svg>');
+ const WOOD_RED='url("img/damas/madera-roja.png")',WOOD_BLUE='url("img/damas/madera-azul.png")';
  /* Cada skin: id · game (el id del juego) · gameName · name · price · desc · preview (dos imágenes para la tienda) · shared (true = en una partida online el rival también la ve) */
  // 0.3.55 — skins del Sudoku: cambian SOLO los números que pones tú, sus notas y el teclado con sus opciones (Notas, Auto, Borrar, Pista). Los números fijos del tablero no cambian.
  const FONT_LAPIZ='"Segoe Print","Bradley Hand","Chalkboard SE","Marker Felt","Comic Sans MS",cursive',FONT_ORO='Georgia,"Times New Roman",serif';
@@ -142,6 +146,7 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
   {id:'fireworks',cat:'sudoku',pv:'win',game:'sudokuwin',gameName:'Animación final',name:'Fuegos artificiales',price:250,desc:'Al completar el sudoku, el tablero brilla en dorado y estallan fuegos artificiales encima.',preview:[WIN_FIRE]},
   {id:'oro',cat:'sudoku',pv:'sudoku',game:'sudoku',gameName:'Números',name:'Oro',price:200,desc:'Tus números van en dorado con letra elegante y el teclado es negro con oro.',preview:SD_ORO},
   {id:'caps',cat:'checkers',pv:'board',game:'checkers',gameName:'Damas',name:'Tapitas de refresco',price:150,desc:'Las fichas se cambian por tapas de botella de vidrio: rojas contra azules.',preview:[CAP_RED,CAP_BLUE],shared:true},
+  {id:'wood',cat:'checkers',pv:'board',game:'checkers',gameName:'Damas',name:'Madera pirata',price:200,desc:'Fichas de madera pintada, dibujadas por el dueño de SUDOMI: la calavera pirata roja contra el ancla azul.',preview:[WOOD_RED,WOOD_BLUE],shared:true},   // 0.3.70: arte del dueño
   {id:'faces',cat:'connect4',pv:'grid',game:'connect4',gameName:'4 en línea',name:'Caritas',price:150,desc:'Las fichas amarillas son caritas felices y las rojas, caras enojadas.',preview:[FACE_ANGRY,FACE_HAPPY],shared:true},
   // 0.3.47 — Mesa 3D del dominó: tres ranuras separadas (fondo, dominós, sillas). Se ven en la mesa de TODOS cuando la mano la saca quien los lleva (js/domino-3d.js)
   {id:'colmado',cat:'domino',pv:'img',game:'d3scene',gameName:'Mesa 3D · Fondo',name:'Colmado',price:100,desc:'Estantes de botellas, mostrador rojo y piso de losetas.',preview:[THUMB_COLMADO],note:' Se pone cuando sacas tú.'},
@@ -153,7 +158,10 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
   {id:'killshots',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Balacera',price:200,desc:'Cuando te comes una ficha sale volando, recibe cuatro disparos, se rompe en pedazos y se arma otra vez en su casa.',preview:[KILL_A,KILL_B],shared:true},
   // 0.3.53 - dos animaciones de captura mas (misma ranura: se lleva una a la vez)
   {id:'killbat',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Batazo',price:200,desc:'Cuando te comes una ficha, un bate de pelota le da un batazo, la rompe en pedazos y se arma otra vez en su casa.',preview:[KILL_BAT,KILL_B],shared:true},
-  {id:'killbomb',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Bomba «sorry»',price:250,desc:'Cuando te comes una ficha se le pega una bomba, explota y sale un corazón que dice «sorry :(».',preview:[KILL_BOMB,KILL_HEART],shared:true}
+  {id:'killbomb',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Bomba «sorry»',price:250,desc:'Cuando te comes una ficha se le pega una bomba, explota y sale un corazón que dice «sorry :(».',preview:[KILL_BOMB,KILL_HEART],shared:true},
+  // 0.3.70 - dos mas (ideas del dueño)
+  {id:'killslash',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Corte',price:250,desc:'Cuando te comes una ficha, la tuya salta detrás de ella y la corta en dos de arriba abajo; las mitades caen y se arma otra vez en su casa.',preview:[KILL_SLASH,KILL_B],shared:true},
+  {id:'killswords',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Espadas',price:250,desc:'Cuando te comes una ficha, dos espadas la cruzan en X y la parten en cuatro.',preview:[KILL_SWORDS,KILL_B],shared:true}
  ];
  const read=()=>{try{const v=JSON.parse(localStorage.getItem(SKEY));return {own:Array.isArray(v&&v.own)?v.own:[],on:(v&&v.on&&typeof v.on==='object')?v.on:{}}}catch(_){return {own:[],on:{}}}};
  const write=v=>{try{localStorage.setItem(SKEY,JSON.stringify(v))}catch(_){}apply();try{window.dispatchEvent(new CustomEvent('sudomi-shop-skins'))}catch(_){}};   // el aviso sirve para mandársela al rival si estás en una partida online
@@ -172,6 +180,11 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
 #miniGameStage .checker-piece.sk-caps.red-piece{background-image:${CAP_RED};background-color:transparent}
 #miniGameStage .checker-piece.sk-caps.black-piece{background-image:${CAP_BLUE};background-color:transparent}
 #miniGameStage .checker-piece.sk-caps b{filter:drop-shadow(0 1px 1px #000a)}
+#miniGameStage .checker-piece.sk-wood{border:0;border-radius:50%;background-size:100% 100%;background-repeat:no-repeat;background-color:transparent;box-shadow:none;filter:drop-shadow(0 3px 3px #0008)}
+#miniGameStage .checker-piece.sk-wood::before,#miniGameStage .checker-piece.sk-wood::after{display:none}
+#miniGameStage .checker-piece.sk-wood.red-piece{background-image:${WOOD_RED}}
+#miniGameStage .checker-piece.sk-wood.black-piece{background-image:${WOOD_BLUE}}
+#miniGameStage .checker-piece.sk-wood b{filter:drop-shadow(0 1px 1px #000a)}
 #miniGameStage .connect-slot.sk-faces.red-disc{background:${FACE_ANGRY} center/100% 100% no-repeat;box-shadow:0 2px 4px #0007}
 #miniGameStage .connect-slot.sk-faces.yellow-disc{background:${FACE_HAPPY} center/100% 100% no-repeat;box-shadow:0 2px 4px #0007}
 #miniGameStage .connect-slot.sk-faces.falling-disc{background:radial-gradient(circle at 50% 40%,#0a2f73 0 60%,#0d3a85 100%)}
