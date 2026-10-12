@@ -49,7 +49,7 @@
    const two=h.cards.length===2,canDouble=two&&chips>=h.bet,canSplit=two&&S.hands.length===1&&val(h.cards[0])===val(h.cards[1])&&chips>=h.bet;
    ctrl=`<div class="bj-row bj-acts"><button class="arc-btn" type="button" data-act="hit">Pedir</button><button class="arc-btn" type="button" data-act="stand">Plantarse</button><button class="arc-btn ghost" type="button" data-act="double" ${canDouble?'':'disabled'}>Doblar</button><button class="arc-btn ghost" type="button" data-act="split" ${canSplit?'':'disabled'}>Dividir</button></div>`;
   }else if(S.phase==='done'){
-   ctrl=`<div class="bj-row"><button class="arc-btn pc-big" type="button" id="bjAgain">Otra mano</button></div>`;
+   ctrl=`<div class="bj-row"><button class="arc-btn pc-big" type="button" id="bjAgain">Otra mano</button><button class="arc-btn ghost" type="button" id="bjExit">Salir</button></div>`;   // 0.3.68 (dueño): al terminar una mano se puede salir al menú del juego
   }
   ui.stage.innerHTML=`<div class="mini-game bj">${head()}
    <div class="bj-bank"><span>Tus fichas</span><b>${fmt(chips)}</b>${S.phase==='bet'&&S.bet?`<i>Apuesta: ${fmt(S.bet)}</i>`:''}</div>
@@ -60,7 +60,7 @@
   $('#bjRules').onclick=()=>sheet(rulesHTML());
   ui.stage.querySelectorAll('[data-chip]').forEach(b=>b.onclick=()=>{const c=+b.dataset.chip;if(S.bet+c<=readChips()){S.bet+=c;play('tap');render()}});
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn};
-  on('#bjClear',()=>{S.bet=0;render()});on('#bjDeal',deal);on('#bjAgain',()=>newRound(S.last));on('#bjRefill',()=>{writeChips(REFILL);play('bonus');newRound(0)});
+  on('#bjClear',()=>{S.bet=0;render()});on('#bjDeal',deal);on('#bjAgain',()=>newRound(S.last));on('#bjExit',()=>{const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}});on('#bjRefill',()=>{writeChips(REFILL);play('bonus');newRound(0)});
   ui.stage.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>act(b.dataset.act));
  }
  async function deal(){

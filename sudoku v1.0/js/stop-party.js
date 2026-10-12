@@ -315,7 +315,7 @@
    body=`<div class="stop-top small"><div class="stop-letter">${v.letter}</div><p class="arc-sub">Ronda ${v.round} terminada${v.stopBy>=0?' · 🛑 STOP de '+esc(v.names[v.stopBy])+' (sus respuestas incorrectas restan 20)':''}</p></div>
     <ol class="sp-rank">${order.map((p,k)=>`<li class="${p===me?'me':''}"><span>${k===0?'🏆':k+1}</span><i>${avatar(p)}</i><b>${esc(v.names[p])}</b><em class="${v.points[p]<0?'neg':''}">${v.points[p]>0?'+':''}${v.points[p]}</em><strong>${v.totals[p]}</strong></li>`).join('')}</ol>
     <details class="sp-detail"><summary>Ver respuestas y puntos</summary>${v.cats.map((c,q)=>`<section><h4>${esc(c)}</h4>${v.names.map((n,p)=>`<p><i>${avatar(p)}</i><span>${v.answers[p][q]?esc(v.answers[p][q]):'—'}</span><b class="${v.rows[p][q]>0?'pts':v.rows[p][q]<0?'neg':'zero'}">${v.rows[p][q]>0?'+'+v.rows[p][q]:v.rows[p][q]<0?String(v.rows[p][q]):'0'}</b></p>`).join('')}</section>`).join('')}</details>
-    <div class="arc-actions">${mode==='guest'?'<p class="arc-sub center">El anfitrión empieza la siguiente ronda.</p>':'<button class="arc-btn big" id="spNext">Otra ronda</button>'}<button class="arc-btn alt" id="spLeave">Todos los juegos</button></div>`;
+    <div class="arc-actions">${mode==='guest'?'<p class="arc-sub center">El anfitrión empieza la siguiente ronda.</p>':'<button class="arc-btn big" id="spNext">Otra ronda</button>'}<button class="arc-btn alt" id="spLeave">Salir</button></div>`;
   }
   ui.stage.innerHTML=`<div class="mini-game dos sp">${head(sub)}${offline?'<p class="arc-alert">Sin conexión. Reconectando…</p>':''}<p class="sp-round">Ronda ${v.round}</p>${body}${rulesHTML()}</div>`;
   bindCommon();

@@ -340,7 +340,8 @@ class UI{
  showFeatureInDevelopment(){this.closeHomeMenu();showModal('🚧 Función en desarrollo','Estamos preparando esta función para ti. ❤️',[['Volver','primary-action',hideModal]])}
  flashHint(){const b=$('#hintBtn'),old=b.textContent;b.textContent='Sin pistas disponibles';setTimeout(()=>b.textContent=old,1000)}
  render(){
-  const g=this.game;if(!g)return;$('#difficulty').value=g.difficulty;$('#difficultyLabel').textContent=DIFFICULTIES[g.difficulty].label+(g.daily?' · diario':'');
+  const g=this.game;if(!g)return;{const an=$('#autoNotesBtn');if(an){const off=['expert','master','extreme'].includes(g.difficulty);an.classList.toggle('hidden',off);if(an.parentNode)an.parentNode.classList.toggle('no-auto',off)}}   /* 0.3.68 (dueño): en Experto, Maestro y Extremo no hay notas automáticas */
+  $('#difficulty').value=g.difficulty;$('#difficultyLabel').textContent=DIFFICULTIES[g.difficulty].label+(g.daily?' · diario':'');
   // 0.2.16: the difficulty selector disappears once the player has made a move in this game
   $('#difficulty').classList.toggle('hidden',g.history.length>0||g.future.length>0||g.errors>0||g.hints>0||g.board.some((v,i)=>v!==g.puzzle[i])||g.notes.some(s=>s.size>0)||!!g.daily);
    $('#newBtn').classList.toggle('hidden',!!g.daily);   // 0.2.32: the daily puzzle has no "new sudoku" button

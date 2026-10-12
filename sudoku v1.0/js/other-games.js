@@ -45,19 +45,19 @@ const games=[
 function mineLevelsHTML(){const best=mineBest();return `<div class="mine-levels" role="group" aria-label="Dificultad">${Object.entries(MINE_LEVELS).map(([k,L])=>`<button type="button" data-ml="${k}" class="${k===minesLevel?'on':''}"><b>${L.label}</b><small>${L.n}×${L.n} · ${L.mines} 💣${best[k]?` · ⏱ ${clockText(best[k])}`:''}</small></button>`).join('')}</div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-ml]');if(!b)return;minesLevel=b.dataset.ml;try{localStorage.setItem('sudomi-mines-level',minesLevel)}catch(_){}document.querySelectorAll('[data-ml]').forEach(x=>x.classList.toggle('on',x===b))});
 // DOS has its own screens and its own online rooms for up to 4 players.
-function openDos(){if(!window.SudomiDos)return false;current=null;game=null;SudomiDos.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}});return true}
+function openDos(){if(!window.SudomiDos)return false;current=null;game=null;SudomiDos.open({hub,stage,exit:modExit});return true}
 // 0.2.29: STOP for 1–8 players has its own screens too (js/stop-party.js); "legacy" opens the old two-players-on-one-phone STOP
 // 0.2.58: Dominó for 1–4 people has its own room screens (js/domino-party.js); `pending` is a room code from an invitation link
-function openDominoParty(pending,create){if(!window.SudomiDominoParty)return false;current=null;game=null;SudomiDominoParty.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()},back:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');chooseMode('domino')},toast:(t,s)=>wifiToast(t,s)},pending,create);return true}
-function openDominopolis(){if(!window.SudomiDominopolis)return false;current=null;game=null;SudomiDominopolis.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}});return true}
-function openParchis(mode,code){if(!window.SudomiParchis)return false;current=null;game=null;SudomiParchis.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}},mode,code);return true}
+function openDominoParty(pending,create){if(!window.SudomiDominoParty)return false;current=null;game=null;SudomiDominoParty.open({hub,stage,exit:modExit,back:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');chooseMode('domino')},toast:(t,s)=>wifiToast(t,s)},pending,create);return true}
+function openDominopolis(){if(!window.SudomiDominopolis)return false;current=null;game=null;SudomiDominopolis.open({hub,stage,exit:modExit});return true}
+function openParchis(mode,code){if(!window.SudomiParchis)return false;current=null;game=null;SudomiParchis.open({hub,stage,exit:modExit},mode,code);return true}
 // 0.2.97: la Batalla naval nueva vive en js/naval.js (la clase Fleet de abajo queda solo como respaldo si ese archivo no cargara)
-function openNaval(mode,code){if(!window.SudomiNaval)return false;current=null;game=null;SudomiNaval.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}},mode,code);return true}
-function openMahjong(mode,code){if(!window.SudomiMahjong)return false;current=null;game=null;SudomiMahjong.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}},mode,code);return true}   // 0.2.100: Mahjong nuevo (js/mahjong.js)
-function openStopClasico(){if(!window.SudomiStopClasico)return false;current=null;game=null;SudomiStopClasico.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}});return true}   // 0.2.101: STOP clásico (js/stop-clasico.js)
+function openNaval(mode,code){if(!window.SudomiNaval)return false;current=null;game=null;SudomiNaval.open({hub,stage,exit:modExit},mode,code);return true}
+function openMahjong(mode,code){if(!window.SudomiMahjong)return false;current=null;game=null;SudomiMahjong.open({hub,stage,exit:modExit},mode,code);return true}   // 0.2.100: Mahjong nuevo (js/mahjong.js)
+function openStopClasico(){if(!window.SudomiStopClasico)return false;current=null;game=null;SudomiStopClasico.open({hub,stage,exit:modExit});return true}   // 0.2.101: STOP clásico (js/stop-clasico.js)
 // el interruptor «Modo clásico» de la pantalla de elegir partida de STOP; se recuerda en este navegador
 const stopClassic=()=>{try{return localStorage.getItem('sudomi-stop-clasico')==='1'}catch(_){return false}};
-function openStop(){if(!window.SudomiStop)return false;current=null;game=null;SudomiStop.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()},legacy:()=>launch('stop','pvp')});return true}
+function openStop(){if(!window.SudomiStop)return false;current=null;game=null;SudomiStop.open({hub,stage,exit:modExit,legacy:()=>launch('stop','pvp')});return true}
 let current=null, game=null, wifi={active:false,player:0,handler:null,names:[null,null]}, acknowledgedWin=null, localWinListener=null;
 /* 0.2.25 — player profiles in two-player online games: each phone sends {name, avatar} to the other one,
  * and every "Jugador 1"/"Jugador 2" on screen is replaced by that player's name. */
@@ -151,11 +151,13 @@ function navConfirm(go){
  if(!navPlaying())return go();
  const m=$('#modal');
  const keep=canPark();   // 0.3.42: esta partida se puede guardar para continuarla después
- m.innerHTML=keep?'<div class="modal-card"><h2>¿Salir de la partida?</h2><p>Tu partida se guarda: puedes retomarla en «Continuar», en la lista de juegos.</p><div class="modal-actions"><button class="primary-action" id="arcStay">Seguir jugando</button><button class="secondary-action" id="arcLeave">Guardar y salir</button></div></div>'
+ m.innerHTML=keep?'<div class="modal-card"><h2>¿Salir de la partida?</h2><p>Puedes guardarla y retomarla después en «Continuar», o salir sin guardar (la partida se pierde).</p><div class="modal-actions"><button class="primary-action" id="arcStay">Seguir jugando</button><button class="secondary-action" id="arcLeave">Guardar y salir</button><button class="secondary-action" id="arcDrop">Salir</button></div></div>'
   :'<div class="modal-card"><h2>¿Salir de la partida?</h2><p>Si sales ahora, la partida que estás jugando se pierde.</p><div class="modal-actions"><button class="primary-action" id="arcStay">Seguir jugando</button><button class="secondary-action" id="arcLeave">Salir</button></div></div>';
  m.classList.remove('hidden');
  $('#arcStay').onclick=()=>m.classList.add('hidden');
  $('#arcLeave').onclick=()=>{m.classList.add('hidden');if(keep)park();go()};
+ // 0.3.68 (dueño): «Salir» a secas NO guarda, y borra la copia que hubiera de esta partida (parkSkip le dice a modSync que no guarde al cerrar el juego)
+ const dr=$('#arcDrop');if(dr)dr.onclick=()=>{m.classList.add('hidden');parkSkip=true;try{if(canParkOwn())unpark(current,game.mode);modSync();go()}finally{parkSkip=false}};
 }
 // cierra lo que haya en el escenario (cualquier juego, con o sin sala) y vuelve a mostrar el menú
 function exitStage(){
@@ -237,6 +239,8 @@ function arcadeChrome(){
  new MutationObserver(paintScene).observe(document.documentElement,{attributes:true,attributeFilter:['data-skin']});
  paintScene();tidy();
 }
+// 0.3.68 (dueño): al SALIR de un juego con archivo propio (botón «Salir» del final, o su botón de salir) se vuelve al menú de ESE juego, no a la lista
+function modExit(){stage.classList.add('hidden');hub.classList.remove('hidden');const id=navId;if(id&&games.some(g=>g[0]===id))chooseMode(id);else renderHub()}
 function toHub(){if(game?.dispose)game.dispose();leaveWifi();current=null;game=null;stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}
 // 0.3.2 (V2, Fase 3): grupos de la lista, cuántos juegan cada juego y los últimos juegos abiertos (se guardan en este navegador)
 const GROUPS=[['Fiesta',['dos','stop','dominopolis','parchis']],['Tablero',['domino','chess','checkers','fleet','mahjong','slide']],['Cartas',['escoba','rummy','blackjack','poker']],['Rápidos',['mines','connect4','tictactoe','memory','dotsboxes']]];
@@ -305,8 +309,8 @@ function enterMode(id,mode){
  if(id==='parchis'){openParchis(mode);return}
  if(id==='fleet'&&openNaval(mode))return;
  if(id==='mahjong'&&openMahjong(mode))return;
- if(id==='poker'&&mode==='pve'&&window.SudomiPoker){current=null;game=null;SudomiPoker.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}});return}   // 0.3.9: Texas Hold'em con fichas (js/poker.js); los otros modos siguen con el póker de cambiar cartas
- if(id==='blackjack'&&mode==='pve'&&window.SudomiBlackjack){current=null;game=null;SudomiBlackjack.open({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}});return}   // 0.3.8: Blackjack completo con fichas (js/blackjack.js); los otros modos siguen con el de dos jugadores
+ if(id==='poker'&&mode==='pve'&&window.SudomiPoker){current=null;game=null;SudomiPoker.open({hub,stage,exit:modExit});return}   // 0.3.9: Texas Hold'em con fichas (js/poker.js); los otros modos siguen con el póker de cambiar cartas
+ if(id==='blackjack'&&mode==='pve'&&window.SudomiBlackjack){current=null;game=null;SudomiBlackjack.open({hub,stage,exit:modExit});return}   // 0.3.8: Blackjack completo con fichas (js/blackjack.js); los otros modos siguen con el de dos jugadores
  if(mode==='pve'){
   if(id==='dos'&&openDos()){SudomiDos.solo();return}
   if(id==='stop'&&stopClassic()&&openStopClasico()){SudomiStopClasico.solo();return}
@@ -409,12 +413,14 @@ function modSync(){
  let l=parked(),kept=false;
  for(const {id,k,st} of found){
   l=l.filter(x=>!(x.id===id&&x.mode===st.mode));
+  if(parkSkip){try{const M=window[k];if(M&&M.parkDrop)M.parkDrop()}catch(_){}continue}
   if(st.over||!st.snap)continue;
   let snap;try{snap=JSON.parse(JSON.stringify(st.snap))}catch(_){continue}
   l.unshift({id,mode:st.mode,ts:Date.now(),mod:k,snap});kept=true;
  }
  parkWrite(l);return kept;
 }
+let parkSkip=false;
 window.SudomiPark={sync:modSync};
 // Dominópolis guarda su partida aparte ('sudomi-dominopolis-save'): la lista «Continuar» solo lleva el aviso, y aquí se pone o se quita según exista
 function dpSeed(){
@@ -437,7 +443,7 @@ function resumeParked(i){
  const p=parked()[i];if(!p)return;
  if(p.mod){
   let ok=false;current=null;game=null;navId=p.id;
-  try{const M=window[p.mod];ok=!!(M&&M.parkResume&&M.parkResume({hub,stage,exit:()=>{stage.classList.add('hidden');hub.classList.remove('hidden');renderHub()}},p.snap,p.mode))}
+  try{const M=window[p.mod];ok=!!(M&&M.parkResume&&M.parkResume({hub,stage,exit:modExit},p.snap,p.mode))}
   catch(e){console.warn('SUDOMI: no se pudo retomar la partida',e)}
   if(ok){markRecent(p.id);altMode(p.mod==='SudomiStopClasico'?'stop':p.id==='parchis'&&p.snap&&/"war":true/.test(p.snap.ck||'')?'war':'')}
   else{unpark(p.id,p.mode);exitStage();renderHub()}
@@ -638,7 +644,7 @@ function turnInfo(){if(current==='mines')return game.mode==='clock'?`⏱ ${clock
 function clockText(s){return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`}
 function resetMatch(){if(wifi.active&&wifi.player!==0)return;const mode=wifi.active?'pvp':game.mode;game=create(current,mode);if(wifi.active)game.wifi=true;render();publishWifi()}
 function shell(title,subtitle,content){const result=resultInfo();if(!result&&acknowledgedWin===game)acknowledgedWin=null;   // 0.2.16: a rematch on the same room celebrates again
-const waiting=localWinPending(result),score=current==='tictactoe'||current==='connect4'?game.scoreMarkup():'';stage.innerHTML=withNames(`<div class="mini-game fs ${waiting?'local-win-active':''}">${fsTop(title,subtitle,!!score)}<div class="mini-game-head"><div><p>ARCADE SUDOMI · ${modeLabel()}</p><h2>${title}</h2><small>${subtitle}</small></div><div class="mini-game-actions"><span class="turn-indicator">${turnInfo()}</span><button class="game-restart" id="gameListBtn">Juegos</button><button class="game-restart" id="sudokuBtn">Sudoku</button><button class="game-restart" id="changeMode">Modos</button>${score?'<button class="game-restart" id="resetScore">Reiniciar marcador</button>':''}<button class="game-restart" id="restartMini" ${wifi.active&&wifi.player!==0?'disabled title="El creador de la sala reinicia la partida"':''}>↻</button></div></div>${vsBar()}${waiting?`<p class="victory-awaiting"><strong>🏆 ${result.winner}</strong><span>${victoryPrompt(result)}</span></p>${winnerHere()?'':'<button class="win-tap-catcher" type="button" aria-label="Ver el resultado"></button>'}`:''}${score}${content}${result&&!waiting?`<div class="game-end-overlay"><div class="game-end-card"><div class="res-ic">${window.SudomiResult?SudomiResult.icon('win'):''}</div><p>PARTIDA TERMINADA</p><h3>${result.title}</h3><strong>${result.winner}</strong><small>${result.detail}</small><div><button id="playAgain" ${wifi.active&&wifi.player!==0?'disabled':''}>${wifi.active&&wifi.player!==0?'El creador de la sala inicia otra':'↻ Revancha'}</button><button id="endShare">📤 Compartir</button><button id="endGames">Todos los juegos</button></div></div></div>`:''}</div>`);$('#restartMini').onclick=()=>wifi.active?resetMatch():(game=create(current,game.daily?'daily':game.mode),render());const reset=$('#resetScore');if(reset)reset.onclick=()=>{game.record.scores=[0,0];publishWifi();render()};$('#gameListBtn').onclick=toHub;$('#sudokuBtn').onclick=back;$('#changeMode').onclick=()=>{if(wifi.active)leaveWifi();game=null;stage.classList.add('hidden');hub.classList.remove('hidden');chooseMode(current)};if(result&&!waiting){$('#playAgain').onclick=resetMatch;$('#endGames').onclick=toHub;$('#endShare').onclick=()=>{if(window.SudomiResult)SudomiResult.share(`${result.title} en SUDOMI: ${result.winner}. ¡Juega conmigo!`)}}   /* 0.3.11: mismos botones que la pantalla de resultado común (js/result.js) */armLocalWinTap(waiting);fsBind()}
+const waiting=localWinPending(result),score=current==='tictactoe'||current==='connect4'?game.scoreMarkup():'';stage.innerHTML=withNames(`<div class="mini-game fs ${waiting?'local-win-active':''}">${fsTop(title,subtitle,!!score)}<div class="mini-game-head"><div><p>ARCADE SUDOMI · ${modeLabel()}</p><h2>${title}</h2><small>${subtitle}</small></div><div class="mini-game-actions"><span class="turn-indicator">${turnInfo()}</span><button class="game-restart" id="gameListBtn">Juegos</button><button class="game-restart" id="sudokuBtn">Sudoku</button><button class="game-restart" id="changeMode">Modos</button>${score?'<button class="game-restart" id="resetScore">Reiniciar marcador</button>':''}<button class="game-restart" id="restartMini" ${wifi.active&&wifi.player!==0?'disabled title="El creador de la sala reinicia la partida"':''}>↻</button></div></div>${vsBar()}${waiting?`<p class="victory-awaiting"><strong>🏆 ${result.winner}</strong><span>${victoryPrompt(result)}</span></p>${winnerHere()?'':'<button class="win-tap-catcher" type="button" aria-label="Ver el resultado"></button>'}`:''}${score}${content}${result&&!waiting?`<div class="game-end-overlay"><div class="game-end-card"><div class="res-ic">${window.SudomiResult?SudomiResult.icon('win'):''}</div><p>PARTIDA TERMINADA</p><h3>${result.title}</h3><strong>${result.winner}</strong><small>${result.detail}</small><div><button id="playAgain" ${wifi.active&&wifi.player!==0?'disabled':''}>${wifi.active&&wifi.player!==0?'El creador de la sala inicia otra':'↻ Revancha'}</button><button id="endShare">📤 Compartir</button><button id="endGames">Salir</button></div></div></div>`:''}</div>`);$('#restartMini').onclick=()=>wifi.active?resetMatch():(game=create(current,game.daily?'daily':game.mode),render());const reset=$('#resetScore');if(reset)reset.onclick=()=>{game.record.scores=[0,0];publishWifi();render()};$('#gameListBtn').onclick=toHub;$('#sudokuBtn').onclick=back;$('#changeMode').onclick=()=>{if(wifi.active)leaveWifi();game=null;stage.classList.add('hidden');hub.classList.remove('hidden');chooseMode(current)};if(result&&!waiting){$('#playAgain').onclick=resetMatch;$('#endGames').onclick=()=>{const id=current;toHub();if(id&&games.some(g=>g[0]===id))chooseMode(id)};$('#endShare').onclick=()=>{if(window.SudomiResult)SudomiResult.share(`${result.title} en SUDOMI: ${result.winner}. ¡Juega conmigo!`)}}   /* 0.3.11: mismos botones que la pantalla de resultado común (js/result.js) */armLocalWinTap(waiting);fsBind()}
 /* 0.3.49 (dueño) — PARTIDA A PANTALLA COMPLETA. Dentro de una partida ya no se ve la barra del arcade (logo, luna, perfil) ni el título con sus botones.
  * Queda una sola fila de ALTO FIJO: ← regresar · el aviso de turno · ⋯ (menú con Reglas, Reiniciar y Sonido). Como esa fila nunca cambia de alto,
  * el tablero no se mueve. La cabecera vieja (.mini-game-head) sigue en la página pero escondida: el menú ⋯ pulsa sus botones de siempre. */

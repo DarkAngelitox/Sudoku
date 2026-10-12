@@ -55,6 +55,7 @@
   turbo:{e:'⚡',n:'Turbo',d:'Tu próximo dado vale el doble.',t:null},
   motoconcho:{e:'🛵',n:'Motoconcho',d:'Saca una ficha tuya de casa sin necesitar un 5.',t:null}
  };
+ const COND={bomba:'Solo contra una ficha rival que esté sola y sin escudo.',chancla:'Solo contra dos fichas rivales del mismo equipo que estén juntas y sin escudo.',machete:'La ficha rival no puede tener escudo.',ciclon:'Solo a una ficha rival sola, sin escudo, que esté en el camino (no en un pasillo ni en su salida).',hielo:'El rival no puede estar ya congelado.',cambio:'Las dos fichas tienen que estar en el camino y sin pareja; la rival, detrás de la tuya.',escudo:'Solo a una ficha tuya que esté fuera de casa.',curita:'Solo a una ficha tuya herida que esté fuera de casa.',turbo:'Necesitas una ficha fuera de casa.',motoconcho:'Necesitas una ficha en casa (con vidas) y tu salida libre.'};   /* 0.3.68 (dueño): la condición de cada carta; sale en rojo debajo de lo que hace */
  const CARD_KEYS=Object.keys(CARDS),RPS={r:'✊',p:'✋',s:'✌️'},RPS_N={r:'piedra',p:'papel',s:'tijera'};
  const TKEY='sudomi-parchis-theme',GAME='parchis';
  const NAME='Parchimi';   // nombre propio del juego (el id interno y los enlaces de sala siguen siendo «parchis»). Para cambiarlo: aquí y en la lista `games` de other-games.js
@@ -63,7 +64,7 @@
  const clean=n=>String(n||'').replace(/[<>&"']/g,'').replace(/\s+/g,' ').trim().slice(0,14);
  const P=()=>window.SudomiProfile;
  const myName=()=>(P()&&P().name&&P().name())||'Jugador 1',myAvatar=()=>(P()&&P().avatar&&P().avatar())||'🙂';
- let ui=null,g=null,token=0,mode='pve',selDie=0,rollTok=0,rolling=false,aim=null,choice=null;
+ let ui=null,g=null,token=0,mode='pve',selDie=0,rollTok=0,rolling=false,aim=null,choice=null,peek=null;
  const waits=new Map();   // lo que el motor está esperando de una persona: 'roll:c', 'pick:c', 'rps:c'
  const net={role:'solo',room:null,conn:null,code:'',seats:[],me:0,started:false,status:'',tok:0};
  const setup={n:4,war:false,n4:2,place:[0,1,2,3],theme:(()=>{try{const t=localStorage.getItem(TKEY);return THEMES[t]?t:'clasico'}catch(_){return 'clasico'}})()};
@@ -439,9 +440,18 @@
   });
   const info=$('#pcCardInfo');
   if(info){
-   if(aim){const C=CARDS[aim.key];info.innerHTML=`<b>${C.e} ${C.n}</b><span>${esc(C.d)}</span>${C.t?'':'<button type="button" class="arc-btn" id="pcUseCard">Usar ahora</button>'}<button type="button" class="arc-btn ghost" id="pcDropCard">🗑 Tirar carta</button>`;info.classList.remove('hidden');const u=$('#pcUseCard');if(u)u.onclick=()=>{const a=aim;sendCard(a.c,a.idx)};
-    $('#pcDropCard').onclick=()=>{const a=aim;aim=null;if(net.role==='guest'){net.conn.send({t:'drop',idx:a.idx});update(true)}else dropCard(a.c,a.idx)}}   // 0.3.65 (dueño): una carta se puede tirar para hacer sitio
-   else info.classList.add('hidden');
+   if(peek&&!(mine(peek.c)&&g.cards[peek.c]&&g.cards[peek.c][peek.idx]===peek.key))peek=null;
+   if(peek&&!g.over){
+    const C=CARDS[peek.key],time=cardTime(),can=time&&cardUsable(peek.c,peek.key),sig=peek.c+':'+peek.idx+':'+peek.key+':'+can+':'+time;
+    if(info.dataset.k!==sig){
+     info.dataset.k=sig;
+     info.innerHTML=`<b>${C.e} ${C.n}</b><span>${esc(C.d)}</span>${COND[peek.key]?`<em class="pc-cond">${esc(COND[peek.key])}</em>`:''}${can?'':`<em class="pc-cond now">${time?'Ahora mismo no se cumple: no se puede usar.':'Espera a que termine la jugada para usarla.'}</em>`}<div class="pc-ci-btns"><button type="button" class="arc-btn" id="pcUseCard" ${can?'':'disabled'}>${C.t?'Usar: elegir ficha':'Usar ahora'}</button><button type="button" class="arc-btn ghost" id="pcDropCard">🗑 Tirar carta</button><button type="button" class="arc-btn ghost" id="pcCloseCard">Cerrar</button></div>`;
+     $('#pcUseCard').onclick=()=>{const p=peek;if(!p)return;peek=null;if(CARDS[p.key].t){aim={c:p.c,idx:p.idx,key:p.key,first:null};update(true)}else sendCard(p.c,p.idx)};
+     $('#pcDropCard').onclick=()=>{const p=peek;if(!p)return;peek=null;if(net.role==='guest'){net.conn.send({t:'drop',idx:p.idx});update(true)}else if(!dropCard(p.c,p.idx))update(true)};
+     $('#pcCloseCard').onclick=()=>{peek=null;update(true)};
+    }
+    info.classList.remove('hidden');
+   }else{info.classList.add('hidden');info.dataset.k=''}
   }
   // animación + texto cuando alguien activa una carta (se ve en todos los teléfonos)
   const fx=$('.pc-fx');
@@ -612,19 +622,19 @@
   const slots=W?g.players.map(c=>[0,1].map(k=>`<button type="button" class="pc-slot" data-c="${c}" data-k="${k}" style="left:${pct(SLOT[c][k][0])};top:${pct(SLOT[c][k][1])};--pc-c:${COLORS[c].hex}" aria-label="Carta ${k+1} de ${esc(nm(c))}" disabled></button>`).join('')).join('')+'<div class="pc-fx" aria-live="polite"></div>':'';
   ui.stage.innerHTML=`<div class="mini-game pc${W?' war':''}">${head()}
    <div class="pc-seats">${seats}</div>
-   <div class="pc-board">${boardSVG(W)}${avs}${letters}${slots}${pieces}${dice}</div>
+   <div class="pc-board">${boardSVG(W)}${avs}${letters}${slots}${pieces}${dice}${W?'<div class="pc-cardinfo2 hidden" id="pcCardInfo"></div>':''}</div>
    <div class="pc-hud"><button type="button" id="pcDice" class="pc-dice" aria-label="Tirar los dados"><span>🎲</span><small>Tirar</small></button><div class="pc-say"><b id="pcMsg"></b><small id="pcSub"></small></div></div>
    <div class="pc-choice hidden" id="pcChoice"></div>
-   ${W?'<div class="pc-cardinfo2 hidden" id="pcCardInfo"></div><div class="pc-duel hidden" id="pcDuel"></div><div class="pc-score hidden" id="pcScore"></div>':''}
+   ${W?'<div class="pc-duel hidden" id="pcDuel"></div><div class="pc-score hidden" id="pcScore"></div>':''}
    <div class="pc-foot"><button class="arc-btn hidden" id="pcAgain" type="button">↻ Jugar otra vez</button><button class="arc-btn ghost" id="pcTheme" type="button">🎨 Fondo</button></div></div>`;
   bindHead();$('#pcTheme').onclick=showThemes;
   $('#pcAgain').onclick=()=>{if(net.role==='host')startOnline();else start()};
   $('#pcDice').onclick=()=>{if(!g||g.over||g.phase!=='roll'||!mine(g.players[g.turn]))return;aim=null;if(net.role==='guest'){net.conn.send({t:'roll'});return}answer('roll',g.players[g.turn],true)};
   ui.stage.querySelectorAll('.pc-slot').forEach(e=>e.onclick=()=>{   // tocar una carta: se elige (sale qué hace); tocarla otra vez la suelta
    const c=+e.dataset.c,idx=+e.dataset.k,key=g&&g.cards[c][idx];if(!key||!mine(c))return;
-   if(!cardTime()||!cardUsable(c,key)){if(!$('.pc-sheet')&&!g.over){const s=sheet('<h3>'+CARDS[key].e+' '+CARDS[key].n+'</h3><p>'+esc(CARDS[key].d)+'</p><p><b>Ahora no se puede usar:</b> '+(!cardTime()?'espera a que termine la jugada que se está moviendo. Las cartas se usan antes de tirar o mientras alguien elige su ficha.':key==='turbo'?'necesitas una ficha fuera de casa.':key==='motoconcho'?'no te quedan fichas en casa o tu salida está ocupada.':'no hay ninguna ficha a la que se le pueda aplicar (las que tienen escudo o están en pareja no cuentan para algunas cartas).')+'</p><button type="button" class="arc-btn ghost" data-drop>🗑 Tirar carta</button>');
-    const b=s&&s.querySelector('[data-drop]');if(b)b.onclick=ev=>{ev.stopPropagation();s.remove();if(net.role==='guest')net.conn.send({t:'drop',idx});else dropCard(c,idx)}}return}
-   aim=aim&&aim.c===c&&aim.idx===idx?null:{c,idx,key,first:null};choice=null;update(true);
+   /* 0.3.68 (dueño): tocar una carta abre su cuadro EN MEDIO del tablero (drawWar): qué hace, su condición en rojo, y Usar / Tirar / Cerrar. Tocar la carta con la que estás apuntando, la suelta */
+   if(aim&&aim.c===c&&aim.idx===idx){aim=null;update(true);return}
+   peek=peek&&peek.c===c&&peek.idx===idx?null:{c,idx,key};aim=null;choice=null;update(true);
   });
   ui.stage.querySelectorAll('.pc-die').forEach(e=>e.onclick=()=>{const d=+e.dataset.d;if(g&&g.phase==='pick'&&g.opts.some(o=>o.d===d)){selDie=d;choice=null;update(true)}});
   ui.stage.querySelectorAll('.pc-piece').forEach(e=>e.onclick=()=>{
@@ -921,7 +931,7 @@
   if(net.conn){try{net.conn.close()}catch(_){}}
   Object.assign(net,{role:'solo',room:null,conn:null,code:'',seats:[],started:false,me:0,war:false,n4:2});
  }
- function stopGame(){token++;rollTok++;rolling=false;g=null;CK=null;aim=null;choice=null;const pend=[...waits.values()];waits.clear();pend.forEach(res=>res(null))}
+ function stopGame(){token++;rollTok++;rolling=false;g=null;CK=null;aim=null;choice=null;peek=null;const pend=[...waits.values()];waits.clear();pend.forEach(res=>res(null))}
  function leave(){close();const u=ui;if(u){u.stage.innerHTML='';u.exit()}}
  function close(){try{window.SudomiPark&&SudomiPark.sync()}catch(_){}stopGame();leaveNet();net.status=''}
  /* 0.3.63 — PARTIDA GUARDADA (contra la máquina o en este dispositivo; ver PARK_MODS en other-games.js). Se guarda la foto CK que run() toma al

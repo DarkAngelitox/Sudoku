@@ -28,7 +28,7 @@
   el.innerHTML=`<div class="res-card ${esc(o.kind||'end')}" role="dialog" aria-label="Resultado">
    <div class="res-ic">${icon(o.kind)}</div><p class="res-eyebrow">${esc(o.game||'PARTIDA TERMINADA')}</p><h3>${esc(o.title)}</h3>
    ${o.sub?`<strong>${esc(o.sub)}</strong>`:''}${o.detail?`<small>${esc(o.detail)}</small>`:''}
-   <div class="res-btns">${o.again?`<button type="button" class="res-main" data-r="again">↻ ${esc(o.againLabel||'Revancha')}</button>`:''}${o.share?'<button type="button" data-r="share">📤 Compartir</button>':''}${o.exit?'<button type="button" data-r="exit">Todos los juegos</button>':''}</div>
+   <div class="res-btns">${o.again?`<button type="button" class="res-main" data-r="again">↻ ${esc(o.againLabel||'Revancha')}</button>`:''}${o.share?'<button type="button" data-r="share">📤 Compartir</button>':''}${o.exit?'<button type="button" data-r="exit">Salir</button>':''}</div>
    <button type="button" class="res-peek" data-r="close">Ver el tablero</button><p class="res-note" role="status"></p></div>`;
   el.addEventListener('click',e=>{
    const b=e.target.closest('[data-r]');

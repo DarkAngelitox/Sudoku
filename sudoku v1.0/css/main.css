@@ -3925,3 +3925,14 @@ html[data-fx="off"] .pc-piece.can,html[data-fx="off"] .pc-av.turn,html[data-fx="
 .pc-tb-slot{display:grid;justify-items:center;align-content:center;gap:2px;min-height:96px;padding:8px 6px;border:3px solid #0003;border-radius:14px;background:var(--pc-c);color:var(--pc-ink);font:inherit;cursor:pointer;min-width:0}.pc-tb-slot i{font-style:normal;font-size:30px;line-height:1.15}.pc-tb-slot b{font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pc-tb-slot em{font-style:normal;font-size:10px;font-weight:800;opacity:.85;text-transform:uppercase;letter-spacing:.5px}
 .pc-tb-slot.free i{opacity:.7}.pc-tb-slot.me{box-shadow:0 0 0 3px #fff,0 0 0 6px #10213b}.pc-tb-slot.sel{box-shadow:0 0 0 3px #fff,0 0 0 6px #d62027;transform:scale(1.04)}
 #miniGamesScreen[data-alt="war"] .pc-tb-side{color:#ffe9e9;background:#fff2;border-color:#fff5}
+/* 0.3.68 (dueño): el cuadro de una carta de Parchís guerra sale EN MEDIO del tablero; la condición va en rojo */
+.pc-board>.pc-cardinfo2{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:30;width:min(86%,360px);max-width:none;margin:0;padding:12px 14px;box-shadow:0 12px 34px #000a}
+.pc-cardinfo2 .pc-cond{display:block;font-style:normal;font-size:12.5px;font-weight:800;color:#c8141b}
+.pc-cardinfo2 .pc-cond.now{color:#8f1016;background:#ffe1e1;border-radius:8px;padding:4px 6px}
+.pc-ci-btns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:6px}.pc-ci-btns .arc-btn{margin:0;padding:8px 12px;font-size:13px}.pc-ci-btns .arc-btn:disabled{opacity:.45}
+/* en Experto, Maestro y Extremo no hay boton Auto: la fila queda de tres */
+#gameScreen .mode-row.no-auto{grid-template-columns:repeat(3,1fr)!important}
+#miniGamesScreen[data-alt="war"] #pcMsg{color:#fff}
+/* sala online con el fondo rojo de guerra: la lista de jugadores no se leia (letras oscuras sobre fondo oscuro) */
+#miniGamesScreen[data-alt="war"] .lb-head,#miniGamesScreen[data-alt="war"] .lb-seats,#miniGamesScreen[data-alt="war"] .lb-hint,#miniGamesScreen[data-alt="war"] .lb-status,#miniGamesScreen[data-alt="war"] .pc-opt>b,#miniGamesScreen[data-alt="war"] .pc-opt .pc-hint{color:#ffeaea}
+#miniGamesScreen[data-alt="war"] .lb-seat{background:#ffffff26}

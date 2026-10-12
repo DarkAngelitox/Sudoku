@@ -162,7 +162,7 @@
   if(!ui||!T)return;const m=me(),my=T.turn===0&&!!waiting,toCall=Math.max(0,T.cur-m.bet);
   let ctrl='';
   if(T.phase==='start')ctrl=C().get()<BB?`<p class="bj-hint">No tienes fichas suficientes.</p><div class="bj-row"><button class="arc-btn pc-big" type="button" id="pkRefill">🎁 Recargar ${C().REFILL} fichas</button></div>`:`<div class="bj-row"><button class="arc-btn pc-big" type="button" id="pkDeal">▶ Repartir</button></div>`;
-  else if(T.phase==='done')ctrl=m.stack<BB?`<p class="bj-hint">Te quedaste sin fichas.</p><div class="bj-row"><button class="arc-btn pc-big" type="button" id="pkRefill">🎁 Recargar ${C().REFILL} fichas</button></div>`:`<div class="bj-row"><button class="arc-btn pc-big" type="button" id="pkNext">Siguiente mano</button></div>`;
+  else if(T.phase==='done')ctrl=m.stack<BB?`<p class="bj-hint">Te quedaste sin fichas.</p><div class="bj-row"><button class="arc-btn pc-big" type="button" id="pkRefill">🎁 Recargar ${C().REFILL} fichas</button></div>`:`<div class="bj-row"><button class="arc-btn pc-big" type="button" id="pkNext">Siguiente mano</button><button class="arc-btn ghost" type="button" id="pkExit">Salir</button></div>`;   // 0.3.68 (dueño): al terminar una mano se puede salir al menú del juego
   else if(my){
    const max=m.bet+m.stack,min=Math.min(max,T.cur+T.minRaise),opts=[...new Set([min,Math.round((T.cur+T.pot*.5)/5)*5,Math.round((T.cur+T.pot)/5)*5].filter(x=>x>=min&&x<max))].sort((a,b)=>a-b).slice(0,3);
    ctrl=`<div class="bj-row"><button class="arc-btn ghost" type="button" data-pk="fold">Retirarse</button><button class="arc-btn" type="button" data-pk="call">${toCall?(toCall>=m.stack?'All-in '+fmt(m.stack):'Igualar '+fmt(toCall)):'Pasar'}</button></div>
@@ -178,7 +178,7 @@
    <div class="bj-ctrl">${ctrl}</div></div>`;
   $('#pkRules').onclick=()=>sheet(rulesHTML());
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn};
-  on('#pkDeal',()=>{T.note='';hand()});on('#pkNext',()=>{T.note='';nextHand()});on('#pkRefill',()=>{C().set(C().REFILL);m.stack=C().get();play('bonus');T.phase='start';render()});
+  on('#pkDeal',()=>{T.note='';hand()});on('#pkNext',()=>{T.note='';nextHand()});on('#pkExit',()=>{const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}});on('#pkRefill',()=>{C().set(C().REFILL);m.stack=C().get();play('bonus');T.phase='start';render()});
   ui.stage.querySelectorAll('[data-pk]').forEach(b=>b.onclick=()=>answer({t:b.dataset.pk}));
   ui.stage.querySelectorAll('[data-to]').forEach(b=>b.onclick=()=>answer({t:'raise',to:+b.dataset.to}));
  }
