@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https: wss: ws://localhost:* ws://127.0.0.1:*; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https: wss: ws://localhost:* ws://127.0.0.1:*; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://open.spotify.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b3d91">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,10 +12,11 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-<title>SUDOMI V2 0.3.62</title>
+<title>SUDOMI V2 0.3.99</title>
 <link rel="stylesheet" href="css/main.css">
 <script src="js/i18n.js"></script>
 <script src="js/lang-v2.js"></script>
+<script src="js/lang-v3.js"></script>
 <script src="js/avatar-art.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/customize.js"></script>
@@ -37,8 +38,10 @@
             <button id="openProfileScreen" class="dropdown-option" type="button"><span>👤</span><strong>Perfil</strong><small>Tu perfil</small></button>
             <button id="openCustomize" class="dropdown-option" type="button"><span>🎨</span><strong>Personalizar</strong><small>Tema y color</small></button>
             <button id="openSettings" class="dropdown-option" type="button"><span>⚙️</span><strong>Configuración</strong><small>Ajustes</small></button>
-            <button id="openMiniGames" class="dropdown-option" type="button"><span>🎮</span><strong>Otros juegos</strong><small>17 juegos</small></button>
+            <button id="openMiniGames" class="dropdown-option" type="button"><span>🎮</span><strong>Otros juegos</strong><small>21 juegos</small></button>
             <button id="openRankings" class="dropdown-option" type="button"><span>🌍</span><strong>Rankings</strong><small>Top 15</small></button>
+            <button id="openStory" class="dropdown-option" type="button"><span>🗺️</span><strong>Modo historia</strong><small>Las páginas perdidas</small></button>
+            <button id="openPuzzles" class="dropdown-option" type="button"><span>📜</span><strong>Acertijos</strong><small>Alcuino y otros</small></button>
           </nav>
         </div>
         <a class="home-logo" href="#inicio" aria-label="SUDOMI, inicio">
@@ -71,12 +74,16 @@
         <div class="section-heading"><div><p class="section-eyebrow">ARCADE SUDOMI</p><h2>Juega con amigos</h2></div><button id="homeAllGames" class="section-link" type="button">Ver todos <span>›</span></button></div>
         <div id="homeGames" class="home-games" aria-label="Juegos"></div>
         <nav class="home-menu soon-row" aria-label="Próximamente">
+          <button id="homeStory" class="home-option art art-story" type="button"><span class="option-copy"><strong>Modo historia</strong><small>Las páginas perdidas</small></span><span class="dev-badge">Nuevo</span></button>
+          <button id="homePuzzles" class="home-option art art-puz" type="button"><span class="option-copy"><strong>Acertijos</strong><small>Alcuino de York y otros clásicos</small></span><span class="dev-badge">93</span></button>
           <button id="homeDaily" class="home-option home-daily art art-daily" type="button"><span class="option-copy"><strong>Sudoku del día</strong><small>Un nuevo reto cada día</small></span><span class="dev-badge">Hoy</span></button>
+          <button id="homeAch" class="home-option art art-ach" type="button"><span class="option-copy"><strong>Logros</strong><small>Medallas y retos cumplidos</small></span><span class="dev-badge">Ver</span></button>
+          <button id="homeRompe" class="home-option art art-rompe" type="button"><span class="option-copy"><strong>Rompecabezas</strong><small>Paisajes y anime en 3×3 y 4×4</small></span><span class="dev-badge">Nuevo</span></button>
           <button id="homeStats" class="home-option art art-stats" type="button"><span class="option-copy"><strong>Estadísticas</strong><small>Mira cómo vas mejorando</small></span><span class="dev-badge">Ver</span></button>
         </nav>
       </section>
     </main>
-    <footer class="home-footer"><span>🇩🇴 <span>Hecho con orgullo dominicano</span></span><span>SUDOMI V2 · 0.3.62 · © 2026</span></footer>
+    <footer class="home-footer"><span>🇩🇴 <span>Hecho con orgullo dominicano</span></span><span>SUDOMI V2 · 0.3.99 · © 2026</span></footer>
   </div>
 </section>
 <section id="miniGamesScreen" class="mini-games-screen hidden" aria-label="Otros juegos">
@@ -132,11 +139,11 @@
 <script src="js/arcade-art.js"></script>
 <script src="js/other-games.js"></script>
 <script src="js/extra-games.js"></script>
-<script src="js/party-net.js"></script>
+<script src="js/party-net.js"></script><script src="js/table-talk.js"></script><script src="js/host-handoff.js"></script>
 <script src="js/dos-game.js"></script>
 <script src="js/stop-party.js"></script><script src="js/stop-clasico.js"></script>
 <script src="js/parchis.js"></script>
-<script src="js/naval.js"></script><script src="js/mahjong.js"></script><script src="js/blackjack.js"></script><script src="js/poker.js"></script>
+<script src="js/naval.js"></script><script src="js/mahjong.js"></script><script src="js/blackjack.js"></script><script src="js/poker.js"></script><script src="js/card-tables.js"></script>
 <script src="js/smart-hints.js"></script>
 <script src="js/score.js"></script>
 <script src="js/xp.js"></script>
@@ -151,7 +158,7 @@
 <script src="js/training.js"></script>
 <script src="js/teacher.js"></script>
 <script src="js/profile-screen.js"></script>
-<script src="js/sync.js"></script>
+<script src="js/sync.js"></script><script src="js/cloud.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/a11y.js"></script>
 <script src="js/effects.js"></script>
@@ -169,7 +176,9 @@
 <script src="js/pwa.js"></script>
 <script src="js/install.js"></script>
 <script src="js/lobby.js"></script>
-<script src="js/result.js"></script><script src="js/shop.js"></script>
-<script src="js/tabbar.js"></script><script src="js/friends.js"></script>
+<script src="js/result.js"></script><script src="js/radio.js"></script><script src="js/shop.js"></script>
+<script src="js/puzzle-art.js"></script><script src="js/puzzle-pics.js"></script><script src="js/puzzles.js"></script><script src="js/story.js"></script><script src="js/adventure.js"></script>
+<script src="js/words-es.js"></script><script src="js/words-en.js"></script><script src="js/words.js"></script>
+<script src="js/icons.js"></script><script src="js/tabbar.js"></script><script src="js/friends.js"></script>
 </body></html>
 
