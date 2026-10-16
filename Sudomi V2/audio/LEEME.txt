@@ -1,0 +1,10 @@
+Canciones de la radio de bachata del Dominó (js/radio.js).
+
+Para añadir otra canción:
+1. Copia el archivo MP3 aquí (mejor si pesa poco, menos de 4 MB).
+2. Abre js/radio.js y, dentro de FILES (arriba del todo), añade una línea:
+     {id:'mi-bachata',name:'Mi bachata',src:'audio/mi-bachata.mp3',price:200},
+   price 0 = gratis. Si tiene precio, sale sola en la tienda (Dominó -> Radio de bachata).
+3. Sube la versión en index.html y sw.js como siempre.
+
+Además, en la radio cada jugador puede poner su propia música del teléfono o un enlace de YouTube o Spotify.
