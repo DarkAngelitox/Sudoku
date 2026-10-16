@@ -107,7 +107,7 @@
   save();menuCount();
   if(!($('#achScreen')||{classList:{contains:()=>true}}).classList.contains('hidden'))draw();
  }
- function menuCount(){const b=$('#openAchievements small');if(b)b.textContent=`${LIST.filter(a=>D.unlocked[a[0]]).length} / ${LIST.length}${isKing()?' 👑':''}`}
+ function menuCount(){const txt=`${LIST.filter(a=>D.unlocked[a[0]]).length} / ${LIST.length}${isKing()?' 👑':''}`,b=$('#openAchievements small'),h=$('#homeAch .dev-badge');if(b)b.textContent=txt;if(h)h.textContent=txt}   // 0.3.95: también la tarjeta «Logros» de la portada
  // ---- counters
  function onWin(e){
   const g=ui.game,d=e.detail||{};if(!g)return;
@@ -181,6 +181,7 @@
  }
  function boot(){
   const b=$('#openAchievements');if(b)b.onclick=()=>{const m=$('#homeDropdown');if(m)m.classList.add('hidden');const t=$('#homeMenuBtn');if(t)t.setAttribute('aria-expanded','false');openScreen()};
+  const h=$('#homeAch');if(h)h.onclick=()=>openScreen();
   watchGames();check();menuCount();setInterval(check,5000);
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();

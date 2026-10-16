@@ -68,25 +68,27 @@
  function answer(a){const w=waiting;waiting=null;if(w)w(a)}
 
  /* ---- una ronda de apuestas. Devuelve false si se cerró la mesa ---- */
- async function round(first,t){
-  let acted=new Set(),i=first;
+ /* 0.3.63: la ronda vive en T.rnd = {i: a quién le toca, acted: quiénes ya hablaron} (antes eran variables sueltas), para poder guardar
+  * la mano a medias y retomarla justo en ese turno. */
+ async function round(t){
+  const R=T.rnd;let i=R.i;const acted={has:x=>R.acted.includes(x),add:x=>{if(!R.acted.includes(x))R.acted.push(x)}};
   for(let guard=0;guard<200;guard++){
    if(alive().length<=1)break;
    const act=canAct();if(!act.length||(act.length===1&&act[0].bet>=T.cur)&&acted.has(act[0].i)||(act.every(q=>acted.has(q.i)&&q.bet===T.cur)))break;
    if(act.length===1&&act[0].bet>=T.cur&&alive().every(q=>q.allin||q===act[0]))break;
-   const p=P[i];
+   const p=P[i];R.i=i;
    if(!p.fold&&!p.allin){
     const toCall=T.cur-p.bet;T.turn=i;render();
     const a=p.me?await ask():await aiAct(p,toCall,t);if(t!==token||!a)return false;
     if(a.t==='fold'){p.fold=true;p.say='Se retira'}
     else if(a.t==='raise'&&a.to>T.cur&&p.stack>toCall){
-     const to=Math.min(a.to,p.bet+p.stack),size=to-T.cur;pay(p,to-p.bet);if(size>=T.minRaise)T.minRaise=size;T.cur=Math.max(T.cur,p.bet);acted=new Set();p.say=p.allin?'All-in':`Sube a ${fmt(p.bet)}`;play('tap');
+     const to=Math.min(a.to,p.bet+p.stack),size=to-T.cur;pay(p,to-p.bet);if(size>=T.minRaise)T.minRaise=size;T.cur=Math.max(T.cur,p.bet);R.acted=[];p.say=p.allin?'All-in':`Sube a ${fmt(p.bet)}`;play('tap');
     }else{const x=pay(p,toCall);p.say=x?(p.allin?'All-in':`Iguala ${fmt(x)}`):'Pasa';if(x)play('tap')}
     acted.add(i);
    }
-   i=(i+1)%P.length;
+   i=(i+1)%P.length;R.i=i;
   }
-  T.turn=-1;P.forEach(p=>{p.bet=0;if(!p.fold&&!p.allin)p.say=''});T.cur=0;T.minRaise=BB;render();
+  T.rnd=null;T.turn=-1;P.forEach(p=>{p.bet=0;if(!p.fold&&!p.allin)p.say=''});T.cur=0;T.minRaise=BB;render();
   return true;
  }
  async function hand(){
@@ -98,12 +100,20 @@
   const sb=(T.dealer+1)%n,bb=(T.dealer+2)%n;
   pay(P[sb],SB);P[sb].say='Ciega '+SB;pay(P[bb],BB);P[bb].say='Ciega '+BB;T.cur=BB;
   for(let k=0;k<2;k++)P.forEach(p=>{if(!p.fold)p.cards.push(T.deck.pop())});
+  T.street=0;T.rnd={i:(bb+1)%n,acted:[]};dirty=true;
   play('tap');render();if(!await sleep(500,t))return;
-  if(!await round((bb+1)%n,t))return;
-  for(const cnt of [3,1,1]){
-   if(alive().length<=1)break;
-   for(let k=0;k<cnt;k++)T.board.push(T.deck.pop());play('tap');render();if(!await sleep(700,t))return;
-   if(canAct().length>1){if(!await round((T.dealer+1)%n,t))return}
+  return streets(t);
+ }
+ // el resto de la mano desde donde esté: la ronda de apuestas pendiente (T.rnd) y luego flop, turn y river (T.street = cuántas tandas han salido).
+ // Aparte de hand() para poder retomar una mano guardada.
+ async function streets(t){
+  const n=P.length;
+  for(;;){
+   if(T.rnd&&!await round(t))return;
+   if(T.street>=3||alive().length<=1)break;
+   T.street++;for(let k=0;k<(T.street===1?3:1);k++)T.board.push(T.deck.pop());
+   T.rnd=canAct().length>1?{i:(T.dealer+1)%n,acted:[]}:null;
+   play('tap');render();if(!await sleep(700,t))return;
   }
   showdown();
  }
@@ -152,7 +162,7 @@
   if(!ui||!T)return;const m=me(),my=T.turn===0&&!!waiting,toCall=Math.max(0,T.cur-m.bet);
   let ctrl='';
   if(T.phase==='start')ctrl=C().get()<BB?`<p class="bj-hint">No tienes fichas suficientes.</p><div class="bj-row"><button class="arc-btn pc-big" type="button" id="pkRefill">🎁 Recargar ${C().REFILL} fichas</button></div>`:`<div class="bj-row"><button class="arc-btn pc-big" type="button" id="pkDeal">▶ Repartir</button></div>`;
-  else if(T.phase==='done')ctrl=m.stack<BB?`<p class="bj-hint">Te quedaste sin fichas.</p><div class="bj-row"><button class="arc-btn pc-big" type="button" id="pkRefill">🎁 Recargar ${C().REFILL} fichas</button></div>`:`<div class="bj-row"><button class="arc-btn pc-big" type="button" id="pkNext">Siguiente mano</button></div>`;
+  else if(T.phase==='done')ctrl=m.stack<BB?`<p class="bj-hint">Te quedaste sin fichas.</p><div class="bj-row"><button class="arc-btn pc-big" type="button" id="pkRefill">🎁 Recargar ${C().REFILL} fichas</button></div>`:`<div class="bj-row"><button class="arc-btn pc-big" type="button" id="pkNext">Siguiente mano</button><button class="arc-btn ghost" type="button" id="pkExit">Salir</button></div>`;   // 0.3.68 (dueño): al terminar una mano se puede salir al menú del juego
   else if(my){
    const max=m.bet+m.stack,min=Math.min(max,T.cur+T.minRaise),opts=[...new Set([min,Math.round((T.cur+T.pot*.5)/5)*5,Math.round((T.cur+T.pot)/5)*5].filter(x=>x>=min&&x<max))].sort((a,b)=>a-b).slice(0,3);
    ctrl=`<div class="bj-row"><button class="arc-btn ghost" type="button" data-pk="fold">Retirarse</button><button class="arc-btn" type="button" data-pk="call">${toCall?(toCall>=m.stack?'All-in '+fmt(m.stack):'Igualar '+fmt(toCall)):'Pasar'}</button></div>
@@ -168,18 +178,29 @@
    <div class="bj-ctrl">${ctrl}</div></div>`;
   $('#pkRules').onclick=()=>sheet(rulesHTML());
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn};
-  on('#pkDeal',()=>{T.note='';hand()});on('#pkNext',()=>{T.note='';nextHand()});on('#pkRefill',()=>{C().set(C().REFILL);m.stack=C().get();play('bonus');T.phase='start';render()});
+  on('#pkDeal',()=>{T.note='';hand()});on('#pkNext',()=>{T.note='';nextHand()});on('#pkExit',()=>{const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}});on('#pkRefill',()=>{C().set(C().REFILL);m.stack=C().get();play('bonus');T.phase='start';render()});
   ui.stage.querySelectorAll('[data-pk]').forEach(b=>b.onclick=()=>answer({t:b.dataset.pk}));
   ui.stage.querySelectorAll('[data-to]').forEach(b=>b.onclick=()=>answer({t:'raise',to:+b.dataset.to}));
  }
  function open(opts){
-  ui=opts;ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');token++;waiting=null;
+  ui=opts;ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');token++;waiting=null;dirty=false;
   const Pf=window.SudomiProfile,names=[];P=[{i:0,me:true,name:(Pf&&Pf.name&&Pf.name())||'Tú',avatar:(Pf&&Pf.avatar&&Pf.avatar())||'🙂',stack:C().get()}];
   for(let k=1;k<4;k++){const nm=aiName(names.concat(P.map(p=>p.name)));names.push(nm[0]);P.push({i:k,me:false,name:nm[0],avatar:nm[1],stack:AI_STACK})}
   P.forEach(p=>Object.assign(p,{cards:[],bet:0,total:0,fold:false,allin:false,say:'',won:0,best:0}));
   T={dealer:Math.floor(Math.random()*4),board:[],pot:0,cur:0,minRaise:BB,turn:-1,phase:'start',msg:'',note:'',show:false,result:null};
   render();
  }
- function close(){token++;const w=waiting;waiting=null;if(w)w(null);T=null}
- window.SudomiPoker={open,close,playing:()=>!!T&&T.phase==='play',_state:()=>T,_players:()=>P,_rank5:rank5,_best:best,_answer:answer};
+ function close(){try{window.SudomiPark&&SudomiPark.sync()}catch(_){}token++;const w=waiting;waiting=null;if(w)w(null);T=null}
+ /* 0.3.63 — MANO GUARDADA (ver PARK_MODS en other-games.js). Solo se guarda una mano a medias: la mesa (T) y los jugadores (P), con el mazo, el bote
+  * y a quién le toca. Tus fichas no van en la copia: al retomar se leen de 'sudomi-chips', que es donde viven.
+  * dirty = en esta visita se jugó o se retomó una mano → al terminarla se borra la copia guardada (si no, se podría cobrar dos veces). */
+ let dirty=false;
+ function parkState(){return ui&&T?(T.phase==='play'?{mode:'pve',snap:{T,P}}:dirty?{mode:'pve',over:true}:null):null}
+ function parkResume(o,s){
+  const t0=s&&s.T,p0=s&&s.P;
+  if(!t0||t0.phase!=='play'||!Array.isArray(t0.deck)||!Array.isArray(t0.board)||!Array.isArray(p0)||p0.length!==4||!p0[0].me)return false;
+  open(o);T=t0;P=p0;T.turn=-1;if(!(T.street>=0))T.street=0;me().stack=C().get();if(me().stack<=0&&!me().fold)me().allin=true;
+  dirty=true;const t=++token;render();streets(t);return true;
+ }
+ window.SudomiPoker={open,close,parkState,parkResume,playing:()=>!!T&&T.phase==='play',_state:()=>T,_players:()=>P,_rank5:rank5,_best:best,_answer:answer};
 })();

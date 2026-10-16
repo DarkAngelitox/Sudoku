@@ -94,9 +94,11 @@
   begin(deal(),[{name:myName(),avatar:myAvatar()},{name:ai[0],avatar:ai[1],ai:true}],0);
  }
  // empieza una partida en este teléfono: val = dibujo de cada ficha, seats = los dos jugadores, me = cuál soy yo
- function begin(val,seats,me){
+ // 0.3.63: keep = partida guardada que se retoma ({gone, done, ms}): mismas fichas quitadas, mismas parejas y el reloj sigue donde iba
+ function begin(val,seats,me,keep){
   stop();const t=token;
-  S={val,gone:T.map(()=>false),sel:-1,done:[0,0],me,seats,started:false,over:false,winner:null,lockUntil:0,t0:0,ms:0,waitFin:false};
+  S={val,gone:T.map(()=>false),sel:-1,done:[0,0],me,seats,started:false,over:false,winner:null,lockUntil:0,t0:0,ms:0,waitFin:false,ms0:0};
+  if(keep){S.gone=T.map((_,i)=>!!keep.gone[i]);S.done=[keep.done[0]|0,keep.done[1]|0];S.ms0=Math.max(0,+keep.ms||0)}
   ui.stage.innerHTML=`<div class="mini-game mz">${head()}
    <div class="mz-top">${[me,1-me].map(p=>`<div class="mz-p${p===me?' me':''}" data-p="${p}"><span>${esc(seats[p].avatar)}</span><b>${esc(seats[p].name)}${p===me&&net.role!=='solo'?' (tú)':''}</b><i>0/${PAIRS}</i><u><s></s></u></div>`).join('')}</div>
    <div class="mz-alert" id="mzAlert" role="status"></div>
@@ -108,7 +110,7 @@
   draw();setAlert('Prepárate…');
   // cuenta atrás 3-2-1 para que los dos empiecen a la vez
   let n=3;const step=()=>{if(t!==token||!S)return;const c=$('#mzCount');if(!c)return;if(n>0){c.textContent=n--;play('tap');setTimeout(step,800);return}
-   c.classList.add('hidden');$('#mzBoard').classList.remove('wait');S.started=true;S.t0=Date.now();setAlert('🀄 ¡Busca las parejas!');
+   c.classList.add('hidden');$('#mzBoard').classList.remove('wait');S.started=true;S.t0=Date.now()-S.ms0;setAlert('🀄 ¡Busca las parejas!');
    tick=setInterval(()=>{if(S&&S.started&&!S.over&&$('#mzClock'))$('#mzClock').textContent='⏱ '+clock(Date.now()-S.t0)},500);
    if(S.seats[1-S.me].ai)aiLoop(t)};
   step();
@@ -232,11 +234,21 @@
  }
  function leaveNet(){net.tok++;if(net.room){try{net.room.close()}catch(_){}}if(net.conn){try{net.conn.close()}catch(_){}}Object.assign(net,{role:'solo',room:null,conn:null,code:'',seats:[],started:false,me:0})}
  function stop(){token++;clearInterval(tick);S=null;els=[]}
- function close(){stop();leaveNet();net.status=''}
+ function close(){try{window.SudomiPark&&SudomiPark.sync()}catch(_){}stop();leaveNet();net.status=''}
+ // 0.3.63: la carrera contra la máquina y el solitario se guardan al salir y se retoman desde «Continuar» (ver PARK_MODS en other-games.js)
+ function parkState(){
+  if(net.role!=='solo'||!S)return null;
+  if(S.over)return {mode:'pve',over:true};
+  return {mode:'pve',snap:{val:S.val,gone:S.gone,done:S.done,seats:S.seats,ms:S.started?Date.now()-S.t0:S.ms0,solo:lastSolo}};
+ }
+ function parkResume(o,s){
+  if(!s||!validDeal(s.val)||!Array.isArray(s.gone)||!Array.isArray(s.done)||!Array.isArray(s.seats)||s.seats.length!==2)return false;
+  open(o,'pve');lastSolo=!!s.solo;begin(s.val,s.seats,0,s);return true;
+ }
  function open(opts,m,code){
   ui=opts;ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');
   if(m==='join'){umode='online';joinRoom(code);return}
   umode=m==='online'?'online':'pve';renderMenu();
  }
- window.SudomiMahjong={open,close,join:code=>joinRoom(code),playing:()=>!!S&&!S.over,_state:()=>S,_net:()=>net,_ev:e=>onHost(e),_deal:deal,_free:free,_T:T};
+ window.SudomiMahjong={open,close,parkState,parkResume,join:code=>joinRoom(code),playing:()=>!!S&&!S.over,_state:()=>S,_net:()=>net,_ev:e=>onHost(e),_deal:deal,_free:free,_T:T};
 })();

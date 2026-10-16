@@ -22,7 +22,7 @@
    <div class="st-cards"><div><b>${fmt(n.wins)}</b><small>Victorias</small></div><div><b>${n.rate}%</b><small>% de victorias</small></div><div><b>${fmt(n.top)}</b><small>Mejor puntuación</small></div><div><b>${n.streak}</b><small>Mejor racha</small></div><div id="pfAch" class="st-go" role="button" tabindex="0" aria-label="Ver mis logros"><b>${n.ach}/${n.achTotal}</b><small>Logros ›</small></div><div><b>${n.time?dur(n.time):'—'}</b><small>Tiempo jugado</small></div></div>
    ${n.king?'<p class="pf-king">👑 Eres el <b>Rey del Sudomi</b></p>':''}
    <div class="tc-btns"><button type="button" id="pfEdit" class="main">${p.none?'👤 Crear mi perfil':'✏️ Editar perfil'}</button>${p.none?'':'<button type="button" id="pfShare">📤 Compartir mi perfil</button>'}</div>
-   <div class="tc-btns small"><button type="button" id="pfStats">📊 Mis estadísticas</button></div>
+   <div class="tc-btns small"><button type="button" id="pfStats">📊 Mis estadísticas</button>${window.SudomiCloud&&(SudomiCloud.ready()||SudomiCloud.account())?`<button type="button" id="pfCloud">☁️ ${SudomiCloud.account()?'Mi cuenta':'Cuenta y nube'}</button>`:''}</div>
    <p class="pf-more-h">Más de SUDOMI</p><div class="pf-more">${more().map(([id,ic,n,d])=>`<button type="button" data-go="${id}"><span>${ic}</span><b>${n}</b><small>${d}</small></button>`).join('')}</div>
    <p class="st-note" id="pfMsg">Tu nombre y avatar son lo que ven tus amigos en las salas online.</p>`;
    body.querySelector('#pfEdit').onclick=()=>{if(p.none)P.ensure(()=>api.redraw());else P.edit()};
@@ -30,6 +30,7 @@
    const sh=body.querySelector('#pfShare');if(sh)sh.onclick=()=>{const text=summary(p,i,n),url=location.origin&&location.origin!=='null'?location.origin+location.pathname:'';
     if(navigator.share)navigator.share({title:'SUDOMI',text,url}).catch(()=>{});else if(navigator.clipboard)navigator.clipboard.writeText(text+(url?' '+url:'')).then(()=>{body.querySelector('#pfMsg').textContent='Resumen copiado. Pégalo en tu chat.'}).catch(()=>{})};
    body.querySelector('#pfAch').onclick=()=>{S.close('profileScreen');if(window.SudomiAch)SudomiAch.open()};
+   const cl=body.querySelector('#pfCloud');if(cl)cl.onclick=()=>{S.close('profileScreen');SudomiCloud.open()};   // 0.3.75: cuenta en el servidor dedicado (js/cloud.js)
    body.querySelector('#pfStats').onclick=()=>{S.close('profileScreen');if(window.SudomiStats)SudomiStats.open()};
   });
   cur=api;

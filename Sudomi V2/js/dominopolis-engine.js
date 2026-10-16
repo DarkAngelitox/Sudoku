@@ -202,7 +202,7 @@
   }
   function nextTurn(g) {
     do { g.turn = (g.turn + 1) % g.players.length } while (cur(g).bankrupt);
-    g.dbl = 0; g.after = 'end'; g.phase = 'roll'; g.debt = null; g.total++;
+    g.dbl = 0; g.after = 'end'; g.phase = 'roll'; g.debt = null; g.total++; g.offer = null;   // una oferta sin responder caduca al cambiar el turno
     if (g.total > CAP) return endGame(g);
     if (g.mode === 'rapido' && alive(g).every(q => g.turns[q.id] >= FAST_TURNS)) return endGame(g);
     g.ev.push({ t: 'turn', p: g.turn });
@@ -215,9 +215,45 @@
   }
 
   const err = e => ({ ok: false, err: e });
+  /* 0.3.80 — INTERCAMBIOS: OFERTA DE COMPRA. En tu turno (antes de tirar o al terminar) puedes ofrecer dinero por una propiedad de otro jugador:
+   *   {t:'offer', i, cash}   la propiedad i no puede tener construcciones en su color. Si el dueño es la computadora decide en el momento
+   *                          (tradeOk); si es una persona, la oferta queda en g.offer = {from,to,i,cash} hasta que responda o termine tu turno.
+   *   {t:'answer', yes, p}   la responde el dueño (aunque no sea su turno). Al aceptar, el dinero cambia de manos y la propiedad pasa tal como
+   *                          está (si estaba hipotecada, sigue hipotecada).
+   * La oferta no detiene la partida: no hay fase nueva, así que nada del resto del juego cambia. La computadora nunca hace ofertas. */
+  function tradeWhy(g, from, i, cash) {       // null si la oferta es válida; si no, el motivo
+    const o = g.own[i], t = T[i], b = g.players[from];
+    if (!o || o.o === from || g.players[o.o].bankrupt) return 'Esa propiedad no es de otro jugador.';
+    if (t.g && GROUP_TILES[t.g].some(j => g.own[j] && g.own[j].h > 0)) return 'Ese color tiene construcciones: primero hay que venderlas.';
+    if (!Number.isInteger(cash) || cash < 1) return 'Escribe cuánto ofreces.';
+    if (cash > b.cash) return 'No tienes tanto dinero.';
+    return null;
+  }
+  // ¿la computadora vende? Pide más que el precio de lista, bastante más si eso te completa el color, y casi nunca suelta un color que va juntando
+  function tradeOk(g, from, i, cash) {
+    const t = T[i], o = g.own[i]; let k = t.g ? 1.3 : 1.6;
+    if (t.g) {
+      const has = pid => GROUP_TILES[t.g].filter(j => g.own[j] && g.own[j].o === pid).length;
+      if (has(from) === GROUP_TILES[t.g].length - 1) k = 2.4;
+      if (has(o.o) >= 2) k = 3;
+    }
+    return cash >= Math.round(t.p * (o.m ? .6 : 1) * k);
+  }
+  function tradeDo(g, from, i, cash) {
+    const o = g.own[i], seller = g.players[o.o], buyer = g.players[from];
+    buyer.cash -= cash; seller.cash += cash; o.o = from; g.offer = null;
+    g.ev.push({ t: 'pay', from, to: seller.id, amt: cash }, { t: 'buy', p: from, i });
+    say(g, seller.name + ' vende ' + T[i].n + ' a ' + buyer.name + ' por ' + money(cash) + '.');
+  }
   function act(g, a) {
     g.ev = [];
     if (g.over) return err('La partida terminó.');
+    if (a.t === 'answer') {                    // la responde el dueño, no quien tiene el turno
+      const of = g.offer; if (!of || a.p !== of.to) return err('No hay ninguna oferta para ti.');
+      if (!a.yes) { g.offer = null; say(g, g.players[of.to].name + ' rechaza la oferta por ' + T[of.i].n + '.'); return { ok: true } }
+      const why = tradeWhy(g, of.from, of.i, of.cash); if (why || g.own[of.i].o !== of.to) { g.offer = null; return err(why || 'Esa oferta ya no vale.') }
+      tradeDo(g, of.from, of.i, of.cash); return { ok: true };
+    }
     const p = cur(g);
     if (a.p != null && a.p !== p.id) return err('No es tu turno.');
     const phase = g.phase, mgmt = phase === 'roll' || phase === 'end' || phase === 'debt';
@@ -288,6 +324,16 @@
         if (phase !== 'debt') return err('Solo puedes declararte en quiebra con una deuda.');
         bankrupt(g, p, g.debt.to); return { ok: true };
       }
+      case 'offer': {
+        if (!(phase === 'roll' || phase === 'end')) return err('Ahora no puedes hacer ofertas.');
+        if (g.offer) return err('Ya hay una oferta esperando respuesta.');
+        const cash = Math.round(+a.cash), why = tradeWhy(g, p.id, a.i, cash); if (why) return err(why);
+        const owner = g.players[g.own[a.i].o];
+        say(g, p.name + ' ofrece ' + money(cash) + ' a ' + owner.name + ' por ' + T[a.i].n + '.');
+        if (owner.ai) { if (tradeOk(g, p.id, a.i, cash)) tradeDo(g, p.id, a.i, cash); else say(g, owner.name + ' rechaza la oferta.') }
+        else g.offer = { from: p.id, to: owner.id, i: a.i, cash };
+        return { ok: true };
+      }
       case 'endTurn': {
         if (phase !== 'end') return err('Todavía no puedes terminar el turno.');
         g.turns[p.id]++; nextTurn(g); return { ok: true };
@@ -338,7 +384,7 @@
     return null;
   }
 
-  const api = { TILES: T, GROUPS, GROUP_TILES, TOKENS, CARDS, START, GO, create, act, aiAct, rentOf, netWorth, ownedBy, groupOwned, canBuild, canSell, canMortgage, unmortgageCost, cur, alive };
+  const api = { tradeWhy, TILES: T, GROUPS, GROUP_TILES, TOKENS, CARDS, START, GO, create, act, aiAct, rentOf, netWorth, ownedBy, groupOwned, canBuild, canSell, canMortgage, unmortgageCost, cur, alive };
   root.Dominopolis = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -40,11 +40,20 @@
  const esc=t=>String(t).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
  const clean10=a=>Array.from({length:10},(_,i)=>String(a&&a[i]!=null?a[i]:'').replace(/\s+/g,' ').trim().slice(0,40));
 
+ /* 0.3.73 — EL ANFITRIÓN ELIGE LAS CATEGORÍAS. En «Elige tu partida» (other-games.js, chooseMode) y en el menú de STOP salen todas como botones;
+  * las apagadas se guardan en este teléfono (CATS_KEY) y no entran en las 10 de cada ronda. Cada ronda necesita 10: si quedan menos encendidas,
+  * se completa con apagadas. En una sala valen las del anfitrión (él arma la ronda). */
+ const CATS_KEY='sudomi-stop-cats';
+ const catsOff=()=>{try{const v=JSON.parse(localStorage.getItem(CATS_KEY));return Array.isArray(v)?v.filter(c=>CATS.includes(c)):[]}catch(_){return []}};
+ const roundCats=()=>{const off=catsOff();return shuffle(CATS.filter(c=>!off.includes(c))).concat(shuffle(off.slice())).slice(0,10)};
+ function catsHTML(){const off=catsOff();return `<div class="sp-cats"><p class="dos-kicker">CATEGORÍAS QUE PUEDEN SALIR</p><div class="sp-catlist">${CATS.map(c=>`<button type="button" data-cat="${esc(c)}" class="${off.includes(c)?'':'on'}" aria-pressed="${!off.includes(c)}">${esc(c)}</button>`).join('')}</div><small>Salen 10 por ronda. Si dejas menos de 10 encendidas, se completa con las apagadas.</small></div>`}
+ function catsBind(root){root.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{let off=catsOff();const c=b.dataset.cat;off=off.includes(c)?off.filter(x=>x!==c):off.concat(c);try{localStorage.setItem(CATS_KEY,JSON.stringify(off))}catch(_){}b.classList.toggle('on',!off.includes(c));b.setAttribute('aria-pressed',String(!off.includes(c)))})}
+
  /* ================= 1. rules (host side) ================= */
  function newRound(prev,names,kinds){
   const n=names.length,last=prev&&prev.letter;
   let letter;do{letter=LETTERS[Math.floor(Math.random()*LETTERS.length)]}while(letter===last);
-  return {n,names,kinds,letter,cats:shuffle(CATS.slice()).slice(0,10),phase:'answer',left:ANSWER_TIME,stopBy:-1,
+  return {n,names,kinds,letter,cats:roundCats(),phase:'answer',left:ANSWER_TIME,stopBy:-1,
    answers:Array.from({length:n},()=>Array(10).fill('')),drafts:Array.from({length:n},()=>Array(10).fill('')),done:Array(n).fill(false),
    aiAt:kinds.map(k=>k==='ai'?ANSWER_TIME-(55+AI_LV().wait+Math.floor(Math.random()*70)):-1),
    marks:Array.from({length:n},()=>[]),voted:Array(n).fill(false),rows:null,points:null,
@@ -70,12 +79,13 @@
  }
  function mark(s,voter,p,q){
   if(s.phase!=='vote'||s.voted[voter]||voter===p||!(q>=0&&q<10)||!(p>=0&&p<s.n))return false;
+  if(isKnown(s.cats[q],s.answers[p][q]))return false;   // 0.3.76: lo que está en el diccionario vale solo; el voto queda para las dudas
   const key=p+':'+q,list=s.marks[voter],i=list.indexOf(key);
   if(i>=0)list.splice(i,1);else list.push(key);
   s.seq++;return true;
  }
  // an answer is rejected when most of the other players who can vote (people, not the computer) marked it
- function rejected(s,p,q){const voters=s.kinds.map((k,v)=>v!==p&&k!=='ai'?v:-1).filter(v=>v>=0);if(!voters.length)return false;const no=voters.filter(v=>s.marks[v].includes(p+':'+q)).length;return no*2>voters.length}
+ function rejected(s,p,q){if(isKnown(s.cats[q],s.answers[p][q]))return false;const voters=s.kinds.map((k,v)=>v!==p&&k!=='ai'?v:-1).filter(v=>v>=0);if(!voters.length)return false;const no=voters.filter(v=>s.marks[v].includes(p+':'+q)).length;return no*2>voters.length}
  function score(s){
   s.rows=Array.from({length:s.n},()=>Array(10).fill(0));
   for(let q=0;q<10;q++){
@@ -119,13 +129,41 @@
  const needProfile=fn=>{if(P()&&!P().get()){P().ensure(fn);return true}return false};
  let ui=null,screen='menu',mode=null,S=null,V=null,net=null,seats=[],size=4,clock=null,status='',roomCode='',offline=false,busy=false,showRules=false;
  let draft=Array(10).fill(''),draftKey='',focus=-1,lastKey='',sendTimer=null;
- let classic=false,resRound=-1;   // 0.2.101: la sala a la que entré es de STOP clásico -> la pantalla la lleva js/stop-clasico.js
+ let classic=false,resRound=-1;
+ /* 0.3.98 — RELEVO DEL ANFITRIÓN (js/host-handoff.js), igual que en DOS: hostSeat = mi asiento cuando llevo la partida. */
+ let hostSeat=0,mig=null,hw=null,handing=false;
+ const HO=()=>window.SudomiHandoff,migOk=window.SudomiHandoff?SudomiHandoff.throttle(2000):()=>false;
+ function sendMig(force){if(!(net&&mode==='host'&&S&&HO()))return -1;const k=HO().successor(seats);if(k>=0&&migOk(force))net.send(seats[k].id,{t:'mig',S,seats,size});return k}
+ async function takeover(){
+  const snap=mig,code=roomCode,myId=V?V.you:-1;if(!snap||myId<0||!HO())return;
+  status='El anfitrión se fue: abriendo la sala para seguir la partida…';render();
+  {const old=net;net=null;try{old&&old.close()}catch(_){}}   // primero se suelta la conexión vieja
+  const room=await HO().takeover('stop',code,onHostEvent,()=>mode!=='guest');
+  if(!room){if(mode==='guest'){reset();screen='menu';status='El anfitrión se fue y no se pudo seguir la partida.';render()}return}
+  mode='host';net=room;
+  S=snap.S;seats=snap.seats.map(x=>({...x}));size=snap.size;hostSeat=myId;
+  const oh=seats.findIndex((x,i)=>x.id==='host'&&i!==myId);
+  seats[myId].id='host';seats[myId].away=false;
+  if(oh>=0){seats[oh]={name:String(seats[oh].name).replace(/ \(IA\)$/,'')+' (IA)',kind:'ai'};S.names[oh]=seats[oh].name;S.kinds[oh]='ai';S.aiAt[oh]=S.left-5;if(S.phase==='vote')S.voted[oh]=true}
+  seats.forEach((x,i)=>{if(i!==myId&&x.kind==='human')x.away=true});
+  mig=null;if(hw)hw.stop();hw=null;handing=false;offline=false;status='';
+  startClock();pushState();
+ }   // 0.2.101: la sala a la que entré es de STOP clásico -> la pantalla la lleva js/stop-clasico.js
  const $=sel=>ui.stage.querySelector(sel);
  window.addEventListener('sudomi-profile',()=>{if(ui&&screen==='menu')render()});
 
- function reset(){try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}clearInterval(clock);clock=null;clearTimeout(sendTimer);if(net){try{net.close()}catch(_){}}net=null;classic=false;S=null;V=null;seats=[];status='';roomCode='';offline=false;mode=null;busy=false;lastKey=''}
+ function reset(){try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}clearInterval(clock);clock=null;clearTimeout(sendTimer);
+  if(net&&mode==='host'){const k=sendMig(true);if(k>=0){net.send(seats[k].id,{t:'handoff'});try{net.close(true)}catch(_){}net=null}}   // 0.3.98: me voy con la partida en marcha: se la paso al sucesor
+  if(net){try{net.close()}catch(_){}}net=null;hostSeat=0;mig=null;if(hw)hw.stop();hw=null;handing=false;classic=false;S=null;V=null;seats=[];status='';roomCode='';offline=false;mode=null;busy=false;lastKey=''}
  function open(opts){ui=opts;reset();screen='menu';ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');render()}
- function close(){if(!ui)return;reset();screen='menu'}
+ function close(){if(!ui)return;try{window.SudomiPark&&SudomiPark.sync()}catch(_){}reset();screen='menu'}
+ // 0.3.63: la partida contra la máquina se guarda al salir (letra, lo escrito, segundos que quedan y puntos) y se retoma desde «Continuar»
+ function parkState(){return mode==='solo'&&S?{mode:'pve',snap:{S,seats,draft}}:null}
+ function parkResume(o,s){
+  if(!s||!s.S||!Array.isArray(s.S.cats)||!Array.isArray(s.seats))return false;
+  open(o);mode='solo';seats=s.seats;S=s.S;draft=clean10(s.draft);draftKey=S.round+':0';focus=-1;if(S.phase==='result')resRound=S.round;
+  startClock();pushState();return true;
+ }
  function leave(){try{window.SudomiFriends&&SudomiFriends.untrack()}catch(_){}const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}}
 
  /* ----- host / solo ----- */
@@ -135,8 +173,9 @@
  // 0.2.76: si alguien se desconecta, el anfitrión ve una barra con «Invitar de nuevo» (js/friends.js)
  function syncAway(){try{if(window.SudomiFriends&&SudomiFriends.awayBar)SudomiFriends.awayBar(net&&mode==='host'&&S?{game:'stop',gameName:'STOP',room:roomCode,names:seats.filter(x=>x.kind==='human'&&x.away).map(x=>x.name)}:null)}catch(_){}}
  function pushState(){
-  if(net&&mode==='host')seats.forEach((x,i)=>{if(x.id&&x.id!=='host'&&!x.away)net.send(x.id,{t:'state',v:viewFor(S,i),seats:publicSeats()})});
-  V=viewFor(S,0);screen='game';syncAway();render();
+  const succ=HO()?HO().successor(seats):-1;
+  if(net&&mode==='host')seats.forEach((x,i)=>{if(x.id&&x.id!=='host'&&!x.away)net.send(x.id,{t:'state',v:viewFor(S,i),seats:publicSeats(),succ})});
+  V=viewFor(S,hostSeat);screen='game';syncAway();render();sendMig();
  }
  function startClock(){clearInterval(clock);clock=setInterval(()=>{if(!S||S.phase==='result')return;tick(S,awaySeats());pushState()},1000)}
  function startGame(){
@@ -201,10 +240,13 @@
    if(classic&&e.type!=='closed'){if(e.type!=='open')C.guest(e);return}
    if(classic&&C)C.close();
    if(e.type==='open'){status='Conectado. Esperando al anfitrión…';try{window.SudomiFriends&&SudomiFriends.track({game:'stop',gameName:'STOP',room:code,role:'guest'})}catch(_){}}
-   else if(e.type==='away')offline=true;
-   else if(e.type==='back')offline=false;
+   else if(e.type==='away'){offline=true;if(hw)hw.away()}
+   else if(e.type==='back'){offline=false;if(hw)hw.back()}
    else if(e.type==='closed'){const m=e.message;reset();screen='menu';status=m}
-   else if(e.type==='msg'){const d=e.data;if(d.t==='lobby'){seats=d.seats;size=d.size;screen='lobby';status=''}else if(d.t==='state'){V=d.v;seats=d.seats;screen='game'}}
+   else if(e.type==='msg'){const d=e.data;
+    if(d.t==='mig'){mig=d;if(!hw&&HO())hw=HO().watcher(takeover);return}
+    if(d.t==='handoff'){handing=true;if(hw)hw.handoff();return}
+    if(d.t==='lobby'){seats=d.seats;size=d.size;screen='lobby';status=''}else if(d.t==='state'){V=d.v;seats=d.seats;screen='game';if(d.succ!==d.v.you&&mig){mig=null;if(hw){hw.stop();hw=null}}}}
    render();
   });
  }
@@ -212,12 +254,12 @@
  function send(msg){
   if(mode==='guest'){if(!net.send(msg)){offline=true;render()}return}
   if(!S)return;
-  const ok=msg.t==='stop'?submit(S,0,msg.a):msg.t==='mark'?mark(S,0,msg.p,msg.q):msg.t==='ready'?ready(S,0):false;
+  const ok=msg.t==='stop'?submit(S,hostSeat,msg.a):msg.t==='mark'?mark(S,hostSeat,msg.p,msg.q):msg.t==='ready'?ready(S,hostSeat):false;
   if(ok)pushState();
  }
  function saveDraft(){
   if(mode==='guest'){clearTimeout(sendTimer);sendTimer=setTimeout(()=>net&&net.send({t:'draft',a:draft}),400)}
-  else if(S&&S.phase==='answer'&&!S.done[0])S.drafts[0]=clean10(draft);
+  else if(S&&S.phase==='answer'&&!S.done[hostSeat])S.drafts[hostSeat]=clean10(draft);
  }
  function invite(){
   const base=location.origin&&location.origin!=='null'?location.origin+location.pathname:location.href.split(/[?#]/)[0];
@@ -253,8 +295,9 @@
      <div class="dos-join"><input id="spCode" maxlength="9" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABCD-2345"><button class="arc-btn" id="spJoin">Unirme</button></div></div>
     ${ui.legacy?'<button class="dos-opt" id="spLocal"><b>📱 Dos jugadores en este teléfono</b><span>El STOP de siempre, pasando el teléfono</span></button>':''}
    </div>
+   ${catsHTML()}
    ${status?`<p class="arc-wait">${esc(status)}</p>`:''}${rulesHTML()}</div>`;
-  bindCommon();
+  bindCommon();catsBind(ui.stage);
   $('#spProfile').onclick=()=>P()&&P().edit();
   $('#spSolo').onclick=startSolo;
   $('#spCreate').onclick=()=>{const n=Math.round(+$('#spSize').value);if(!(n>=2&&n<=8)){status='Escribe un número de jugadores entre 2 y 8.';render();return}createRoom(n)};
@@ -301,14 +344,14 @@
    body=`<div class="stop-top small"><div class="stop-letter">${v.letter}</div>${timer(VOTE_TIME)}</div>
     <p class="arc-msg">${v.voted[me]?'✔ Listo. Esperando a los demás…':'Toca las respuestas que <b>no aceptas</b> (❌). Cuando termines, toca <b>Listo</b>.'}</p>${chips(v)}
     <div class="sp-vote">${v.cats.map((c,q)=>`<section><h4>${esc(c)}</h4>${v.names.map((n,p)=>{const a=v.answers[p][q],bad=a&&norm(a)[0]!==L,mine=v.myMarks.includes(p+':'+q),cnt=v.markCount[p][q],known=a&&!bad&&isKnown(c,a);
-      return `<button class="sp-ans ${!a?'empty':''} ${bad?'bad':''} ${mine?'no':''}" data-p="${p}" data-q="${q}" ${p===me||!a||bad||v.voted[me]?'disabled':''}><i>${avatar(p)}</i><b>${a?esc(a):'—'}</b>${known?'<u class="sp-ok" title="Está en el diccionario del juego">✓</u>':''}${bad?'<em>no empieza con '+v.letter+'</em>':cnt?`<em>❌ ${cnt}</em>`:''}</button>`}).join('')}</section>`).join('')}</div>
+      return `<button class="sp-ans ${!a?'empty':''} ${bad?'bad':''} ${mine?'no':''}" data-p="${p}" data-q="${q}" ${p===me||!a||bad||known||v.voted[me]?'disabled':''}><i>${avatar(p)}</i><b>${a?esc(a):'—'}</b>${known?'<u class="sp-ok" title="Está en el diccionario del juego">✓</u>':''}${bad?'<em>no empieza con '+v.letter+'</em>':cnt?`<em>❌ ${cnt}</em>`:''}</button>`}).join('')}</section>`).join('')}</div>
     ${v.voted[me]?'':'<div class="arc-actions"><button class="arc-btn big" id="spReady">Listo</button></div>'}`;
   }else{
    const order=v.names.map((_,i)=>i).sort((a,b)=>v.totals[b]-v.totals[a]||v.points[b]-v.points[a]);
    body=`<div class="stop-top small"><div class="stop-letter">${v.letter}</div><p class="arc-sub">Ronda ${v.round} terminada${v.stopBy>=0?' · 🛑 STOP de '+esc(v.names[v.stopBy])+' (sus respuestas incorrectas restan 20)':''}</p></div>
     <ol class="sp-rank">${order.map((p,k)=>`<li class="${p===me?'me':''}"><span>${k===0?'🏆':k+1}</span><i>${avatar(p)}</i><b>${esc(v.names[p])}</b><em class="${v.points[p]<0?'neg':''}">${v.points[p]>0?'+':''}${v.points[p]}</em><strong>${v.totals[p]}</strong></li>`).join('')}</ol>
     <details class="sp-detail"><summary>Ver respuestas y puntos</summary>${v.cats.map((c,q)=>`<section><h4>${esc(c)}</h4>${v.names.map((n,p)=>`<p><i>${avatar(p)}</i><span>${v.answers[p][q]?esc(v.answers[p][q]):'—'}</span><b class="${v.rows[p][q]>0?'pts':v.rows[p][q]<0?'neg':'zero'}">${v.rows[p][q]>0?'+'+v.rows[p][q]:v.rows[p][q]<0?String(v.rows[p][q]):'0'}</b></p>`).join('')}</section>`).join('')}</details>
-    <div class="arc-actions">${mode==='guest'?'<p class="arc-sub center">El anfitrión empieza la siguiente ronda.</p>':'<button class="arc-btn big" id="spNext">Otra ronda</button>'}<button class="arc-btn alt" id="spLeave">Todos los juegos</button></div>`;
+    <div class="arc-actions">${mode==='guest'?'<p class="arc-sub center">El anfitrión empieza la siguiente ronda.</p>':'<button class="arc-btn big" id="spNext">Otra ronda</button>'}<button class="arc-btn alt" id="spLeave">Salir</button></div>`;
   }
   ui.stage.innerHTML=`<div class="mini-game dos sp">${head(sub)}${offline?'<p class="arc-alert">Sin conexión. Reconectando…</p>':''}<p class="sp-round">Ronda ${v.round}</p>${body}${rulesHTML()}</div>`;
   bindCommon();
@@ -326,5 +369,5 @@
   const lv=$('#spLeave');if(lv)lv.onclick=leave;
  }
 
- window.SudomiStop={open,close,join:code=>joinRoom(code),solo:()=>startSolo(),create:n=>createRoom(n),_engine:{newRound,submit,mark,ready,tick,viewFor,score,aiAnswers,WORDS}};
+ window.SudomiStop={cats:{html:catsHTML,bind:catsBind},open,close,parkState,parkResume,join:code=>joinRoom(code),solo:()=>startSolo(),create:n=>createRoom(n),_engine:{newRound,submit,mark,ready,tick,viewFor,score,aiAnswers,WORDS}};
 })();

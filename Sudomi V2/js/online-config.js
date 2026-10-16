@@ -29,5 +29,10 @@ window.SUDOMI_ONLINE = {
   iceServersUrl: null,
   // Your own PeerJS signalling server (optional). null = the free public PeerJS cloud.
   // Example: { host: 'peer.example.com', port: 443, path: '/', secure: true, key: 'peerjs' }
-  peerServer: null
+  peerServer: null,
+  // 0.3.75 — SERVIDOR DEDICADO (cuentas, progreso en la nube y rankings reales; ver js/cloud.js y la carpeta Servidor).
+  // null = el mismo sitio que sirve esta página (vale cuando la app se abre desde el propio servidor, en el PC o en el NAS).
+  // Para la app publicada en GitHub hay que poner aquí la dirección HTTPS del servidor, por ejemplo 'https://sudomi.midominio.com',
+  // y arrancar el servidor con  --origin https://USUARIO.github.io . Sin servidor todo sigue funcionando como antes.
+  api: null
 };

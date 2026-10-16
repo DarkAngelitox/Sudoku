@@ -26,6 +26,7 @@
   ['+2 Súper +2','Todos los demás roban 2 cartas (no pierden el turno). Eliges el color.'],
   ['🛡 Parry','Cuando te tiran Salta, +2, +4 o Súper +2 puedes responder con Parry: el efecto le regresa a quien lo tiró. Usarlo cuenta como tu jugada. Es multicolor: también puedes tirarlo sobre cualquier color como una carta normal, o guardarlo. Siempre puedes guardarlo: si es lo único que puedes tirar, puedes pasar sin robar.'],
   ['🌪 Tornado','Las cartas de todos se mezclan y van al centro boca abajo. Empezando por quien tiró el Tornado, cada jugador toma una carta por turno, sin saber cuál es, hasta tener la misma cantidad que tenía. Eliges el color.'],
+  ['Reglas de la casa','En el menú de DOS puedes apagar la acumulación de +2 y +4, quitar las cartas especiales, robar hasta poder tirar y jugar 2 contra 2 (con 4 jugadores). En una sala valen las del anfitrión.'],
   ['Jugadores','Contra la máquina, o en una sala online de 2 a 8 jugadores. Con 6 o más se usan dos barajas (la segunda no trae más Rebobinar, Súper +2 ni Tornado). Un Tornado ya jugado no vuelve al mazo.']
  ];
  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
@@ -35,7 +36,19 @@
 
  /* ================= 1. rules engine ================= */
  // 126 cards per deck. 0.2.24: with 6 or more players two decks are shuffled together.
- function deck(players=2){
+ /* 0.3.72 — REGLAS DE LA CASA (se eligen en el menú de DOS y se recuerdan en este teléfono; en una sala mandan las del anfitrión). Viajan en s.rules:
+  *   stack    acumular +2 y +4 (encendida de fábrica)        special  cartas especiales: Rebobinar, Súper +2, Parry, Tornado (encendida)
+  *   drawTill robar hasta que salga una carta que se pueda tirar        teams    2 contra 2 (solo con 4 jugadores: asientos 0 y 2 contra 1 y 3)
+  * Una partida guardada de antes no trae s.rules: vale lo de fábrica. */
+ const HOUSE=[['stack','➕ Acumular +2 y +4','Responder un +2 o +4 con otro: se suman para el siguiente.',true],['special','✨ Cartas especiales','Rebobinar, Súper +2, Parry y Tornado.',true],['drawTill','🃏 Robar hasta poder tirar','Si no tienes jugada, robas hasta que salga una carta que sirva.',false],['teams','🤝 2 contra 2','Con 4 jugadores: tú y quien está enfrente contra los otros dos. Gana la pareja del primero que se quede sin cartas.',false]];
+ const RULES_KEY='sudomi-dos-rules';
+ const houseRules=()=>{let v={};try{v=JSON.parse(localStorage.getItem(RULES_KEY))||{}}catch(_){}const o={};for(const [k,,,def] of HOUSE)o[k]=typeof v[k]==='boolean'?v[k]:def;return o};
+ const rule=(s,k)=>s.rules?!!s.rules[k]:HOUSE.find(h=>h[0]===k)[3];
+ const teamGame=s=>rule(s,'teams')&&s.n===4;
+ // los interruptores: salen en «Elige tu partida» (other-games.js, chooseMode) y en el menú propio de DOS
+ function houseHTML(){const hr=houseRules();return `<div class="dos-house"><p class="dos-kicker">REGLAS DE LA CASA</p>${HOUSE.map(([k,t,d])=>`<label class="sc-switch${hr[k]?' on':''}"><input type="checkbox" data-house="${k}" ${hr[k]?'checked':''}><span><b>${t}</b><small>${d}</small></span><i></i></label>`).join('')}</div>`}
+ function houseBind(root){root.querySelectorAll('[data-house]').forEach(b=>b.onchange=()=>{const v=houseRules();v[b.dataset.house]=b.checked;try{localStorage.setItem(RULES_KEY,JSON.stringify(v))}catch(_){}b.parentNode.classList.toggle('on',b.checked)})}
+ function deck(players=2,special=true){
   let u=0;const d=[];
   for(let copy=0;copy<(players>=6?2:1);copy++){
    for(const c of COLORS){
@@ -45,7 +58,7 @@
    }
    // the second deck brings no extra Rebobinar / Súper +2 / Tornado: with many players they would keep refilling every hand and the match would never end
    // 0.2.56: fewer special cards (owner request): Rebobinar/Súper +2/Tornado 4→2 each, Parry 6→3 (specials were 14% of the deck, now about 7%)
-   const blacks=copy?{wild:4,d4:4,parry:2}:{wild:4,d4:4,parry:3,rewind:2,super:2,tornado:2};
+   const blacks=!special?{wild:4,d4:4}:copy?{wild:4,d4:4,parry:2}:{wild:4,d4:4,parry:3,rewind:2,super:2,tornado:2};
    for(const v in blacks)for(let k=0;k<blacks[v];k++)d.push({u:u++,c:'k',v});
   }
   return shuffle(d);
@@ -57,15 +70,17 @@
  const isSpecial=c=>['rewind','super','parry','tornado'].includes(c.v);
  // 0.2.21: with a playable card in hand you MUST play. Parry is the only playable card you are allowed to keep.
  const mustPlay=(s,p)=>s.hands[p].some(c=>c.v!=='parry'&&canPlay(s,p,c));
- function newGame(names,kinds){
-  const n=names.length,s={n,names,kinds,hands:[],draw:deck(n),discard:[],draft:null,color:'r',turn:0,dir:1,pend:{},skips:Array(n).fill(0),hist:Array(n).fill(null),locked:Array(n).fill(null),drew:false,winner:-1,log:[],seq:0};
+ function newGame(names,kinds,rules=houseRules()){
+  const n=names.length,s={n,names,kinds,rules,hands:[],draw:deck(n,rules.special),discard:[],draft:null,color:'r',turn:0,dir:1,pend:{},skips:Array(n).fill(0),hist:Array(n).fill(null),locked:Array(n).fill(null),drew:false,winner:-1,log:[],seq:0};
   for(let p=0;p<n;p++)s.hands.push(s.draw.splice(0,7));
   // 0.2.22: ONE player chosen at random is guaranteed a special card (Rebobinar, Súper +2, Parry or Tornado); the rest depend on the shuffle
   const lucky=Math.floor(Math.random()*n);
   if(!s.hands[lucky].some(isSpecial)){const i=s.draw.findIndex(isSpecial);if(i>=0){const k=Math.floor(Math.random()*7),out=s.hands[lucky][k];s.hands[lucky][k]=s.draw[i];s.draw[i]=out}}
   const first=s.draw.splice(s.draw.findIndex(isNum),1)[0];
   s.discard.push(first);s.color=first.c;
-  s.turn=Math.floor(Math.random()*n);say(s,`Empieza ${names[s.turn]}.`);
+  // 0.3.74: todos (también los invitados de una sala) ven en el registro qué reglas de la casa cambió el anfitrión
+  const house=[!rules.stack&&'sin acumular',!rules.special&&'sin especiales',rules.drawTill&&'robar hasta poder tirar',rules.teams&&n===4&&'2 contra 2'].filter(Boolean);
+  s.turn=Math.floor(Math.random()*n);say(s,`Empieza ${names[s.turn]}.${house.length?' Reglas de la casa: '+house.join(', ')+'.':''}`);
   return s;
  }
  // take k cards from the draw pile (the discard pile is reshuffled into it when it runs out)
@@ -144,7 +159,7 @@
   }else{let w=nextOf(s,p);while(!d.need[w])w=nextOf(s,w);d.who=w}
   s.seq++;return true;
  }
- function win(s,p){s.winner=p;s.pend={};s.owe=null;say(s,`🏆 ¡${s.names[p]} gana la partida!`)}
+ function win(s,p){s.winner=p;s.pend={};s.owe=null;say(s,teamGame(s)?`🏆 ¡${s.names[p]} y ${s.names[(p+2)%4]} ganan la partida!`:`🏆 ¡${s.names[p]} gana la partida!`)}
  /* 0.3.26 — la regla de «¡DOS!»: quien se queda con 2 cartas al tirar tiene que avisar.
   *   - Puede avisar ANTES de tirar (en su turno, con 3 cartas): queda guardado en s.said[p].
   *   - Si no avisó, queda «debiendo» (s.owe={who}) y puede avisar hasta que otro jugador haga su jugada.
@@ -214,7 +229,9 @@
   }
   if(a.t==='draw'){
    if(s.drew||mustPlay(s,p))return false;
-   const g=take(s,p,1);s.drew=true;say(s,`${s.names[p]} roba una carta.`);
+   let g=take(s,p,1);
+   if(rule(s,'drawTill'))while(g&&!hand.some(c=>canPlay(s,p,c))&&take(s,p,1))g++;   // regla de la casa: sigue robando hasta que salga una que sirva (o se acabe el mazo)
+   s.drew=true;say(s,g>1?`${s.names[p]} roba ${g} cartas.`:`${s.names[p]} roba una carta.`);
    if(g&&hand.length===2)toTwo(s,p);                          // tenía 1 y robó: vuelve a tener 2, tiene que avisar
    if(!g||!hand.some(c=>canPlay(s,p,c)))endTurn(s,p);
    s.seq++;return true;
@@ -234,8 +251,8 @@
    switch(card.v){
     case 'skip':hit(nx,0,true,'Salta');break;
     case 'rev':if(s.n===2)hit(nx,0,true,'Reversa');else{s.dir*=-1;say(s,'Cambia el sentido.')}break;
-    case 'd2':hit(nx,2,true,'+2');s.pend[nx].stack=true;break;
-    case 'd4':hit(nx,4,true,'+4');s.pend[nx].stack=true;break;
+    case 'd2':hit(nx,2,true,'+2');s.pend[nx].stack=rule(s,'stack');break;
+    case 'd4':hit(nx,4,true,'+4');s.pend[nx].stack=rule(s,'stack');break;
     case 'super':for(let q=0;q<s.n;q++)if(q!==p)hit(q,2,false,'Súper +2');break;
     case 'rewind':rewind(s,p);break;
     case 'tornado':tornado(s,p);break;
@@ -252,7 +269,7 @@
  // what ONE seat is allowed to see
  function viewFor(s,seat){
   const mine=s.hands[seat]||[],myTurn=s.turn===seat&&s.winner<0&&!s.draft;
-  return {n:s.n,draft:s.draft?{count:s.draft.pool.length,who:s.draft.who,need:s.draft.need}:null,/* face down: only how many cards are in the middle, never which */names:s.names,kinds:s.kinds,counts:s.hands.map(h=>h.length),hand:mine,
+  return {n:s.n,teams:teamGame(s),draft:s.draft?{count:s.draft.pool.length,who:s.draft.who,need:s.draft.need}:null,/* face down: only how many cards are in the middle, never which */names:s.names,kinds:s.kinds,counts:s.hands.map(h=>h.length),hand:mine,
    playable:!myTurn?[]:s.pend[seat]?stackCards(s,seat).map(c=>c.u):mine.filter(c=>canPlay(s,seat,c)).map(c=>c.u),
    stack:Math.max(0,...Object.values(s.pend).filter(x=>x.stack).map(x=>x.n)),
    drawCount:s.draw.length,top:top(s),color:s.color,turn:s.turn,dir:s.dir,
@@ -267,10 +284,10 @@
  /* ================= 2. computer player ================= */
  function aiMove(s,p){
   if(s.draft)return {t:'pick',i:Math.floor(Math.random()*s.draft.pool.length)};   // Tornado: the cards are face down, the computer cannot see them either
-  const e=s.pend[p];
+  const e=s.pend[p],lvl=window.SudomiAILevel?SudomiAILevel():'normal';
   if(e){
    const st=stackCards(s,p).sort((a,b)=>(a.v==='d2'?0:1)-(b.v==='d2'?0:1));   // answer with a +2 first, keep the +4
-   if(st.length&&Math.random()<.85){const c=st[0],tally={r:0,b:0,g:0,y:0};s.hands[p].forEach(x=>{if(x!==c&&x.c!=='k')tally[x.c]++});return {t:'play',u:c.u,color:c.v==='d4'?COLORS.slice().sort((a,b)=>tally[b]-tally[a])[0]:undefined}}
+   if(st.length&&Math.random()<({easy:.4,hard:1}[lvl]||.85)){const c=st[0],tally={r:0,b:0,g:0,y:0};s.hands[p].forEach(x=>{if(x!==c&&x.c!=='k')tally[x.c]++});return {t:'play',u:c.u,color:c.v==='d4'?COLORS.slice().sort((a,b)=>tally[b]-tally[a])[0]:undefined}}
    if(hasParry(s,p)&&(e.n>0||Math.random()<.6))return {t:'parry'};
    return {t:'accept'};
   }
@@ -282,7 +299,7 @@
   }
   const others=s.hands.map((h,i)=>i===p?99:h.length),least=Math.min(...others),danger=s.hands[nextOf(s,p)].length<=2;
   const score=c=>{
-   const r=Math.random();
+   const r=Math.random()*({easy:9,hard:.2}[lvl]||1);   // 0.3.71: nivel de la máquina (fácil: casi al azar; difícil: sin despistes)
    if(c.v==='parry')return -5+r;                              // keep it for defending
    if(c.c!=='k')return (isNum(c)?3:4)+(danger&&(c.v==='d2'||c.v==='skip')?5:0)+r;
    if(c.v==='d4')return (danger?8:1)+r;
@@ -307,6 +324,26 @@
  let ui=null,screen='menu',mode=null,S=null,V=null,net=null,seats=[],size=2,started=false,aiTimer=null,graceTimer=null,pick=null,status='',roomCode='',offline=false,showRules=false,busy=false;
  // 0.2.22 — what the table looked like the last time it was drawn. Animations play only for what changed since then.
  let shown={seq:-1,n:0,top:null,hand:[],counts:[],color:null};
+ /* 0.3.98 — RELEVO DEL ANFITRIÓN (js/host-handoff.js). hostSeat = mi asiento cuando llevo la partida (0 si la creé yo; otro si me la pasaron).
+  * El anfitrión le manda al sucesor la partida entera ({t:'mig'}); si se va, el sucesor reabre la sala con el mismo código y sigue. */
+ let hostSeat=0,mig=null,hw=null,handing=false;
+ const HO=()=>window.SudomiHandoff,migOk=window.SudomiHandoff?SudomiHandoff.throttle(2000):()=>false;
+ function sendMig(force){if(!(net&&mode==='host'&&started&&S&&S.winner<0&&HO()))return -1;const k=HO().successor(seats);if(k>=0&&migOk(force))net.send(seats[k].id,{t:'mig',S,seats,size});return k}
+ async function takeover(){
+  const snap=mig,code=roomCode,myId=V?V.you:-1;if(!snap||myId<0||!HO())return;
+  status='El anfitrión se fue: abriendo la sala para seguir la partida…';render();
+  {const old=net;net=null;try{old&&old.close()}catch(_){}}   // primero se suelta la conexión vieja: si no, se reconectaría a la sala nueva como otro jugador
+  const room=await HO().takeover('dos',code,onHostEvent,()=>mode!=='guest');
+  if(!room){if(mode==='guest'){reset();screen='menu';status='El anfitrión se fue y no se pudo seguir la partida.';render()}return}
+  mode='host';net=room;
+  S=snap.S;seats=snap.seats.map(x=>({...x}));size=snap.size;started=true;hostSeat=myId;
+  const oh=seats.findIndex((x,i)=>x.id==='host'&&i!==myId);
+  seats[myId].id='host';seats[myId].away=false;
+  if(oh>=0){seats[oh]={name:String(seats[oh].name).replace(/ \(IA\)$/,'')+' (IA)',kind:'ai'};S.names[oh]=seats[oh].name}   // el que se fue: lo juega la máquina
+  seats.forEach((x,i)=>{if(i!==myId&&x.kind==='human')x.away=true});   // los demás vuelven solos al reconectarse; mientras, la máquina los cubre
+  mig=null;if(hw)hw.stop();hw=null;handing=false;offline=false;status='';
+  pushState();
+ }
  const FX={skip:['⊘','¡Salta!'],rev:['⇄','Reversa'],d2:['+2','¡Roba 2!'],d4:['+4','¡Roba 4!'],wild:['★','Comodín'],rewind:['⏪','¡Rebobinar!'],super:['+2','¡Súper +2!'],parry:['🛡','¡Parry!'],tornado:['🌪','¡Tornado!']};
  const CONFETTI=['#d62027','#1761b2','#1c8a4a','#e2a400','#ffffff'];
  // 0.2.25: the name and avatar come from the player profile (js/profile.js)
@@ -333,13 +370,21 @@
  function sayEmote(k){
   if(Date.now()-emoAt<1500||!V)return;
   emoAt=Date.now();emoOpen=false;
-  if(mode==='guest'){try{net.send({t:'emote',k})}catch(_){}}else relayEmote(0,k);
+  if(mode==='guest'){try{net.send({t:'emote',k})}catch(_){}}else relayEmote(hostSeat,k);
   addEmote(V.you,k);
   if(mode==='solo'&&Math.random()<.4){const game=S;setTimeout(()=>{if(S===game&&S&&S.winner<0)addEmote(1,[3,5,6,7,8][Math.floor(Math.random()*5)])},900+Math.random()*900)}
  }
- function reset(){emotes=[];emoOpen=false;try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}clearTimeout(aiTimer);clearTimeout(graceTimer);aiTimer=null;if(net){try{net.close()}catch(_){}}net=null;S=null;V=null;seats=[];started=false;pick=null;status='';roomCode='';offline=false;mode=null;busy=false}
+ function reset(){emotes=[];emoOpen=false;try{window.SudomiFriends&&SudomiFriends.awayBar&&SudomiFriends.awayBar(null)}catch(_){}clearTimeout(aiTimer);clearTimeout(graceTimer);aiTimer=null;
+  if(net&&mode==='host'){const k=sendMig(true);if(k>=0){net.send(seats[k].id,{t:'handoff'});try{net.close(true)}catch(_){}net=null}}   // 0.3.98: si me voy con la partida en marcha, se la paso al sucesor
+  if(net){try{net.close()}catch(_){}}net=null;hostSeat=0;mig=null;if(hw)hw.stop();hw=null;handing=false;S=null;V=null;seats=[];started=false;pick=null;status='';roomCode='';offline=false;mode=null;busy=false}
  function open(opts){ui=opts;reset();screen='menu';ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');render()}
- function close(){if(!ui)return;reset();screen='menu'}
+ function close(){if(!ui)return;try{window.SudomiPark&&SudomiPark.sync()}catch(_){}reset();screen='menu'}
+ // 0.3.63: la partida contra la máquina se guarda al salir y se retoma desde «Continuar» (ver PARK_MODS en other-games.js)
+ function parkState(){return mode==='solo'&&S?(S.winner>=0?{mode:'pve',over:true}:{mode:'pve',snap:{S,seats}}):null}
+ function parkResume(o,s){
+  if(!s||!s.S||!Array.isArray(s.S.hands)||!Array.isArray(s.seats))return false;
+  open(o);mode='solo';seats=s.seats;started=true;S=s.S;shown={seq:-1,n:0,top:null,hand:[],counts:[],color:null};pushState();return true;
+ }
  function leave(){try{window.SudomiFriends&&SudomiFriends.untrack()}catch(_){}const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}}
 
  /* ----- host / solo ----- */
@@ -348,8 +393,9 @@
  // 0.2.76: si alguien se desconecta, el anfitrión ve una barra con «Invitar de nuevo» (js/friends.js)
  function syncAway(){try{if(window.SudomiFriends&&SudomiFriends.awayBar)SudomiFriends.awayBar(net&&mode==='host'&&started?{game:'dos',gameName:'DOS',room:roomCode,names:seats.filter(x=>x.kind==='human'&&x.away).map(x=>x.name)}:null)}catch(_){}}
  function pushState(){
-  if(net&&mode==='host')seats.forEach((x,i)=>{if(x.id&&x.id!=='host'&&!x.away)net.send(x.id,{t:'state',v:viewFor(S,i),seats:publicSeats()})});
-  V=viewFor(S,0);screen='game';syncAway();render();scheduleAI();
+  const succ=HO()?HO().successor(seats):-1;   // 0.3.98: todos saben quién es el sucesor; los demás tiran la copia vieja que tuvieran
+  if(net&&mode==='host')seats.forEach((x,i)=>{if(x.id&&x.id!=='host'&&!x.away)net.send(x.id,{t:'state',v:viewFor(S,i),seats:publicSeats(),succ})});
+  V=viewFor(S,hostSeat);screen='game';syncAway();render();scheduleAI();sendMig();
  }
  function scheduleAI(){
   clearTimeout(aiTimer);
@@ -373,7 +419,8 @@
   const slow=owe&&isAI(owe.who)?2800:0;                       // se le olvidó avisar: te deja un momento para pillarla
   aiTimer=setTimeout(()=>{if(S!==game||S.winner>=0)return;const p=actor();if(!act(S,p,aiMove(S,p))&&!act(S,p,{t:'accept'}))act(S,p,{t:S.drew?'pass':'draw'});pushState()},slow||(seat.away?2600:S.draft?650:1200));
  }
- function startSolo(){reset();mode='solo';seats=[{name:myName(),kind:'human',id:'host',avatar:myAvatar()},{name:aiNames(1)[0]||'Máquina',kind:'ai'}];startGame()}
+ // 0.3.72: con la regla «2 contra 2» la partida contra la máquina es de 4 (tu pareja, enfrente, también es de la máquina)
+ function startSolo(){reset();mode='solo';const nm=aiNames(3);seats=[{name:myName(),kind:'human',id:'host',avatar:myAvatar()},...(houseRules().teams?[0,1,2]:[0]).map(k=>({name:nm[k]||`Máquina ${k+1}`,kind:'ai'}))];startGame()}
  function startGame(){
   started=true;let k=0;
   const pool=aiNames(12).filter(nm=>!seats.some(s=>s.name===nm));seats=seats.map(x=>x.kind==='open'?{name:pool[k++]||`IA ${k}`,kind:'ai'}:x);
@@ -429,14 +476,16 @@
   net=SudomiParty.join('dos',code,{name:myName(),avatar:myAvatar()},e=>{
    if(mode!=='guest')return;
    if(e.type==='open'){status='Conectado. Esperando al anfitrión…';try{window.SudomiFriends&&SudomiFriends.track({game:'dos',gameName:'DOS',room:code,role:'guest'})}catch(_){}}
-   else if(e.type==='away'){offline=true}
-   else if(e.type==='back'){offline=false}
+   else if(e.type==='away'){offline=true;if(hw)hw.away()}
+   else if(e.type==='back'){offline=false;if(hw)hw.back()}
    else if(e.type==='closed'){const m=e.message;reset();screen='menu';status=m}
    else if(e.type==='msg'){
     const d=e.data;
+    if(d.t==='mig'){mig=d;if(!hw&&HO())hw=HO().watcher(takeover);return}   // soy el sucesor: guardo la partida por si el anfitrión se va
+    if(d.t==='handoff'){handing=true;if(hw)hw.handoff();return}
     if(d.t==='lobby'){seats=d.seats;size=d.size;screen='lobby';status=''}
     else if(d.t==='emote'){addEmote(d.seat,d.k);return}
-    else if(d.t==='state'){V=d.v;seats=d.seats;started=true;screen='game';if(pick&&!V.hand.some(c=>c.u===pick))pick=null}
+    else if(d.t==='state'){V=d.v;seats=d.seats;started=true;screen='game';if(d.succ!==d.v.you&&mig){mig=null;if(hw){hw.stop();hw=null}}if(pick&&!V.hand.some(c=>c.u===pick))pick=null}
    }
    render();
   });
@@ -444,7 +493,7 @@
  /* ----- any seat ----- */
  function send(a){
   if(mode==='guest'){if(!net.send({t:'act',a})){offline=true;render()}}
-  else if(S&&act(S,0,a))pushState();
+  else if(S&&act(S,hostSeat,a))pushState();
  }
  function tapCard(u){
   const c=V.hand.find(x=>x.u===u);if(!c||!V.playable.includes(u))return;
@@ -487,8 +536,10 @@
     <div class="dos-opt static"><b>🔑 Unirme a una sala</b><span>Escribe el código que te envió tu amigo</span>
      <div class="dos-join"><input id="dosCode" maxlength="9" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABCD-2345"><button class="arc-btn" id="dosJoin">Unirme</button></div></div>
    </div>
+   ${houseHTML()}
    ${status?`<p class="arc-wait">${esc(status)}</p>`:''}${rulesHTML()}</div>`;
   bindCommon();
+  houseBind(ui.stage);
   $('#dosProfile').onclick=()=>P()&&P().edit();
   $('#dosSolo').onclick=startSolo;
   $('#dosCreate').onclick=()=>{
@@ -524,8 +575,8 @@
   }catch(_){}
  }
  function renderGame(){
-  const v=V,me=v.you,myTurn=v.turn===me&&v.winner<0;
-  if(v.winner<0)endSent=false;else if(!endSent){endSent=true;try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:'dos',won:v.winner===me}}))}catch(_){}}   /* 0.3.2: avisa el resultado a logros y estadísticas */
+  const v=V,me=v.you,myTurn=v.turn===me&&v.winner<0,iWon=v.winner===me||!!v.teams&&v.winner>=0&&v.winner%2===me%2;   // 0.3.72: en 2 contra 2 también ganas si gana tu pareja
+  if(v.winner<0)endSent=false;else if(!endSent){endSent=true;try{window.dispatchEvent(new CustomEvent('sudomi-arcade',{detail:{game:'dos',won:v.winner===me||!!v.teams&&v.winner%2===me%2}}))}catch(_){}}   /* 0.3.2: avisa el resultado a logros y estadísticas */
   const order=[];for(let k=1;k<v.n;k++)order.push((me+k)%v.n);
   const tag=i=>seats[i]&&seats[i].kind==='ai'?' 🤖':seats[i]&&seats[i].away?' 📴':'';
   // ----- what changed since the last drawing (decides which animations play) -----
@@ -554,7 +605,7 @@
   const nowE=Date.now();emotes=emotes.filter(x=>nowE-x.at<EMO_MS);
   const sayOf=(i,cls)=>{const x=emotes.find(q=>q.seat===i);return x?`<q class="dos-say ${cls||''}" style="animation-delay:-${((nowE-x.at)/1000).toFixed(2)}s">${esc(EMO[x.k])}</q>`:''};
   const sideOf=k=>{const ang=(m===1?90:arc-(2*arc-180)*k/(m-1))*Math.PI/180;return (1+Math.cos(ang))/2>.6?'r':''};
-  const opp=(i,k)=>`<div class="dos-opp s${i} ${acting===i&&v.winner<0?'turn':''}${v.hit.includes(i)?'hit':''} ${!d&&gain(i)>0?'grew':!d&&gain(i)<0?'shrank':''}" style="${place(k)}">${sayOf(i,sideOf(k))}${!d&&gain(i)>0?`<s>+${gain(i)}</s>`:''}<span class="dos-av">${avatar(i)}<i>${v.counts[i]}</i>${call(v.counts[i],i)}</span><b>${esc(v.names[i])}${seats[i]&&seats[i].away?' 📴':''}</b><span class="dos-backs ${v.counts[i]===1&&v.winner<0?'last':''}">${backsHTML(v.counts[i])}</span></div>`;
+  const opp=(i,k)=>`<div class="dos-opp s${i} ${acting===i&&v.winner<0?'turn':''}${v.hit.includes(i)?'hit':''} ${!d&&gain(i)>0?'grew':!d&&gain(i)<0?'shrank':''}" style="${place(k)}">${sayOf(i,sideOf(k))}${!d&&gain(i)>0?`<s>+${gain(i)}</s>`:''}<span class="dos-av">${avatar(i)}<i>${v.counts[i]}</i>${call(v.counts[i],i)}</span><b>${v.teams&&i%2===me%2?'🤝 ':''}${esc(v.names[i])}${seats[i]&&seats[i].away?' 📴':''}</b><span class="dos-backs ${v.counts[i]===1&&v.winner<0?'last':''}">${backsHTML(v.counts[i])}</span></div>`;
   const ring=`<svg class="dos-ring c-${v.color} ${v.dir<0?'rev':''}" viewBox="0 0 200 200" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round"><path d="M22 100A78 78 0 0 1 96 22"/><path d="M178 100A78 78 0 0 1 104 178"/></g><g fill="currentColor"><path d="M92 6l30 16-30 16z"/><path d="M108 194l-30-16 30-16z"/></g></svg>`;
   const fan=k=>{const n=v.hand.length,mid=(n-1)/2,step=Math.min(4,36/Math.max(n,1));return n>14?'':`--a:${((k-mid)*step).toFixed(1)}deg;--y:${(Math.pow(Math.abs(k-mid),2)*step*.22).toFixed(1)}px;`};
   const hand=v.hand.slice().sort((a,b)=>'rbgyk'.indexOf(a.c)-'rbgyk'.indexOf(b.c)||(a.v<b.v?-1:a.v>b.v?1:0));
@@ -563,7 +614,7 @@
   const prompt=e?`<div class="dos-prompt"><p>${esc(v.names[e.from])} te tiró <b>${e.label}</b>.${canStack?' Responde con un <b>+2</b> o <b>+4</b> de tu mano (brillan abajo) y se lo pasas al siguiente,':''}${canParry?` ${canStack?'usa':'Usa'} Parry`:''}${canStack||canParry?' o acepta.':''}</p><div>${canParry?'<button class="arc-btn pulse" id="dosParry">🛡 Usar Parry</button>':''}<button class="arc-btn alt" id="dosAccept">${e.n?`Robar ${e.n}`:'Perder el turno'}</button></div></div>`:'';
   const canDraw=myTurn&&!e&&!v.drew&&!v.must,canPass=myTurn&&!e&&(v.drew||v.keep)&&!v.must;
   const confetti=justWon?`<div class="dos-confetti">${Array.from({length:36},(_,k)=>`<i style="left:${Math.round(Math.random()*100)}%;background:${CONFETTI[k%5]};animation-delay:${(Math.random()*.9).toFixed(2)}s;animation-duration:${(1.8+Math.random()*1.6).toFixed(2)}s"></i>`).join('')}</div>`:'';
-  const end=v.winner>=0?`<div class="dos-over ${justWon?'pop':''}">${confetti}<div class="dos-card dos-endcard"><div class="res-ic ${v.winner===me?'':'lose'}">${window.SudomiResult?SudomiResult.icon(v.winner===me?'win':'lose'):''}</div><p class="dos-kicker">DOS · PARTIDA TERMINADA</p><h3>${v.winner===me?'¡Ganaste!':`Ganó ${esc(v.names[v.winner])}`}</h3><p class="arc-sub center">${v.winner===me?'Te quedaste sin cartas.':`Te quedaron ${v.hand.length} carta${v.hand.length===1?'':'s'}.`}</p><div class="dos-endbtns">${mode==='guest'?'<p class="arc-sub center">El anfitrión puede iniciar otra partida.</p>':'<button class="arc-btn" id="dosAgain">Jugar otra</button>'}<button class="arc-btn alt" id="dosEndExit">Todos los juegos</button></div></div></div>`:'';
+  const end=v.winner>=0?`<div class="dos-over ${justWon?'pop':''}">${confetti}<div class="dos-card dos-endcard"><div class="res-ic ${iWon?'':'lose'}">${window.SudomiResult?SudomiResult.icon(iWon?'win':'lose'):''}</div><p class="dos-kicker">DOS · PARTIDA TERMINADA</p><h3>${v.winner===me?'¡Ganaste!':iWon?'¡Ganó tu pareja!':v.teams?`Ganaron ${esc(v.names[v.winner])} y ${esc(v.names[(v.winner+2)%4])}`:`Ganó ${esc(v.names[v.winner])}`}</h3><p class="arc-sub center">${v.winner===me?'Te quedaste sin cartas.':iWon?`${esc(v.names[v.winner])} se quedó sin cartas.`:`Te quedaron ${v.hand.length} carta${v.hand.length===1?'':'s'}.`}</p><div class="dos-endbtns">${mode==='guest'?'<p class="arc-sub center">El anfitrión puede iniciar otra partida.</p>':'<button class="arc-btn" id="dosAgain">Jugar otra</button>'}<button class="arc-btn alt" id="dosEndExit">Salir</button></div></div></div>`:'';
   // Tornado: everybody sees the cards in the middle; only the player whose turn it is can take one
   const sortCards=list=>list.slice().sort((a,b)=>'rbgyk'.indexOf(a.c)-'rbgyk'.indexOf(b.c)||(a.v<b.v?-1:a.v>b.v?1:0));
   const draftBox=d&&v.winner<0?`<div class="dos-over ${fx==='tornado'?'late':''}"><div class="dos-card dos-draft"><p class="dos-kicker">🌪 TORNADO</p><h3>${d.who===me?'Elige una carta':`Elige ${esc(v.names[d.who])}…`}</h3><p class="arc-sub center">${d.need[me]>0?`Te ${d.need[me]===1?'falta 1 carta':`faltan ${d.need[me]} cartas`}`:'Ya tienes todas tus cartas'} · quedan ${d.count} en el centro</p><div class="dos-pool ${d.who===me?'':'idle'}">${Array.from({length:d.count},(_,i)=>`<button class="dos-poolbtn" data-p="${i}" ${d.who===me?'':'disabled'} aria-label="Carta boca abajo ${i+1}"><span class="dcard back"></span></button>`).join('')}</div>${v.hand.length?`<p class="arc-sub center">Tus cartas</p><div class="dos-mine">${sortCards(v.hand).map(c=>cardHTML(c,added.includes(c.u)?'got':'')).join('')}</div>`:''}</div></div>`:'';
@@ -607,5 +658,5 @@
   if(v.winner>=0){$('#dosEndExit').onclick=leave;const again=$('#dosAgain');if(again)again.onclick=()=>{S=newGame(seats.map(x=>x.name),seats.map(x=>x.kind));pushState()}}
  }
 
- window.SudomiDos={open,close,join:code=>joinRoom(code),solo:()=>startSolo(),create:n=>createRoom(n),_engine:{newGame,act,viewFor,aiMove,canPlay}};
+ window.SudomiDos={house:{html:houseHTML,bind:houseBind},open,close,parkState,parkResume,join:code=>joinRoom(code),solo:()=>startSolo(),create:n=>createRoom(n),_engine:{newGame,act,viewFor,aiMove,canPlay}};
 })();

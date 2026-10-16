@@ -8,7 +8,7 @@
  * Real cloud sync (accounts, automatic) would need a server; this is the serverless version of Phase 19. */
 (()=>{
  const S=window.SudomiScreen;if(!S)return;
- const SYNC_KEYS=['sudomi-xp','sudomi-ach','sudomi-stats','sudomi-daily','sudomi-score-best','sudomi-race','sudomi-training','sudomi-profile','sudomi-tutorial'];
+ const SYNC_KEYS=['sudomi-xp','sudomi-ach','sudomi-stats','sudomi-daily','sudomi-score-best','sudomi-race','sudomi-training','sudomi-profile','sudomi-tutorial','sudomi-friends'];   // 0.3.82: también la lista de amigos
  const J=s=>{try{return JSON.parse(s)}catch(_){return null}};
  const uniq=a=>[...new Set(a)];
  const max=(a,b)=>Math.max(+a||0,+b||0);
@@ -43,7 +43,15 @@
   'sudomi-score-best':(a,b)=>maxObj(a,b),
   'sudomi-race':(a,b)=>maxObj(a,b),
   'sudomi-training':(a,b)=>maxObj(a,b),
-  'sudomi-tutorial':(a,b)=>({...b,...a,seen:!!(a.seen||b.seen)})
+  'sudomi-tutorial':(a,b)=>({...b,...a,seen:!!(a.seen||b.seen)}),
+  /* 0.3.82 — AMIGOS (js/friends.js): la lista y los bloqueados se unen (por código; de un amigo repetido vale el de este teléfono).
+     Cada teléfono CONSERVA SU PROPIO código de amigo: dos teléfonos encendidos a la vez no pueden compartir código (el segundo no recibiría
+     invitaciones). Por eso en un teléfono nuevo tienes a tus amigos, pero ellos te verán con un código nuevo cuando los invites. */
+  'sudomi-friends':(a,b)=>{
+   const byCode=new Map();for(const f of [...(b.list||[]),...(a.list||[])])if(f&&f.code)byCode.set(f.code,f);
+   byCode.delete(a.id);if(b.id)byCode.delete(b.id);   // tus propios teléfonos no son «amigos»
+   return {...a,list:[...byCode.values()].slice(0,200),blocked:uniq([...(a.blocked||[]),...(b.blocked||[])]).slice(0,200)};
+  }
  };
  function collect(){const o={};SYNC_KEYS.forEach(k=>{try{const v=localStorage.getItem(k);if(v!==null)o[k]=v}catch(_){}});return o}
  function merge(local,remote){

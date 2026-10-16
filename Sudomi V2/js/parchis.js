@@ -55,6 +55,7 @@
   turbo:{e:'⚡',n:'Turbo',d:'Tu próximo dado vale el doble.',t:null},
   motoconcho:{e:'🛵',n:'Motoconcho',d:'Saca una ficha tuya de casa sin necesitar un 5.',t:null}
  };
+ const COND={bomba:'Solo contra una ficha rival que esté sola y sin escudo.',chancla:'Solo contra dos fichas rivales del mismo equipo que estén juntas y sin escudo.',machete:'La ficha rival no puede tener escudo.',ciclon:'Solo a una ficha rival sola, sin escudo, que esté en el camino (no en un pasillo ni en su salida).',hielo:'El rival no puede estar ya congelado.',cambio:'Las dos fichas tienen que estar en el camino y sin pareja; la rival, detrás de la tuya.',escudo:'Solo a una ficha tuya que esté fuera de casa.',curita:'Solo a una ficha tuya herida que esté fuera de casa.',turbo:'Necesitas una ficha fuera de casa.',motoconcho:'Necesitas una ficha en casa (con vidas) y tu salida libre.'};   /* 0.3.68 (dueño): la condición de cada carta; sale en rojo debajo de lo que hace */
  const CARD_KEYS=Object.keys(CARDS),RPS={r:'✊',p:'✋',s:'✌️'},RPS_N={r:'piedra',p:'papel',s:'tijera'};
  const TKEY='sudomi-parchis-theme',GAME='parchis';
  const NAME='Parchimi';   // nombre propio del juego (el id interno y los enlaces de sala siguen siendo «parchis»). Para cambiarlo: aquí y en la lista `games` de other-games.js
@@ -63,10 +64,10 @@
  const clean=n=>String(n||'').replace(/[<>&"']/g,'').replace(/\s+/g,' ').trim().slice(0,14);
  const P=()=>window.SudomiProfile;
  const myName=()=>(P()&&P().name&&P().name())||'Jugador 1',myAvatar=()=>(P()&&P().avatar&&P().avatar())||'🙂';
- let ui=null,g=null,token=0,mode='pve',selDie=0,rollTok=0,rolling=false,aim=null,choice=null;
+ let ui=null,g=null,token=0,mode='pve',selDie=0,rollTok=0,rolling=false,aim=null,choice=null,peek=null;
  const waits=new Map();   // lo que el motor está esperando de una persona: 'roll:c', 'pick:c', 'rps:c'
  const net={role:'solo',room:null,conn:null,code:'',seats:[],me:0,started:false,status:'',tok:0};
- const setup={n:4,war:false,n4:2,theme:(()=>{try{const t=localStorage.getItem(TKEY);return THEMES[t]?t:'clasico'}catch(_){return 'clasico'}})()};
+ const setup={n:4,war:false,n4:2,place:[0,1,2,3],theme:(()=>{try{const t=localStorage.getItem(TKEY);return THEMES[t]?t:'clasico'}catch(_){return 'clasico'}})()};
  const $=s=>ui.stage.querySelector(s);
  function play(n){try{window.SudomiSound&&SudomiSound.play(n)}catch(_){}if(net.role==='host')bcast({t:'snd',n})}
 
@@ -156,7 +157,7 @@
  }
  // hace daño a una ficha; devuelve true si se quedó sin vidas (vuelve a casa, curada). by = color que hizo el daño
  // 0.3.54: anota la animacion de captura de quien manda la ficha a casa (tambien en guerra: duelos y cartas). Devuelve lo que dura, o 0 si no lleva ninguna
- const killMark=(c,i,by,sp)=>{const k=by!=null&&g.seats[by]?g.seats[by].kill:'';if(!KILLS[k])return 0;g.kill={c,i,by,k,x:sp[0],y:sp[1],n:(g.killN=(g.killN||0)+1)};return KILLS[k]};
+ const killMark=(c,i,by,sp)=>{const all=String(by!=null&&g.seats[by]?g.seats[by].kill:'').split('.').filter(x=>KILLS[x]),k=all[Math.random()*all.length|0];if(!k)return 0;   /* 0.3.95: varias animaciones puestas = una al azar en cada captura */g.kill={c,i,by,k,x:sp[0],y:sp[1],n:(g.killN=(g.killN||0)+1)};return KILLS[k]};
  function damage(c,i,n,by){
   if(g.shield[c][i]>0||g.pos[c][i]<0||g.pos[c][i]===GOAL)return false;
   const d=Math.min(n,g.hp[c][i]);g.hp[c][i]-=d;g.stats[c].taken+=d;if(by!=null)g.stats[by].dmg+=d;
@@ -166,7 +167,7 @@
  /* ---- armas ---- */
  function cardTargets(c,key,first){
   const all=[];for(const o of g.players)g.pos[o].forEach((p,i)=>all.push({c:o,i,p}));
-  const on=x=>x.p>=0&&x.p!==GOAL,foe=x=>g.team[x.c]!==g.team[c],sh=x=>g.shield[x.c][x.i]>0,paired=x=>on(x)&&at(keyOf(x.c,x.p)).length===2,ring=x=>x.p>=0&&x.p<=RING_LAST;
+  const on=x=>x.p>=0&&x.p!==GOAL,foe=x=>g.team[x.c]!==g.team[c],sh=x=>g.shield[x.c][x.i]>0,paired=x=>{if(!on(x))return false;const o=at(keyOf(x.c,x.p));return o.length===2&&g.team[o[0].c]===g.team[o[1].c]},ring=   /* 0.3.65: pareja = dos del MISMO equipo (ahora dos rivales pueden compartir casilla mientras pelean) */x=>x.p>=0&&x.p<=RING_LAST;
   switch(CARDS[key]&&CARDS[key].t){
    case 'foe':return all.filter(x=>foe(x)&&on(x)&&!sh(x)&&!paired(x)&&(key!=='ciclon'||(ring(x)&&x.p>0&&!at('r'+COLORS[x.c].start).some(o=>foeOf(x.c,o)))));
    case 'any':return all.filter(x=>foe(x)&&on(x)&&!sh(x));
@@ -193,7 +194,7 @@
    if(!ok(cardTargets(c,key),t1))return false;
    if(key==='bomba')text=damage(t1.c,t1.i,2,c)?`mandó a casa una ficha de ${nm(t1.c)}`:`le quitó 2 vidas a una ficha de ${nm(t1.c)}`;
    else if(key==='machete')text=damage(t1.c,t1.i,1,c)?`mandó a casa una ficha de ${nm(t1.c)}`:`le quitó 1 vida a una ficha de ${nm(t1.c)}`;
-   else if(key==='chancla'){at(keyOf(t1.c,g.pos[t1.c][t1.i])).forEach(o=>damage(o.c,o.i,2,c));text=`le dio a una pareja de ${nm(t1.c)}: 2 vidas menos cada una`}
+   else if(key==='chancla'){at(keyOf(t1.c,g.pos[t1.c][t1.i])).filter(o=>foeOf(c,o)).forEach(o=>damage(o.c,o.i,2,c));text=`le dio a una pareja de ${nm(t1.c)}: 2 vidas menos cada una`}
    else if(key==='ciclon'){g.pos[t1.c][t1.i]=0;text=`mandó una ficha de ${nm(t1.c)} de vuelta a su salida`}
    else if(key==='hielo'){g.frozen[t1.c]=true;text=`congeló a ${nm(t1.c)}: pierde su próximo turno`}
    else if(key==='escudo'){g.shield[c][t1.i]=2;text='protegió una ficha por 2 turnos'}
@@ -208,6 +209,10 @@
   if(redo)answer('pick',g.players[g.turn],'redo');   // el tablero cambió: se vuelven a calcular las jugadas de quien estaba eligiendo
   return true;
  }
+ function dropCard(c,idx){
+  if(!g||!g.war||g.over||!g.cards[c]||!g.cards[c][idx])return false;
+  const C=CARDS[g.cards[c].splice(idx,1)[0]];aim=null;play('tap');say(`🗑 ${nm(c)} tiró su carta ${C.e} ${C.n}`);return true;
+ }
  // la computadora: puntúa cada jugada y elige la mejor
  const prog=p=>p>=100?40:p;
  function danger(c,p){   // ¿cuántas fichas rivales tienen esta casilla a tiro de dado?
@@ -217,8 +222,9 @@
   return n;
  }
  function score(c,m){
-  if(m.heal)return 30+Math.random()*4;
-  let s=Math.random()*4+(prog(m.to)-prog(m.from))*.4;
+  const rnd=Math.random()*({easy:70,hard:.5}[window.SudomiAILevel?SudomiAILevel():'normal']||4);   // 0.3.71: nivel de la máquina (fácil: el azar pesa casi tanto como comer una ficha)
+  if(m.heal)return 30+rnd;
+  let s=rnd+(prog(m.to)-prog(m.from))*.4;
   if(m.capture)s+=90+g.pos[m.capture.c][m.capture.i];
   if(m.duel)s+=18+prog(g.pos[m.duel.c][m.duel.i])*.5+(g.hp[c][m.i]-g.hp[m.duel.c][m.duel.i])*10+(m.hall!=null?12:0);
   if(m.to===GOAL)s+=70;else if(m.to>RING_LAST&&m.to<100)s+=18;
@@ -303,9 +309,31 @@
   if(p<=RING_LAST){const n=ringSq(c,p),[x,y]=center(n);return wide(n)?[x+off,y]:[x,y+off]}
   const hc=p>=100?fh(p):c,[x,y]=hallC(hc,p>=100?fs(p):p-RING_LAST);return hc===0||hc===2?[x+off,y]:[x,y+off];
  }
+ /* 0.3.76 — LA FICHA SALTA CASILLA A CASILLA. Cuando una ficha avanza (hasta 20 casillas, por su camino normal), en vez de aparecer en el
+  * destino recorre las casillas del medio, una por una. seenPos recuerda dónde estaba cada ficha la última vez que se dibujó; hopTo, hacia
+  * dónde va la que está saltando (para que otro dibujo a mitad de camino no la corte). Volver a casa, entrar a un pasillo ajeno (guerra)
+  * y «sin animaciones» siguen siendo de golpe. */
+ let seenPos={},hopTo={},hopTok={};
+ const still=()=>document.documentElement.dataset.fx==='off'||!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+ const cellXY=(c,p)=>p<=RING_LAST?center(ringSq(c,p)):hallC(c,p-RING_LAST);
  function place(){
   if(!g||!ui)return;
-  for(const c of g.players)for(let i=0;i<g.pos[c].length;i++){const e=$(`.pc-piece[data-c="${c}"][data-i="${i}"]`);if(!e)continue;const [x,y]=spot(c,i);e.style.left=pct(x);e.style.top=pct(y)}
+  for(const c of g.players)for(let i=0;i<g.pos[c].length;i++){
+   const e=$(`.pc-piece[data-c="${c}"][data-i="${i}"]`);if(!e)continue;
+   const [x,y]=spot(c,i),k=c+':'+i,p=g.pos[c][i],old=seenPos[k];seenPos[k]=p;
+   if(old!=null&&old>=0&&p>old&&p-old<=20&&p<100&&!still()){
+    const tok=hopTok[k]=(hopTok[k]||0)+1,steps=[];for(let q=old+1;q<p;q++)steps.push(cellXY(c,q));steps.push([x,y]);
+    const ms=Math.max(45,Math.min(110,640/steps.length)),from=cellXY(c,old);
+    hopTo[k]=p;e.style.transition='none';e.style.left=pct(from[0]);e.style.top=pct(from[1]);void e.offsetWidth;
+    e.style.transition=`left ${ms}ms linear,top ${ms}ms linear`;e.classList.add('hop');
+    steps.forEach((s,n)=>setTimeout(()=>{
+     if(hopTok[k]!==tok)return;
+     const el=$(`.pc-piece[data-c="${c}"][data-i="${i}"]`);if(!el)return;   // la pantalla pudo redibujarse: se busca la ficha de nuevo
+     el.style.left=pct(s[0]);el.style.top=pct(s[1]);
+     if(n===steps.length-1)setTimeout(()=>{if(hopTok[k]===tok){delete hopTo[k];const z=$(`.pc-piece[data-c="${c}"][data-i="${i}"]`);if(z){z.style.transition='';z.classList.remove('hop')}}},ms+30);
+    },n*ms));
+   }else if(hopTo[k]!==p){hopTok[k]=(hopTok[k]||0)+1;delete hopTo[k];e.style.transition='';e.classList.remove('hop');e.style.left=pct(x);e.style.top=pct(y)}
+  }
  }
  const nm=c=>g.seats[c].name;
  // ¿este teléfono maneja ese color?
@@ -349,7 +377,14 @@
  /* 0.3.52 - animaciones de captura (objetos de la tienda, ranura «parchiskill»). La ve toda la mesa cuando quien come la lleva puesta; el anfitrion espera lo que dura (KILLS) antes de seguir.
     killshots: la ficha sale volando, recibe cuatro disparos, se rompe y los pedazos se juntan en su casa.
     0.3.53 - killbat: un bate le da un batazo y la rompe. killbomb: se le pega una bomba, explota y sale un corazon que dice «sorry :(». */
- const KILLS={killshots:2250,killbat:2200,killbomb:3050};let lastKill=0;
+ /* 0.3.70 (ideas del dueño) - killslash «Corte»: la ficha que comió salta detrás y la corta en dos de arriba abajo; las dos mitades caen y vuelven a casa.
+    killswords «Espadas»: dos espadas cruzan en X y la parten en cuatro. */
+ /* 0.3.95 (dueño) - killbolt «Rayo»: una nube negra suelta un rayo, la ficha queda quemada y se deshace en ceniza. killfire «Bola de fuego»: cae una bola
+    de fuego, explota y la ficha arde. killdragon «Dragón» (legendaria): la ficha que comió sale en la esquina izquierda con casco de dragón, la comida en
+    el centro, y la primera le lanza una llamarada que la quema. */
+ const KILLS={killshots:2250,killbat:2200,killbomb:3050,killslash:2350,killswords:2500,killbolt:2300,killfire:2500,killdragon:3900};let lastKill=0;
+ const BOLT_SVG='<svg viewBox="0 0 40 100" aria-hidden="true"><path d="M24 0L8 44h13L6 100l30-60H23L34 0z" fill="#fff8b0" stroke="#ffd400" stroke-width="3" stroke-linejoin="round"/></svg>';
+ const HELM_SVG='<svg class="pc-khelm" viewBox="0 0 100 100" aria-hidden="true"><path d="M18 46q-14-26-6-44q10 18 22 26zM82 46q14-26 6-44q-10 18-22 26z" fill="#f2e3b8" stroke="#5a2a0a" stroke-width="3"/><path d="M14 60q0-40 36-40t36 40q-8-6-14-4l-4 10h-36l-4-10q-6-2-14 4z" fill="#b3161b" stroke="#4a0606" stroke-width="3"/><path d="M30 26l6-12 6 10 8-14 8 14 6-10 6 12" fill="#ffb02e" stroke="#4a0606" stroke-width="2.500" stroke-linejoin="round"/><circle cx="36" cy="46" r="5" fill="#ffd400" stroke="#4a0606" stroke-width="2"/><circle cx="64" cy="46" r="5" fill="#ffd400" stroke="#4a0606" stroke-width="2"/><path d="M36 43v6M64 43v6" stroke="#4a0606" stroke-width="2"/></svg>';
  function killFx(k){
   const bd=$('.pc-board'),el=$(`.pc-piece[data-c="${k.c}"][data-i="${k.i}"]`);if(!bd||!el)return;
   try{if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)return}catch(_){}
@@ -369,18 +404,66 @@
   el.classList.add('kout');
   const ax=Math.min(18,Math.max(4,k.x+(11-k.x)*.25)),ay=Math.min(18,Math.max(4,k.y-2.2)),gh=mk('pc-kghost',k.x,k.y);
   later(30,()=>{gh.style.left=pct(ax);gh.style.top=pct(ay);gh.classList.add('up')});
+  const glide=(list,ms)=>later(ms,()=>{const h=home();list.forEach(f=>{f.classList.add('back');f.style.left=pct(h[0]);f.style.top=pct(h[1]);f.style.transform='rotate(0deg) scale(.4)'})});   // los pedazos grandes vuelven a casa
+  const ash=fr=>{fr.forEach(f=>f.classList.add('ash'));return fr};
+  if(kind==='killbolt'){
+   const cl=mk('pc-kcloud',ax,lim(ay-6.2));later(60,()=>cl.classList.add('in'));
+   let bolt=null;later(560,()=>{snd('zap');bolt=mk('pc-kbolt',ax,lim(ay-3.4));bolt.innerHTML=BOLT_SVG;later(20,()=>bolt.classList.add('on'));bd.classList.add('kflash');later(240,()=>bd.classList.remove('kflash'))});
+   later(700,()=>{snd('thunder');shake();gh.classList.add('char')});
+   later(1080,()=>{gh.remove();if(bolt)bolt.remove();cl.classList.add('out');const fr=ash(shatter(ax,ay,-90,360,2,4.6));later(T-1080,()=>back(fr.concat(cl)))});
+   return;
+  }
+  if(kind==='killfire'){
+   const fb=mk('pc-kfball',lim(ax-7.5),lim(ay-7.5));later(40,()=>fb.classList.add('in'));
+   later(380,()=>{fb.classList.add('go');fb.style.left=pct(ax);fb.style.top=pct(ay);snd('fireball')});
+   later(860,()=>{fb.remove();gh.classList.add('char');shake();snd('boom');const ex=mk('pc-kboom pc-kfire',ax,ay);later(20,()=>ex.classList.add('on'));later(520,()=>ex.remove());
+    const bu=mk('pc-kburn',ax,ay);later(20,()=>bu.classList.add('on'));
+    later(700,()=>{bu.remove();gh.remove();const fr=ash(shatter(ax,ay,-90,300,2.2,4.8));later(T-1560,()=>back(fr))})});
+   return;
+  }
+  if(kind==='killdragon'){
+   const by=k.by!=null&&COLORS[k.by]?COLORS[k.by].hex:'#1761b2',D=[4.4,17.4],M=[11,11];
+   const dim=mk('pc-kdim',11,11);later(20,()=>dim.classList.add('on'));
+   const dr=mk('pc-kghost pc-kdrg',k.x,k.y);dr.style.setProperty('--pc-c',by);dr.innerHTML=HELM_SVG;
+   later(60,()=>{dr.style.left=pct(D[0]);dr.style.top=pct(D[1]);dr.classList.add('up');gh.style.left=pct(M[0]);gh.style.top=pct(M[1]);gh.classList.add('mid')});
+   later(650,()=>snd('roar'));
+   const fx=D[0]+1.6,fy=D[1]-1.6,dx=M[0]-fx,dy=M[1]-fy;let fl=null,bu=null;
+   later(1250,()=>{fl=mk('pc-kflame',fx,fy);fl.style.width=(Math.hypot(dx,dy)/22*100+4).toFixed(2)+'%';fl.style.setProperty('--ang',(Math.atan2(dy,dx)*180/Math.PI).toFixed(1)+'deg');later(20,()=>fl.classList.add('on'));snd('flame');dr.classList.add('blow')});
+   later(1700,()=>{gh.classList.add('char');bu=mk('pc-kburn big',M[0],M[1]);later(20,()=>bu.classList.add('on'));shake()});
+   later(2650,()=>{if(fl)fl.classList.add('out');dr.classList.remove('blow')});
+   later(2950,()=>{if(bu)bu.remove();gh.remove();if(fl)fl.remove();snd('boom');const fr=ash(shatter(M[0],M[1],-90,360,2.6,5.4));dr.classList.add('out');dim.classList.remove('on');later(T-2950,()=>back(fr.concat(dr,dim)))});
+   return;
+  }
+  if(kind==='killslash'){
+   const atk=mk('pc-kghost pc-katk',k.x,k.y);atk.style.setProperty('--pc-c',k.by!=null&&COLORS[k.by]?COLORS[k.by].hex:'#1761b2');
+   later(260,()=>{atk.style.left=pct(ax);atk.style.top=pct(lim(ay-4.4));atk.classList.add('up')});
+   later(720,()=>{atk.classList.add('dive');atk.style.top=pct(lim(ay+3.4));const sl=mk('pc-kslash',ax,ay);later(20,()=>sl.classList.add('on'));later(400,()=>sl.remove());snd('swish')});
+   later(880,()=>{gh.remove();shake();snd('slash');const L=mk('pc-khalf l',ax,ay),R=mk('pc-khalf r',ax,ay);
+    later(30,()=>{L.style.left=pct(lim(ax-2.7));L.style.top=pct(lim(ay+1.3));L.style.transform='rotate(-40deg)';R.style.left=pct(lim(ax+2.7));R.style.top=pct(lim(ay+1.3));R.style.transform='rotate(40deg)'});
+    later(300,()=>atk.classList.add('out'));glide([L,R],720);later(T-880,()=>back([L,R,atk]))});
+   return;
+  }
+  if(kind==='killswords'){
+   const s1=mk('pc-ksword a',ax,ay),s2=mk('pc-ksword b',ax,ay);
+   later(380,()=>{s1.classList.add('in');s2.classList.add('in')});
+   later(700,()=>{s1.classList.add('cut');snd('swish')});later(880,()=>{s2.classList.add('cut');snd('swish')});
+   later(1060,()=>{gh.remove();shake();snd('slash');const x=mk('pc-kx',ax,ay);later(20,()=>x.classList.add('on'));later(440,()=>x.remove());
+    const fr=[0,1,2,3].map(n=>{const f=mk('pc-kquad q'+n,ax,ay),a=(n*90-90)*Math.PI/180;later(30,()=>{f.style.left=pct(lim(ax+Math.cos(a)*2.9));f.style.top=pct(lim(ay+Math.sin(a)*2.9));f.style.transform=`rotate(${n%2?24:-24}deg)`});return f});
+    later(320,()=>{s1.classList.add('out');s2.classList.add('out')});glide(fr,660);later(T-1060,()=>back(fr.concat([s1,s2])))});
+   return;
+  }
   if(kind==='killbat'){
    const bat=mk('pc-kbat',ax-4.1,ay+.2);
    later(380,()=>bat.classList.add('in'));later(640,()=>bat.classList.add('swing'));
-   later(760,()=>{gh.remove();shake();snd('bad');const pow=mk('pc-kpow',ax,ay);later(20,()=>pow.classList.add('on'));later(420,()=>pow.remove());
+   later(760,()=>{gh.remove();shake();snd('whack');const pow=mk('pc-kpow',ax,ay);later(20,()=>pow.classList.add('on'));later(420,()=>pow.remove());
     const fr=shatter(ax,ay,-15,130,2.6,5.2);later(380,()=>bat.classList.add('out'));later(T-760,()=>back(fr.concat(bat)))});
    return;
   }
   if(kind==='killbomb'){
    const bomb=mk('pc-kbomb',ax+.75,ay-4.5);
    later(380,()=>{bomb.style.top=pct(ay-.75);bomb.classList.add('in')});
-   [0,1,2].forEach(n=>later(780+n*240,()=>{bomb.classList.remove('tick');void bomb.offsetWidth;bomb.classList.add('tick');snd('tap')}));
-   later(1520,()=>{gh.remove();bomb.remove();shake();snd('bad');const boom=mk('pc-kboom',ax,ay);later(20,()=>boom.classList.add('on'));later(520,()=>boom.remove());
+   [0,1,2].forEach(n=>later(780+n*240,()=>{bomb.classList.remove('tick');void bomb.offsetWidth;bomb.classList.add('tick');snd('tick')}));
+   later(1520,()=>{gh.remove();bomb.remove();shake();snd('boom');const boom=mk('pc-kboom',ax,ay);later(20,()=>boom.classList.add('on'));later(520,()=>boom.remove());
     const heart=mk('pc-kheart',ax,ay);heart.innerHTML='<svg viewBox="0 0 100 92" aria-hidden="true"><path d="M50 88C12 58 3 38 3 25A22.500 22.500 0 0 1 50 17A22.500 22.500 0 0 1 97 25C97 38 88 58 50 88Z" fill="#ff3b6b" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><text x="50" y="47" text-anchor="middle" font-family="system-ui,Arial,sans-serif" font-size="17" font-weight="900" fill="#fff">sorry :(</text></svg>';
     later(40,()=>heart.classList.add('on'));
     later(T-1520-520,()=>{const h=home();heart.classList.add('go');heart.style.left=pct(h[0]);heart.style.top=pct(h[1])});
@@ -388,8 +471,8 @@
    return;
   }
   [0,1,2,3].forEach(n=>later(520+n*190,()=>{const h=document.createElement('b');h.className='pc-kshot';h.style.left=(22+Math.random()*56)+'%';h.style.top=(22+Math.random()*56)+'%';gh.appendChild(h);
-   gh.classList.remove('hit');void gh.offsetWidth;gh.classList.add('hit');shake();snd('tap')}));
-  later(1300,()=>{gh.remove();snd('bad');const fr=shatter(ax,ay,0,315,1.6,3.2);later(T-1300,()=>back(fr))});
+   gh.classList.remove('hit');void gh.offsetWidth;gh.classList.add('hit');shake();snd('shot')}));
+  later(1300,()=>{gh.remove();snd('whack');const fr=shatter(ax,ay,0,315,1.6,3.2);later(T-1300,()=>back(fr))});
  }
  function update(local){
   if(!g||!ui||!$('.pc-board'))return;
@@ -430,13 +513,23 @@
   // los dos huecos de carta de cada jugador, en las esquinas de su casa
   ui.stage.querySelectorAll('.pc-slot').forEach(e=>{
    const sc=+e.dataset.c,k=+e.dataset.k,key=g.cards[sc][k],ok=!!key&&cardTime()&&mine(sc)&&cardUsable(sc,key);
-   e.textContent=key?CARDS[key].e:'';e.classList.toggle('full',!!key);e.classList.toggle('on',!!aim&&aim.c===sc&&aim.idx===k);e.disabled=!ok;
+   e.textContent=key?CARDS[key].e:'';e.classList.toggle('full',!!key);e.classList.toggle('on',!!aim&&aim.c===sc&&aim.idx===k);e.disabled=!key||!mine(sc);e.classList.toggle('ready',ok);   // 0.3.64: la carta se puede tocar siempre; si ahora no sirve, explica por qué (antes no hacía nada)
    e.title=key?CARDS[key].n+': '+CARDS[key].d:'Hueco para una carta';
   });
   const info=$('#pcCardInfo');
   if(info){
-   if(aim){const C=CARDS[aim.key];info.innerHTML=`<b>${C.e} ${C.n}</b><span>${esc(C.d)}</span>${C.t?'':'<button type="button" class="arc-btn" id="pcUseCard">Usar ahora</button>'}`;info.classList.remove('hidden');const u=$('#pcUseCard');if(u)u.onclick=()=>{const a=aim;sendCard(a.c,a.idx)}}
-   else info.classList.add('hidden');
+   if(peek&&!(mine(peek.c)&&g.cards[peek.c]&&g.cards[peek.c][peek.idx]===peek.key))peek=null;
+   if(peek&&!g.over){
+    const C=CARDS[peek.key],time=cardTime(),can=time&&cardUsable(peek.c,peek.key),sig=peek.c+':'+peek.idx+':'+peek.key+':'+can+':'+time;
+    if(info.dataset.k!==sig){
+     info.dataset.k=sig;
+     info.innerHTML=`<b>${C.e} ${C.n}</b><span>${esc(C.d)}</span>${COND[peek.key]?`<em class="pc-cond">${esc(COND[peek.key])}</em>`:''}${can?'':`<em class="pc-cond now">${time?'Ahora mismo no se cumple: no se puede usar.':'Espera a que termine la jugada para usarla.'}</em>`}<div class="pc-ci-btns"><button type="button" class="arc-btn" id="pcUseCard" ${can?'':'disabled'}>${C.t?'Usar: elegir ficha':'Usar ahora'}</button><button type="button" class="arc-btn ghost" id="pcDropCard">🗑 Tirar carta</button><button type="button" class="arc-btn ghost" id="pcCloseCard">Cerrar</button></div>`;
+     $('#pcUseCard').onclick=()=>{const p=peek;if(!p)return;peek=null;if(CARDS[p.key].t){aim={c:p.c,idx:p.idx,key:p.key,first:null};update(true)}else sendCard(p.c,p.idx)};
+     $('#pcDropCard').onclick=()=>{const p=peek;if(!p)return;peek=null;if(net.role==='guest'){net.conn.send({t:'drop',idx:p.idx});update(true)}else if(!dropCard(p.c,p.idx))update(true)};
+     $('#pcCloseCard').onclick=()=>{peek=null;update(true)};
+    }
+    info.classList.remove('hidden');
+   }else{info.classList.add('hidden');info.dataset.k=''}
   }
   // animación + texto cuando alguien activa una carta (se ve en todos los teléfonos)
   const fx=$('.pc-fx');
@@ -449,10 +542,12 @@
   if(g.duel){
    const D=g.duel,mineNeed=D.need.find(x=>mine(x));
    let body='';
-   if(D.res){const w=D.res==='tie'?'¡Empate! Otra vez…':`Gana ${nm(D.res==='a'?D.a.c:D.d.c)}`;body=`<div class="pc-duel-show"><span>${RPS[D.pa]}</span><i>vs</i><span>${RPS[D.pd]}</span></div><p>${esc(w)}</p>`}
+   const K=D.kind||'rps';
+   if(D.res){const w=D.res==='tie'?'¡Empate! Otra vez…':`${K==='coin'&&D.out?'Salió la '+D.out+': gana ':'Gana '}${nm(D.res==='a'?D.a.c:D.d.c)}`;body=`<div class="pc-duel-show"><span>${K==='rps'?RPS[D.pa]:esc(D.sa)}</span><i>vs</i><span>${K==='rps'?RPS[D.pd]:esc(D.sd)}</span></div><p>${esc(w)}</p>`}
+   else if(K!=='rps')body=`<div class="pc-duel-show roll"><span>${K==='dice'?'🎲':'🪙'}</span></div><p>${K==='dice'?'Tirando los dados… gana el número más alto':`Lanzando la moneda… ${esc(nm(D.a.c))} es la ${D.la||'A'} y ${esc(nm(D.d.c))} es la ${D.ld||'B'}`}</p>`;
    else if(mineNeed!=null)body=`<p><b>${esc(nm(mineNeed))}</b>, elige en secreto:</p><div class="pc-rps">${Object.keys(RPS).map(k=>`<button type="button" data-rps="${k}" aria-label="${RPS_N[k]}">${RPS[k]}</button>`).join('')}</div>`;
    else body='<p>Esperando la elección…</p>';
-   box.innerHTML=`<h4>⚔️ Duelo: ${esc(nm(D.a.c))} contra ${esc(nm(D.d.c))}</h4>${body}`;box.classList.remove('hidden');
+   box.innerHTML=`<h4>${K==='dice'?'🎲 Duelo de dados':K==='coin'?'🪙 Moneda A o B':'⚔️ Duelo'}: ${esc(nm(D.a.c))} contra ${esc(nm(D.d.c))}</h4>${body}`;box.classList.remove('hidden');
    box.querySelectorAll('[data-rps]').forEach(b=>b.onclick=()=>{
     const v2=b.dataset.rps;
     if(net.role==='guest'){net.conn.send({t:'rps',v:v2});g.duel.need=g.duel.need.filter(x=>x!==net.me);update(true)}
@@ -496,12 +591,16 @@
  function bindTheme(root){(root||ui.stage).querySelectorAll('[data-theme]').forEach(b=>b.onclick=()=>{setup.theme=b.dataset.theme;try{localStorage.setItem(TKEY,setup.theme)}catch(_){}ui.stage.querySelectorAll('[data-theme]').forEach(x=>x.classList.toggle('on',x.dataset.theme===setup.theme));ui.stage.querySelectorAll('.pc-tname').forEach(x=>{x.textContent=(THEMES[setup.theme]||THEMES.clasico).name});applyTheme()})}
  function rulesHTML(war){
   if(war)return `<h3>⚔️ Parchís guerra</h3><ul>
-  <li><b>Equipos:</b> con 4 jugadores son parejas (amarillo + rojo contra azul + verde). Con 2 o 3, cada uno por su cuenta.</li>
+  <li><b>Equipos:</b> con 4 jugadores son parejas: <b>equipo A</b> (amarillo + rojo, juegan 1.º y 3.º) contra <b>equipo B</b> (azul + verde, 2.º y 4.º). Antes de empezar cada quien elige su equipo, y la letra sale en el borde de su casa. Con 2 o 3, cada uno por su cuenta.</li>
   <li><b>Vidas:</b> cada ficha tiene ${HPMAX} (el número sobre la ficha). <b>Por cada vida perdida camina un paso menos</b>: herida una vez, un 6 vale 5.</li>
   <li><b>Sin vidas:</b> la ficha vuelve a casa en 0. Necesita <b>dos 5</b>: el primero la cura a medias (1½) y el segundo la deja en ${HPMAX} y la saca.</li>
   <li><b>No hay zonas seguras.</b> Solo están protegidas <b>dos fichas del mismo equipo en la misma casilla</b>: nadie puede caerles encima ni pasar.</li>
-  <li><b>Duelo:</b> si caes sobre una ficha rival sola, juegan <b>piedra, papel o tijera</b>. <b>Quien pierde vuelve a su casa con una vida menos.</b></li>
-  <li><b>🎁 Armas:</b> al caer en una casilla gris ganas una carta. Guardas hasta <b>${HAND}</b>, en las esquinas de tu casa, y las usas <b>cuando quieras</b>, aunque no sea tu turno: toca la carta y luego la ficha.</li>
+  <li><b>Ataque:</b> si caes sobre una ficha rival sola, <b>le quitas una vida</b> y las dos se quedan juntas en la casilla.</li>
+  <li><b>Duelo:</b> si en tu próximo turno siguen juntas, antes de tirar hay un duelo al azar: <b>piedra, papel o tijera</b>, <b>dados</b> (gana el más alto) o la <b>moneda A o B</b> (cada quien lleva la letra de su equipo; sin equipos, A es quien atacó). <b>Quien pierde, pierde una vida.</b> Se repite cada turno tuyo mientras sigan juntas.</li>
+  <li><b>Barreras:</b> dos fichas del mismo equipo (aunque sean de jugadores distintos) en una casilla cierran el paso.</li>
+  <li><b>🎲✨ Dado de poderes:</b> si tiras y no puedes mover ninguna ficha, recibes una carta al azar (si tienes sitio).</li>
+  <li><b>Con un 5</b> eliges cuál ficha sale de casa.</li>
+  <li><b>🎁 Armas:</b> al caer en una casilla gris ganas una carta. Guardas hasta <b>${HAND}</b>, en las esquinas de tu casa, y las usas <b>cuando quieras</b>, aunque no sea tu turno: toca la carta y luego la ficha. Si no la quieres, toca la carta y luego <b>Tirar carta</b>.</li>
   <li><b>Atacar pasillos:</b> puedes doblar hacia el pasillo de color de un rival si caes justo sobre una ficha suya. Si sigues y llegas al final de ese pasillo, vuelves a tu salida.</li>
   <li><b>Final:</b> termina cuando un equipo mete todas sus fichas. <b>3 puntos</b> por ficha en la meta, <b>1</b> por cada ficha que mandaste a casa, <b>1</b> para quien más daño hizo y <b>1</b> para quien más daño recibió. Gana el equipo con más puntos.</li>
   <li>Dados: 5 para salir (o que sumen 5), pareja de dados repite, tres parejas seguidas castigan.</li></ul>
@@ -538,26 +637,57 @@
   const alt=()=>{try{window.SudomiAltMode&&SudomiAltMode(setup.war?'war':'')}catch(_){}};alt();   // 0.3.50: con «Parchís guerra» encendido cambia el fondo
   $('#pcWar').onchange=e=>{setup.war=e.target.checked;$('#pcN4').classList.toggle('hidden',!setup.war);alt()};
   $('#pcWarRules').onclick=()=>sheet(rulesHTML(true));
-  bindTheme();applyTheme();$('#pcStart').onclick=online?createRoom:start;
+  bindTheme();applyTheme();$('#pcStart').onclick=online?createRoom:()=>setup.war&&setup.n===4?renderTeams():start();   // 0.3.67: en guerra con 4, antes de empezar se eligen equipos y colores
+ }
+ /* 0.3.67 (dueño) — EQUIPOS Y COLORES, dentro del juego y solo en guerra con 4. Dos lados: el A con sus colores (amarillo y rojo, juegan 1.º y 3.º)
+  * y el B con los suyos (azul y verde, 2.º y 4.º). Cada jugador mueve su icono al color que quiera; al elegir color eliges equipo.
+  * teamBoard() pinta el tablero (occ[color] = quién está ahí); lo usan renderTeams() (sin conexión) y la sala online (renderLobby + moveSeat). */
+ function teamBoard(occ){
+  return `<div class="pc-tb">${[0,1].map(t=>`<div class="pc-tb-side"><h4>Equipo ${'AB'[t]}</h4><small>juega ${t?'2.º y 4.º':'1.º y 3.º'}</small>${(t?[1,3]:[0,2]).map(c=>{const o=occ[c]||{};return `<button type="button" class="pc-tb-slot${o.me?' me':''}${o.sel?' sel':''}${o.free?' free':''}" data-tc="${c}" style="--pc-c:${COLORS[c].hex};--pc-ink:${COLORS[c].ink}"><i>${esc(o.avatar||'＋')}</i><b>${esc(o.name||'Libre')}${o.me?' (tú)':''}</b><em>${COLORS[c].name}</em></button>`}).join('')}</div>`).join('')}</div>`;
+ }
+ function renderTeams(){
+  stopGame();let sel=-1;const pv=mode==='pvp';
+  const who=k=>k===0?{name:myName(),avatar:myAvatar()}:pv?{name:'Jugador '+(k+1),avatar:['🙂','😎','🤠','🥳'][k]}:{name:'Máquina',avatar:'🤖'};
+  const draw=()=>{
+   ui.stage.innerHTML=`<div class="mini-game pc">${head()}<div class="pc-menu pc-teams"><div class="pc-hero">⚔️<b>Equipos y colores</b><span>${pv?'Toca a un jugador y luego el color al que quiere ir.':'Toca el color con el que quieres jugar.'} Cada equipo tiene sus dos colores.</span></div>
+    ${teamBoard(setup.place.map((k,c)=>({...who(k),me:!pv&&k===0,sel:c===sel})))}
+    <button class="arc-btn pc-big" id="pcGo">▶ Empezar</button><button class="arc-btn ghost pc-big" id="pcBackMenu">‹ Cambiar opciones</button></div></div>`;
+   bindHead();$('#pcGo').onclick=start;$('#pcBackMenu').onclick=renderMenu;
+   ui.stage.querySelectorAll('[data-tc]').forEach(b=>b.onclick=()=>{
+    const c=+b.dataset.tc,P=setup.place;
+    if(!pv){const m=P.indexOf(0);[P[m],P[c]]=[P[c],P[m]]}
+    else if(sel<0)sel=c;else{[P[sel],P[c]]=[P[c],P[sel]];sel=-1}
+    draw();
+   });
+  };
+  draw();
+ }
+ // sala online: el jugador de ese asiento se pasa al color c (si ahí no hay otra persona). Los asientos se quedan ordenados por color, que es el orden de juego
+ function moveSeat(seat,c){
+  if(net.role!=='host'||net.started||!seat||!(c>=0&&c<=3)||seat.c===c)return;
+  const other=net.seats.find(s=>s.c===c);if(!other||other.kind==='human')return;
+  other.c=seat.c;seat.c=c;net.seats.sort((x,y)=>x.c-y.c);
+  const h=net.seats.find(s=>s.id==='host');if(h)net.me=h.c;
+  pushLobby();
  }
  function newGame(players,seats,war,n4){
   const N=war?(n4===4?4:2):4;
-  g={players,seats,war:!!war,pos:{},hp:{},shield:{},cards:{},frozen:{},stats:{},team:{},turn:0,phase:'roll',dice:null,used:[true,true],diePos:null,doubles:0,last:null,bonus:[],opts:[],msg:'',over:false,winner:null,duel:null,turbo:{},fx:null,score:null};
+  g={players,seats,war:!!war,pos:{},hp:{},shield:{},cards:{},frozen:{},stats:{},team:{},turn:0,phase:'roll',dice:null,used:[true,true],diePos:null,doubles:0,last:null,bonus:[],opts:[],msg:'',over:false,winner:null,duel:null,turbo:{},fx:null,score:null,fights:[]};
   players.forEach(c=>{g.pos[c]=Array(N).fill(-1);g.hp[c]=Array(N).fill(HPMAX);g.shield[c]=Array(N).fill(0);g.cards[c]=[];g.frozen[c]=false;g.stats[c]={kills:0,dmg:0,taken:0};g.team[c]=war&&players.length===4?c%2:c});
   aim=null;choice=null;
  }
  /* 0.3.45 (dueño) — DADOS ÚNICOS: la skin de dados (tienda, js/shop.js) es de cada jugador. Va guardada en su asiento (seats[c].dice) y los dados
   * se pintan con la skin de QUIEN TIRA: los tuyos negros si la tienes, los de los demás como los tengan ellos. Online viaja al entrar a la sala (meta.d). */
  const myDice=()=>{try{return (window.SudomiShopSkins&&SudomiShopSkins.active('parchis'))||''}catch(_){return ''}};
- const myKill=()=>{try{return (window.SudomiShopSkins&&SudomiShopSkins.active('parchiskill'))||''}catch(_){return ''}};
+ const myKill=()=>{try{const S=window.SudomiShopSkins;return S?(S.mix?S.mix('parchiskill').join('.'):S.active('parchiskill')||''):''}catch(_){return ''}};
+ const okKill=d=>/^[a-z0-9.]{1,160}$/.test(String(d||''))?String(d):'';
  const okDice=d=>/^[a-z0-9]{1,20}$/.test(String(d||''))?String(d):'';
  function start(){
   const players=ORDER[setup.n],seats={},names=AI.slice().sort(()=>Math.random()-.5);
-  players.forEach((c,k)=>{
-   if(k===0)seats[c]={kind:'human',name:myName(),avatar:myAvatar(),dice:myDice(),kill:myKill()};
-   else if(mode==='pvp')seats[c]={kind:'human',name:'Jugador '+(k+1),avatar:['🙂','😎','🤠','🥳'][k],dice:myDice(),kill:myKill()};
-   else seats[c]={kind:'ai',name:names[k][0],avatar:names[k][1]};
-  });
+  // 0.3.67: en guerra con 4, quién va en cada color lo dice setup.place (se elige en renderTeams); si no, en el orden de siempre. Persona 0 = tú
+  const P=setup.war&&setup.n===4?setup.place:null;
+  const person=k=>k===0?{kind:'human',name:myName(),avatar:myAvatar(),dice:myDice(),kill:myKill()}:{kind:'human',name:'Jugador '+(k+1),avatar:['🙂','😎','🤠','🥳'][k],dice:myDice(),kill:myKill()};
+  players.forEach((c,k)=>{const who=P?P[c]:k;seats[c]=mode==='pvp'||who===0?person(who):{kind:'ai',name:names[k][0],avatar:names[k][1]}});
   stopGame();newGame(players,seats,setup.war,setup.n4);renderGame();run(++token);
  }
  function renderGame(){
@@ -565,21 +695,25 @@
   const pieces=g.players.map(c=>g.pos[c].map((_,i)=>`<button type="button" class="pc-piece" data-c="${c}" data-i="${i}" style="--pc-c:${COLORS[c].hex};--pc-ink:${COLORS[c].ink}" aria-label="Ficha ${COLORS[c].name} ${i+1}" disabled></button>`).join('')).join('');
   const avs=g.players.map(c=>`<div class="pc-av" data-c="${c}" style="left:${pct(COLORS[c].nest[0])};top:${pct(COLORS[c].nest[1])};--pc-c:${COLORS[c].hex}" title="${esc(nm(c))}"><span>${esc(g.seats[c].avatar)}</span></div>`).join('');
   const seats=g.players.map(c=>`<div class="pc-seat" data-c="${c}" style="--pc-c:${COLORS[c].hex}"><u></u><b>${esc(nm(c))}${net.role!=='solo'&&c===net.me?' (tú)':''}${W&&g.players.length===4?' · '+(g.team[c]?'B':'A'):''}</b><i></i></div>`).join('');
+  // 0.3.65 (dueño): la LETRA DEL EQUIPO sobre el borde de color de cada casa (en las dos esquinas del círculo que no llevan cartas)
+  const letters=W&&g.players.length===4?g.players.map(c=>[45,135,225,315].map(a=>{const r=a*Math.PI/180;return [COLORS[c].nest[0]+Math.cos(r)*3,COLORS[c].nest[1]+Math.sin(r)*3]}).filter(p=>SLOT[c].every(s=>Math.hypot(s[0]-p[0],s[1]-p[1])>2)).map(p=>`<i class="pc-tl" style="left:${pct(p[0])};top:${pct(p[1])};--pc-c:${COLORS[c].hex}">${g.team[c]?'B':'A'}</i>`).join('')).join(''):'';
   const dice=[0,1].map(d=>`<button type="button" class="pc-die hidden" data-d="${d}" aria-label="Dado ${d+1}" disabled>${'<i></i>'.repeat(9)}</button>`).join('');
   const slots=W?g.players.map(c=>[0,1].map(k=>`<button type="button" class="pc-slot" data-c="${c}" data-k="${k}" style="left:${pct(SLOT[c][k][0])};top:${pct(SLOT[c][k][1])};--pc-c:${COLORS[c].hex}" aria-label="Carta ${k+1} de ${esc(nm(c))}" disabled></button>`).join('')).join('')+'<div class="pc-fx" aria-live="polite"></div>':'';
   ui.stage.innerHTML=`<div class="mini-game pc${W?' war':''}">${head()}
    <div class="pc-seats">${seats}</div>
-   <div class="pc-board">${boardSVG(W)}${avs}${slots}${pieces}${dice}</div>
+   <div class="pc-board">${boardSVG(W)}${avs}${letters}${slots}${pieces}${dice}${W?'<div class="pc-cardinfo2 hidden" id="pcCardInfo"></div>':''}</div>
    <div class="pc-hud"><button type="button" id="pcDice" class="pc-dice" aria-label="Tirar los dados"><span>🎲</span><small>Tirar</small></button><div class="pc-say"><b id="pcMsg"></b><small id="pcSub"></small></div></div>
    <div class="pc-choice hidden" id="pcChoice"></div>
-   ${W?'<div class="pc-cardinfo2 hidden" id="pcCardInfo"></div><div class="pc-duel hidden" id="pcDuel"></div><div class="pc-score hidden" id="pcScore"></div>':''}
+   ${W?'<div class="pc-duel hidden" id="pcDuel"></div><div class="pc-score hidden" id="pcScore"></div>':''}
    <div class="pc-foot"><button class="arc-btn hidden" id="pcAgain" type="button">↻ Jugar otra vez</button><button class="arc-btn ghost" id="pcTheme" type="button">🎨 Fondo</button></div></div>`;
   bindHead();$('#pcTheme').onclick=showThemes;
   $('#pcAgain').onclick=()=>{if(net.role==='host')startOnline();else start()};
   $('#pcDice').onclick=()=>{if(!g||g.over||g.phase!=='roll'||!mine(g.players[g.turn]))return;aim=null;if(net.role==='guest'){net.conn.send({t:'roll'});return}answer('roll',g.players[g.turn],true)};
   ui.stage.querySelectorAll('.pc-slot').forEach(e=>e.onclick=()=>{   // tocar una carta: se elige (sale qué hace); tocarla otra vez la suelta
-   const c=+e.dataset.c,idx=+e.dataset.k,key=g&&g.cards[c][idx];if(!key||!cardTime()||!mine(c))return;
-   aim=aim&&aim.c===c&&aim.idx===idx?null:{c,idx,key,first:null};choice=null;update(true);
+   const c=+e.dataset.c,idx=+e.dataset.k,key=g&&g.cards[c][idx];if(!key||!mine(c))return;
+   /* 0.3.68 (dueño): tocar una carta abre su cuadro EN MEDIO del tablero (drawWar): qué hace, su condición en rojo, y Usar / Tirar / Cerrar. Tocar la carta con la que estás apuntando, la suelta */
+   if(aim&&aim.c===c&&aim.idx===idx){aim=null;update(true);return}
+   peek=peek&&peek.c===c&&peek.idx===idx?null:{c,idx,key};aim=null;choice=null;update(true);
   });
   ui.stage.querySelectorAll('.pc-die').forEach(e=>e.onclick=()=>{const d=+e.dataset.d;if(g&&g.phase==='pick'&&g.opts.some(o=>o.d===d)){selDie=d;choice=null;update(true)}});
   ui.stage.querySelectorAll('.pc-piece').forEach(e=>e.onclick=()=>{
@@ -613,7 +747,8 @@
   g.opts=opts;
   if(auto(c)){if(!await sleep(700,t))return null;return aiPick(c,opts)}
   const all=opts.flatMap(o=>o.moves.map(m=>({d:o.d,m})));
-  if(opts.length===1&&all.every(x=>x.m.from===all[0].m.from&&x.m.to===all[0].m.to)){if(!await sleep(420,t))return null;return all[0]}
+  const pickOut=g.war&&all.length>1&&all.every(x=>x.m.from<0);   // 0.3.65 (dueño): en guerra, al sacar 5 eliges CUÁL ficha sale de casa
+  if(!pickOut&&opts.length===1&&all.every(x=>x.m.from===all[0].m.from&&x.m.to===all[0].m.to)){if(!await sleep(420,t))return null;return all[0]}
   g.phase='pick';selDie=opts[0].d;update();
   const r=await ask('pick',c);if(t!==token)return null;
   g.phase='anim';if(r==='redo')return {redo:true};
@@ -622,9 +757,24 @@
  const rndRps=()=>'rps'[Math.floor(Math.random()*3)];
  async function rpsOf(c,t){if(auto(c)){await sleep(650,t);return rndRps()}const v=await ask('rps',c);return RPS[v]?v:rndRps()}
  // duelo de piedra, papel o tijera: devuelve 'a' (gana quien ataca), 'd' (gana quien defiende) o null si la partida se cerró
+ /* 0.3.65 (dueño): el duelo es un JUEGO AL AZAR entre tres: piedra-papel-tijera (el de siempre, se elige), dados (número más alto) o moneda
+    (cara = quien atacó). Los dos últimos no piden nada: se ven los resultados y ya. g.duel.kind dice cuál; sa/sd = lo que sacó cada uno. */
  async function duel(a,d,t){
+  const kind=['rps','dice','coin'][Math.floor(Math.random()*3)];
+  if(kind!=='rps'){
+   const tm=g.players.length===4,la=tm?(g.team[a.c]?'B':'A'):'A',ld=tm?(g.team[d.c]?'B':'A'):'B';   /* 0.3.66 (dueño): la moneda tiene una A y una B en vez de cara y cruz. Con equipos, cada quien lleva la letra de su equipo; sin equipos, A = quien atacó */
+   g.phase='duel';g.duel={a,d,need:[],kind,pa:null,pd:null,sa:'',sd:'',la,ld,res:null,round:1};play('clack');
+   say(kind==='dice'?`🎲 Duelo de dados: ${nm(a.c)} contra ${nm(d.c)}`:`🪙 Moneda A o B: ${nm(a.c)} es la ${la} y ${nm(d.c)} es la ${ld}`);
+   if(!await sleep(1300,t))return null;
+   let w;
+   if(kind==='dice'){let x,y;do{x=1+Math.floor(Math.random()*6);y=1+Math.floor(Math.random()*6)}while(x===y);w=x>y?'a':'d';Object.assign(g.duel,{sa:'🎲 '+x,sd:'🎲 '+y})}
+   else{w=Math.random()<.5?'a':'d';Object.assign(g.duel,{sa:(w==='a'?'🪙 ':'')+la,sd:(w==='d'?'🪙 ':'')+ld,out:w==='a'?la:ld})}
+   g.duel.res=w;play('bonus');update();
+   if(!await sleep(1700,t))return null;
+   g.duel=null;return w;
+  }
   for(let round=1;;round++){
-   g.phase='duel';g.duel={a,d,need:[a.c,d.c].filter(x=>!auto(x)),pa:null,pd:null,res:null,round};play('clack');say(`⚔️ Duelo: ${nm(a.c)} contra ${nm(d.c)}`);
+   g.phase='duel';g.duel={a,d,need:[a.c,d.c].filter(x=>!auto(x)),kind:'rps',pa:null,pd:null,res:null,round};play('clack');say(`⚔️ Duelo: ${nm(a.c)} contra ${nm(d.c)}`);
    const [pa,pd]=await Promise.all([rpsOf(a.c,t),rpsOf(d.c,t)]);if(t!==token)return null;
    const w=pa===pd?null:(pa==='r'&&pd==='s')||(pa==='p'&&pd==='r')||(pa==='s'&&pd==='p')?'a':'d';
    Object.assign(g.duel,{pa,pd,need:[],res:w||'tie'});play(w?'bonus':'tap');update();
@@ -641,14 +791,13 @@
   let lost=false;
   if(m.back&&at('r'+COLORS[c].start).some(o=>foeOf(c,o))){g.pos[c][i]=-1;place();say(`${nm(c)} salió del pasillo, pero su salida estaba ocupada: vuelve a casa`);if(!await sleep(800,t))return false}
   if(m.duel){
-   const v=m.duel,r=await duel({c,i},v,t);if(r==null)return false;
-   g.phase='anim';
-   // 0.2.94: quien pierde el duelo vuelve a su casa con una vida menos (si era la última, queda sin vidas)
-   const L=r==='a'?v:{c,i},Wn=r==='a'?c:v.c,kn=g.killN||0,ksp=spot(L.c,L.i);if(r!=='a')lost=true;
-   if(damage(L.c,L.i,1,Wn))say(`${nm(Wn)} ganó el duelo: la ficha de ${nm(L.c)} se quedó sin vidas y vuelve a casa`);
-   else{killMark(L.c,L.i,Wn,ksp);g.pos[L.c][L.i]=-1;g.shield[L.c][L.i]=0;say(`${nm(Wn)} ganó el duelo: la ficha de ${nm(L.c)} vuelve a casa con una vida menos`)}
+   /* 0.3.65 (dueño): caer sobre un rival ya NO lo manda a casa de una vez. Le quita una vida y las dos fichas se quedan juntas en la casilla.
+      Queda anotado en g.fights; si en el próximo turno de quien atacó siguen juntas, hay un duelo al azar (fights(), más abajo). */
+   const v=m.duel,kn=g.killN||0;g.phase='anim';
+   if(damage(v.c,v.i,1,c))say(`⚔️ ${nm(c)} atacó: la ficha de ${nm(v.c)} se quedó sin vidas y vuelve a casa`);
+   else{g.fights.push({a:{c,i},d:{c:v.c,i:v.i}});say(`⚔️ ${nm(c)} atacó a ${nm(v.c)}: una vida menos. Si siguen juntas en su próximo turno, habrá duelo`)}
    play('bad');
-   place();update();if(!await sleep((g.killN||0)>kn?KILLS[g.kill.k]+250:850,t))return false;
+   place();update();if(!await sleep((g.killN||0)>kn?KILLS[g.kill.k]+250:1100,t))return false;
   }
   if(m.capture){const v=m.capture,kf=killMark(v.c,v.i,c,spot(v.c,v.i));g.pos[v.c][v.i]=-1;place();play('bad');say(`${nm(c)} se comió una ficha de ${nm(v.c)}: cuenta 20`);g.bonus.push(20);if(!await sleep(kf?kf+250:750,t))return false}
   if(!lost&&g.pos[c][i]===GOAL){
@@ -661,6 +810,19 @@
   if(W&&!lost){const p=g.pos[c][i];
    if(p>=0&&p<=RING_LAST){const sq=ringSq(c,p);if(SAFE.has(sq)&&EXITS[sq]==null&&g.cards[c].length<HAND){const k=CARD_KEYS[Math.floor(Math.random()*CARD_KEYS.length)];g.cards[c].push(k);play('bonus');say(`🎁 ${nm(c)} ganó una carta: ${CARDS[k].e} ${CARDS[k].n}`);if(!await sleep(900,t))return false}}}
   g.last={c,i};flush();return true;
+ }
+ // 0.3.65: peleas pendientes del jugador c (fichas suyas que atacaron y SIGUEN en la misma casilla que su rival): un duelo al azar cada una; quien pierde, pierde una vida
+ const together=f=>{const pa=g.pos[f.a.c][f.a.i],pd=g.pos[f.d.c][f.d.i];return pa>=0&&pd>=0&&pa!==GOAL&&pd!==GOAL&&keyOf(f.a.c,pa)===keyOf(f.d.c,pd)};
+ async function fights(c,t){
+  g.fights=(g.fights||[]).filter(together);
+  for(const f of g.fights.filter(x=>x.a.c===c)){
+   if(g.over||!together(f))continue;
+   const r=await duel(f.a,f.d,t);if(r==null)return false;
+   g.phase='anim';const L=r==='a'?f.d:f.a,Wn=r==='a'?f.a.c:f.d.c,kn=g.killN||0;
+   say(damage(L.c,L.i,1,Wn)?`${nm(Wn)} ganó el duelo: la ficha de ${nm(L.c)} se quedó sin vidas y vuelve a casa`:`${nm(Wn)} ganó el duelo: la ficha de ${nm(L.c)} pierde una vida`);
+   play('bad');place();update();if(!await sleep((g.killN||0)>kn?KILLS[g.kill.k]+250:1100,t))return false;
+  }
+  g.fights=g.fights.filter(together);return true;
  }
  const teamDone=tm=>g.players.filter(c=>g.team[c]===tm).every(c=>g.pos[c].every(p=>p===GOAL));
  function endWar(closer){
@@ -688,7 +850,10 @@
   while(g&&!g.over&&t===token){
    const c=g.players[g.turn],who=nm(c),W=g.war;
    g.opts=[];g.bonus=[];
+   if(net.role==='solo'){try{CK=JSON.stringify(g)}catch(_){CK=null}}   // 0.3.63: foto de la partida al empezar cada tirada (es lo que se guarda al salir)
    if(W&&g.frozen[c]){g.frozen[c]=false;g.phase='anim';say(`❄️ ${who} está congelado y pierde el turno`);if(!await sleep(1300,t))return;next();continue}
+   if(W&&!g.doubles&&!await fights(c,t))return;   // 0.3.65: antes de tirar se resuelven sus peleas pendientes (no al repetir por pareja de dados)
+   if(g.over)break;
    g.phase='roll';
    say(g.doubles?`¡Pareja ${g.doubles} de 3! ${who} tira otra vez${g.doubles===2?' (otra pareja y pierde la última ficha que movió)':''}`:`Turno de ${who}`);   // 0.3.48: se cuenta a la vista, para que se sepa cuándo viene el castigo
    if(auto(c)){if(!await sleep(800,t))return;if(W&&g.cards[c].length&&Math.random()<.75&&aiCard(c)){if(!await sleep(2300,t))return}}
@@ -708,16 +873,31 @@
     else say(`Tres parejas seguidas: ${who} pierde el turno`);
     if(!await sleep(1400,t))return;next();continue;
    }
-   say(`${who} sacó ${a} y ${b}`);
+   say(`${who} sacó ${a} y ${b}`+(W&&g.turbo[c]?" · ⚡ Turbo: el primer dado que muevas vale el doble":""));
    if(a+b===5){   // sumando 5 también se sale de casa
-    const ex=legal(c,5,false,false).filter(m=>m.from<0);
-    if(ex.length){g.used=[true,true];say(`${who} sacó ${a} y ${b}: suman 5 y sale una ficha`);if(!await sleep(500,t))return;if(!await doMove(ex[0],t))return;if(!await bonuses(c,t))return}
+    let ex=legal(c,5,false,false).filter(m=>m.from<0);
+    if(ex.length){
+     g.used=[true,true];say(`${who} sacó ${a} y ${b}: suman 5 y sale una ficha`);if(!await sleep(500,t))return;
+     let mv=ex[0];
+     if(W&&ex.length>1){   // 0.3.65: en guerra eliges cuál sale (no todas tienen las mismas vidas)
+      for(;;){const p=await choose(c,[{d:-1,moves:ex}],t);if(!p)return;if(!p.redo){mv=p.m;break}ex=legal(c,5,false,false).filter(m=>m.from<0);if(!ex.length){mv=null;break}}
+     }
+     if(mv){if(!await doMove(mv,t))return;if(!await bonuses(c,t))return}
+    }
    }
    let first=true;
    while(!g.over&&g.used.includes(false)){
     const opts=[],mul=W&&g.turbo[c]?2:1;g.wall=false;
     [0,1].forEach(d=>{if(g.used[d]||(d===1&&!g.used[0]&&dbl))return;const mv=legal(c,dice[d]*mul,false,dbl&&first);if(mv.length)opts.push({d,moves:mv})});
-    if(!opts.length){say(first?`${who} sacó ${a} y ${b} y no puede mover`:`${who} no puede usar el otro dado`);g.used=[true,true];if(!await sleep(1100,t))return;break}
+    if(!opts.length){
+     say(first?`${who} sacó ${a} y ${b} y no puede mover`:`${who} no puede usar el otro dado`);g.used=[true,true];if(!await sleep(1100,t))return;
+     /* 0.3.65 (dueño): en guerra, si no pudiste mover NADA (te tapan las barreras o no te sirve ningún dado), tiras el DADO DE PODERES:
+        te da una carta al azar. Con la mano llena no hay sitio (las cartas se pueden tirar desde su ficha de información). */
+     if(W&&first){
+      if(g.cards[c].length<HAND){const k=CARD_KEYS[Math.floor(Math.random()*CARD_KEYS.length)];g.cards[c].push(k);g.fx={id:Date.now()+Math.random(),key:k,text:`${who} no pudo mover: el dado de poderes le dio ${CARDS[k].n}`};play('bonus');say(`🎲✨ ${who} no pudo mover y tiró el dado de poderes: ${CARDS[k].e} ${CARDS[k].n}`);if(!await sleep(2300,t))return}
+      else{say(`${who} no pudo mover, pero no le cabe otra carta (tiene ${HAND})`);if(!await sleep(1200,t))return}
+     }
+     break}
     const p=await choose(c,opts,t);if(!p)return;
     if(p.redo)continue;   // alguien usó una carta mientras elegía: se recalculan las jugadas
     g.used[p.d]=true;first=false;g.turbo[c]=false;if(!await doMove(p.m,t))return;if(!await bonuses(c,t))return;
@@ -746,7 +926,10 @@
   if(!window.SudomiLobby){$('#lbRoot').textContent=net.status||'Creando sala…';return}
   SudomiLobby.render($('#lbRoot'),{game:GAME,gameName:NAME,code:net.code||null,url:net.code?inviteUrl():'',host,fixed:false,
    seats:net.seats.map(s=>({state:s.c===net.me&&s.kind==='human'?'me':s.kind==='open'?'open':s.kind==='ai'?'ai':s.away?'away':'human',name:s.name,avatar:s.avatar,sub:s.kind==='open'?undefined:COLORS[s.c].name+(s.c===net.me?' · tú':'')})),
-   extra:`<p class="pc-note ${war?'war':''}">${war?`⚔️ Parchís guerra · ${(host?setup.n4:net.n4)||2} fichas por jugador`:'Parchís clásico'}</p>`+themePick(),bindExtra:root=>bindTheme(root),
+   extra:`<p class="pc-note ${war?'war':''}">${war?`⚔️ Parchís guerra · ${(host?setup.n4:net.n4)||2} fichas por jugador`:'Parchís clásico'}</p>`
+    +(war&&net.seats.length===4?`<div class="pc-opt"><b>Equipos y colores</b>${teamBoard(net.seats.reduce((o,s)=>{o[s.c]=s.kind==='open'?{free:true}:{name:s.name,avatar:s.avatar,me:s.c===net.me&&s.kind==='human'};return o},[]))}<small class="pc-hint">Toca un color libre o de la máquina para pasarte ahí. Al elegir color eliges equipo.</small></div>`:'')
+    +themePick(),
+   bindExtra:root=>{bindTheme(root);root.querySelectorAll('[data-tc]').forEach(b=>b.onclick=()=>{const c=+b.dataset.tc;if(host)moveSeat(net.seats.find(s=>s.id==='host'),c);else if(net.conn&&!net.started)net.conn.send({t:'seat',c})})},
    startLabel:'▶ Empezar la partida',canStart:!!net.code,onStart:host?startOnline:undefined,
    onRemove:i=>{if(!host||net.started||!net.seats[i]||net.seats[i].kind!=='open'||net.seats.length<=2)return;net.seats.splice(i,1);pushLobby()},
    status:net.status,hint:host?'Comparte el código o invita a tus amigos. Los espacios libres los juega la IA.':''});
@@ -769,7 +952,7 @@
    const meta=e.meta||{};
    if(seat){seat.away=false;if(g&&g.seats[seat.c])g.seats[seat.c].away=false}
    else if(net.started){net.room.reject(e.id,'La partida ya empezó.');return}
-   else{seat=net.seats.find(s=>s.kind==='open');if(!seat){net.room.reject(e.id,'La sala está llena.');return}Object.assign(seat,{kind:'human',id:e.id,name:clean(meta.n)||'Amigo',avatar:String(meta.a||'🙂').slice(0,4),dice:okDice(meta.d),kill:okDice(meta.k)})}
+   else{seat=net.seats.find(s=>s.kind==='open');if(!seat){net.room.reject(e.id,'La sala está llena.');return}Object.assign(seat,{kind:'human',id:e.id,name:clean(meta.n)||'Amigo',avatar:String(meta.a||'🙂').slice(0,4),dice:okDice(meta.d),kill:okKill(meta.k)})}
    pushLobby();
    if(net.started&&g){net.room.send(e.id,startMsg(seat.c));update()}
   }else if(e.type==='leave'){
@@ -777,12 +960,15 @@
    if(!net.started){Object.assign(seat,{kind:'open',id:null,name:undefined,avatar:undefined});pushLobby();return}
    seat.away=true;
    if(g&&g.seats[seat.c]){g.seats[seat.c].away=true;['roll','pick','rps'].forEach(k=>answer(k,seat.c,'auto'));if(g.duel)g.duel.need=g.duel.need.filter(x=>x!==seat.c);update()}   // mientras no vuelva, juega la IA por él
+  }else if(e.type==='msg'&&seat&&!net.started){
+   if(e.data&&e.data.t==='seat'&&setup.war&&net.seats.length===4)moveSeat(seat,+e.data.c);   // 0.3.67: en la sala, un invitado se cambia de color (y de equipo)
   }else if(e.type==='msg'&&seat&&g&&!g.over){
    const d=e.data||{},c=seat.c;
    if(d.t==='roll')answer('roll',c,true);
    else if(d.t==='pick'&&g.phase==='pick'&&g.players[g.turn]===c){const o=g.opts.find(x=>x.d===d.d),m=o&&o.moves[d.m];if(m&&m.c===c)answer('pick',c,{d:o.d,m})}
    else if(d.t==='rps')rpsAnswer(c,d.v);
    else if(d.t==='card')useCard(c,+d.idx,d.t1,d.t2);
+   else if(d.t==='drop')dropCard(c,+d.idx);
   }
  }
  function startOnline(){
@@ -811,7 +997,7 @@
   if(d.t==='lobby'){net.seats=d.seats;net.me=d.you;net.code=d.code||net.code;net.war=!!d.war;net.n4=d.n4;if(!net.started)renderLobby()}
   else if(d.t==='start'){
    net.started=true;net.seats=d.seats;net.me=d.you;token++;rollTok++;rolling=false;
-   const seats={};d.seats.forEach(s=>seats[s.c]={kind:s.kind,name:s.name,avatar:s.avatar,away:!!s.away,dice:okDice(s.dice),kill:okDice(s.kill)});
+   const seats={};d.seats.forEach(s=>seats[s.c]={kind:s.kind,name:s.name,avatar:s.avatar,away:!!s.away,dice:okDice(s.dice),kill:okKill(s.kill)});
    newGame(d.players,seats,d.war,d.n4);renderGame();
   }
   else if(d.t==='s'&&g){const s=d.s;Object.keys(s.away||{}).forEach(c=>{if(g.seats[c])g.seats[c].away=s.away[c]});delete s.away;Object.assign(g,s);place();update(true)}
@@ -824,9 +1010,19 @@
   if(net.conn){try{net.conn.close()}catch(_){}}
   Object.assign(net,{role:'solo',room:null,conn:null,code:'',seats:[],started:false,me:0,war:false,n4:2});
  }
- function stopGame(){token++;rollTok++;rolling=false;g=null;aim=null;choice=null;const pend=[...waits.values()];waits.clear();pend.forEach(res=>res(null))}
+ function stopGame(){token++;rollTok++;rolling=false;g=null;CK=null;aim=null;choice=null;peek=null;const pend=[...waits.values()];waits.clear();pend.forEach(res=>res(null))}
  function leave(){close();const u=ui;if(u){u.stage.innerHTML='';u.exit()}}
- function close(){stopGame();leaveNet();net.status=''}
+ function close(){try{window.SudomiPark&&SudomiPark.sync()}catch(_){}stopGame();leaveNet();net.status=''}
+ /* 0.3.63 — PARTIDA GUARDADA (contra la máquina o en este dispositivo; ver PARK_MODS en other-games.js). Se guarda la foto CK que run() toma al
+  * empezar cada tirada: al retomar, le toca tirar a quien le tocaba. Lo que se había movido en una tirada a medias se repite. */
+ let CK=null;
+ function parkState(){const m=mode==='pvp'?'pvp':'pve';return net.role==='solo'&&g?(g.over?{mode:m,over:true}:CK?{mode:m,snap:{ck:CK}}:null):null}
+ function parkResume(o,s,m){
+  let st=null;try{st=JSON.parse(s.ck)}catch(_){}
+  if(!st||!Array.isArray(st.players)||!st.pos||!st.seats)return false;
+  open(o,m==='pvp'?'pvp':'pve');stopGame();
+  g=st;g.fx=null;g.duel=null;g.fights=g.fights||[];setup.war=!!g.war;setup.n=g.players.length;if(g.war)setup.n4=g.pos[g.players[0]].length===4?4:2;renderGame();run(++token);return true;
+ }
  function open(opts,m,code){
   ui=opts;ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');
   if(m==='join'){mode='online';joinRoom(code);return}
@@ -838,5 +1034,5 @@
   const loop=()=>{if(!box.isConnected)return;el.style.transition='none';at(A);setTimeout(()=>{if(!box.isConnected)return;at(H);killRun(box,el,{k:kind,x:A[0],y:A[1]},'#e53935',()=>H,()=>box.isConnected,()=>{});setTimeout(loop,KILLS[kind]+900)},700)};
   loop();
  }
- window.SudomiParchis={demoKill,open,close,join:code=>joinRoom(code),themes:THEMES,cards:CARDS,_state:()=>g,_net:()=>net,_ev:e=>onHost(e),_legal:legal,_useCard:useCard,_targets:cardTargets,_setState:s=>{Object.assign(g,s);place();update()}};
+ window.SudomiParchis={demoKill,open,close,parkState,parkResume,join:code=>joinRoom(code),themes:THEMES,cards:CARDS,_state:()=>g,_net:()=>net,_ev:e=>onHost(e),_legal:legal,_useCard:useCard,_targets:cardTargets,_setState:s=>{Object.assign(g,s);place();update()}};
 })();

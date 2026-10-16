@@ -59,6 +59,30 @@
     const s=singleAfter(b,m);if(s&&sol[s.cell]===s.digit)return {type:'pair',cell:s.cell,digit:s.digit,unit:u,pair:[two[x],two[y]],digits:list(pm),elim};
    }
   }
+  /* 0.3.81 — trío desnudo: tres casillas de una unidad que entre las tres solo admiten los mismos tres números -> esos tres se descartan en las demás */
+  for(const u of UNITS){
+   const few=u.cells.filter(i=>!b[i]&&bits(base[i])>=2&&bits(base[i])<=3);
+   for(let x=0;x<few.length;x++)for(let y=x+1;y<few.length;y++)for(let z=y+1;z<few.length;z++){
+    const tm=base[few[x]]|base[few[y]]|base[few[z]];if(bits(tm)!==3)continue;
+    const trio=[few[x],few[y],few[z]],elim=u.cells.filter(i=>!b[i]&&!trio.includes(i)&&(base[i]&tm));
+    if(!elim.length)continue;const m=base.slice();elim.forEach(i=>{m[i]&=~tm});
+    const s=singleAfter(b,m);if(s&&sol[s.cell]===s.digit)return {type:'triple',cell:s.cell,digit:s.digit,unit:u,trio,digits:list(tm),elim};
+   }
+  }
+  /* 0.3.81 — X-Wing: un número que en dos filas solo cabe en las mismas dos columnas (o al revés) forma un rectángulo; en esas dos columnas
+     (o filas) el número queda descartado de todas las demás casillas */
+  for(const kind of ['row','col']){
+   const lines=UNITS.filter(u=>u.kind===kind),cross=UNITS.filter(u=>u.kind===(kind==='row'?'col':'row')),at=i=>kind==='row'?rc(i)[1]:rc(i)[0];
+   for(let n=1;n<=9;n++){
+    const bit=1<<(n-1),two=lines.map(u=>u.cells.filter(i=>!b[i]&&(base[i]&bit))).filter(sp=>sp.length===2);
+    for(let x=0;x<two.length;x++)for(let y=x+1;y<two.length;y++){
+     if(at(two[x][0])!==at(two[y][0])||at(two[x][1])!==at(two[y][1]))continue;
+     const corners=[...two[x],...two[y]],cols=[cross[at(two[x][0])],cross[at(two[x][1])]],elim=[...cols[0].cells,...cols[1].cells].filter(i=>!b[i]&&!corners.includes(i)&&(base[i]&bit));
+     if(!elim.length)continue;const m=base.slice();elim.forEach(i=>{m[i]&=~bit});
+     const s=singleAfter(b,m);if(s&&sol[s.cell]===s.digit)return {type:'xwing',cell:s.cell,digit:s.digit,n,kind,corners,elim};
+    }
+   }
+  }
   return null;
  }
  function find(g,noNaked){
@@ -123,11 +147,23 @@
    out.hl.unit=s.pair;out.hl.block=s.elim;out.hl.target=[s.cell];
    out.text=`Técnica: pareja. En ${un}, las dos casillas en amarillo solo pueden llevar el ${x} y el ${y}, así que entre las dos se los reparten. Eso quita el ${x} y el ${y} de las demás casillas (en azul). Con ese descarte, en la ${where(s.cell)} solo queda el ${s.digit}.`;out.place=`Colocar el ${s.digit}`;return out;
   }
+  if(s.type==='triple'){
+   const un=unitName(s.unit),[x,y,z]=s.digits;
+   if(stage===1){out.hl.unit=s.unit.cells.filter(i=>!b[i]);out.text=`Mira ${un}. Hay tres casillas que entre las tres solo admiten los mismos tres números: un trío. Piensa qué les quita eso a las demás.`;out.more='Ver la explicación';return out}
+   out.hl.unit=s.trio;out.hl.block=s.elim;out.hl.target=[s.cell];
+   out.text=`Técnica: trío. En ${un}, las tres casillas en amarillo solo pueden llevar el ${x}, el ${y} y el ${z}, así que entre las tres se los reparten. Eso quita esos tres números de las demás casillas (en azul). Con ese descarte, en la ${where(s.cell)} solo queda el ${s.digit}.`;out.place=`Colocar el ${s.digit}`;return out;
+  }
+  if(s.type==='xwing'){
+   const a=s.kind==='row'?'filas':'columnas',c=s.kind==='row'?'columnas':'filas';
+   if(stage===1){out.hl.unit=s.corners;out.text=`Mira las cuatro casillas marcadas: forman un rectángulo. Fíjate dónde puede ir el ${s.n} en esas dos ${a}.`;out.more='Ver la explicación';return out}
+   out.hl.unit=s.corners;out.hl.block=s.elim;out.hl.target=[s.cell];
+   out.text=`Técnica: X-Wing. En dos ${a}, el ${s.n} solo cabe en las mismas dos ${c} (las cuatro esquinas en amarillo). Vaya en la diagonal que vaya, esas dos ${c} ya tienen su ${s.n}, así que se descarta en el resto de ellas (en azul). Con ese descarte, en la ${where(s.cell)} solo queda el ${s.digit}.`;out.place=`Colocar el ${s.digit}`;return out;
+  }
   // hard
   out.hl.unit=[s.cell];
-  if(stage===1){out.text=`No hay jugadas directas (números únicos) a la vista. Revisa tus notas y busca pares o tríos de candidatos repetidos. La casilla de la ${where(s.cell)} es la que tiene menos opciones.`;out.more='Ver la respuesta';return out}
+  if(stage===1){out.text=`No hay jugadas directas (números únicos) a la vista. Tampoco sale con parejas, tríos ni X-Wing: revisa tus notas con calma. La casilla de la ${where(s.cell)} es la que tiene menos opciones.`;out.more='Ver la respuesta';return out}
   out.hl.target=[s.cell];out.hl.unit=[];
-  out.text=`En la ${where(s.cell)} los candidatos son ${s.cand.join(', ')}, y el que va es el ${s.digit}. Para llegar a él sin adivinar hace falta una técnica avanzada (pares, tríos o X-Wing).`;out.place=`Colocar el ${s.digit}`;return out;
+  out.text=`En la ${where(s.cell)} los candidatos son ${s.cand.join(', ')}, y el que va es el ${s.digit}. Para llegar a él sin adivinar hace falta una técnica más avanzada que las que explica esta pista (parejas, tríos y X-Wing ya no alcanzan aquí).`;out.place=`Colocar el ${s.digit}`;return out;
  }
  // ---- panel
  let st=null;
@@ -190,5 +226,23 @@
  ui.renderBoard=function(){orig();decorate()};
  $('#hintBtn').onclick=open;
  // 0.2.53: findFor(g) works on any {board, solution, puzzle, selected} (used by the Entrenamiento and Modo Profesor screens)
- window.SudomiSmartHints={find:()=>find(ui.game),findFor:find,describe,PEERS,UNITS,BOXN,where};
+ /* 0.3.77 — DIFICULTAD SEGÚN LA TÉCNICA. Cada tablero se resuelve por dentro con el mismo motor de las pistas y se anota la técnica más
+  * difícil que hizo falta; sale en letra chica debajo de la dificultad («únicos», «únicos ocultos», «encerrados», «parejas» o «avanzado»,
+  * que es todo lo que este motor no sabe explicar). Solo lee el tablero: no cambia el generador ni la partida. Se calcula una vez por tablero. */
+ const TECH={naked:[1,'únicos'],hidden:[2,'únicos ocultos'],locked:[3,'encerrados'],claim:[3,'encerrados'],pair:[4,'parejas'],triple:[5,'tríos'],xwing:[6,'X-Wing'],hard:[7,'avanzado']};
+ let gradeKey='',gradeTxt='';
+ function grade(g){
+  const b=g.puzzle.slice(),sol=g.solution;let top=[0,''];
+  for(let k=0;k<90;k++){const s=find({board:b,solution:sol,selected:null});if(!s||s.type==='wrong')break;const t=TECH[s.type];if(t&&t[0]>top[0])top=t;if(s.type==='hard')break;b[s.cell]=s.digit}
+  return top[1];
+ }
+ function paintGrade(){const el=$('#difficultyLabel');if(!el||!gradeTxt||el.querySelector('.tech-tag'))return;const s=document.createElement('small');s.className='tech-tag';s.textContent=gradeTxt;s.title='La técnica más difícil que hace falta para resolver este tablero';el.appendChild(s)}
+ function gradeLabel(){
+  const g=ui.game;if(!g||!g.puzzle||!g.solution)return;
+  const key=g.puzzle.join('');
+  if(key!==gradeKey){gradeKey=key;gradeTxt='';setTimeout(()=>{if(gradeKey!==key)return;try{gradeTxt=grade(g)}catch(_){gradeTxt=''}paintGrade()},80)}
+  paintGrade();
+ }
+ {const lab=$('#difficultyLabel');if(lab)new MutationObserver(gradeLabel).observe(lab,{childList:true,characterData:true,subtree:true});setTimeout(gradeLabel,600)}   // el primer dibujo ya pasó cuando carga este archivo
+ window.SudomiSmartHints={grade,find:()=>find(ui.game),findFor:find,describe,PEERS,UNITS,BOXN,where};
 })();

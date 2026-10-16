@@ -141,7 +141,35 @@
    <button type="button" hidden class="d3-drop" data-a="play" data-i="" data-side=""></button>
   </div>`;
   const pass=I.mine&&playing&&g.row.length&&!H.dPlayable(g,me)?'<div class="arc-actions"><button class="arc-btn pulse" data-a="pass">✋ Pasar · no tengo ficha</button></div>':'';
+  if(played>=0&&played!==me)setTimeout(flyTile,0);   // 0.3.69: el brazo de quien jugó lleva la ficha hasta su sitio (cuando esta pantalla ya esté puesta)
   return `${sceneHTML}${myDrunk?`<p class="dm-drunk-note">Estás borracho: la mesa se mueve y las fichas se ven borrosas ${dr[me]>1?'durante '+dr[me]+' turnos tuyos':'durante este turno'}.</p>`:''}${H.msg(g)}${H.sum}${reveal?'':pass}`;
+ }
+
+ /* 0.3.69 (dueño) — EL BRAZO DEL OTRO JUGADOR LLEVA LA FICHA. Cuando juega alguien que no eres tú, de su cuerpo sale un brazo (una línea, como el tuyo)
+  * con la ficha en la mano; va hasta el hueco de la mesa, la deja (ahí aparece la ficha de verdad, con su saltito) y el brazo se recoge.
+  * Es solo un adorno encima de la escena: la ficha ya está puesta en la partida. Si la pantalla se vuelve a pintar a mitad de camino, se cancela. */
+ function flyTile(){
+  const sc=document.querySelector('.d3'),fig=sc&&sc.querySelector('.d3-fig.reach svg'),tile=sc&&sc.querySelector('.d3-t.pop');
+  if(!sc||!fig||!tile||sc.querySelector('.d3-rfly'))return;
+  try{if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)return}catch(_){}
+  const R=sc.getBoundingClientRect(),f=fig.getBoundingClientRect(),t=tile.getBoundingClientRect();if(!R.width||!R.height)return;
+  const sx=(f.left+f.width/2-R.left)/R.width*100,sy=(f.top+f.height*.5-R.top)/R.height*100,ex=(t.left+t.width/2-R.left)/R.width*100,ey=(t.top+t.height/2-R.top)/R.height*100;
+  const wrap=document.createElement('div');wrap.className='d3-rfly';
+  wrap.innerHTML=`<svg class="d3-rarm" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path/></svg><div class="d3-rhand"><span class="d3-held">${tile.innerHTML}</span></div>`;
+  sc.appendChild(wrap);tile.style.visibility='hidden';
+  const path=wrap.querySelector('path'),hand=wrap.querySelector('.d3-rhand'),GO=620,BACK=260,t0=performance.now();let placed=false;
+  const put=(x,y)=>{hand.style.left=x+'%';hand.style.top=y+'%';path.setAttribute('d',`M${sx.toFixed(1)} ${sy.toFixed(1)}L${((sx+x)/2).toFixed(1)} ${((sy+y)/2-5).toFixed(1)}L${x.toFixed(1)} ${y.toFixed(1)}`)};
+  const drop=()=>{if(placed)return;placed=true;hand.innerHTML='';if(tile.isConnected){tile.style.visibility='';tile.classList.remove('pop');void tile.offsetWidth;tile.classList.add('pop')}};
+  const step=now=>{
+   if(!sc.isConnected||!wrap.isConnected){drop();wrap.remove();return}
+   const k=now-t0;
+   if(k<GO){const u=k/GO,e=1-Math.pow(1-u,3);put(sx+(ex-sx)*e,sy+(ey-sy)*e)}
+   else if(k<GO+BACK){drop();const u=(k-GO)/BACK;put(ex+(sx-ex)*u,ey+(sy-ey)*u)}
+   else{drop();wrap.remove();return}
+   requestAnimationFrame(step);
+  };
+  put(sx,sy);requestAnimationFrame(step);
+  setTimeout(()=>{drop();wrap.remove()},GO+BACK+900);   // por si el navegador no está animando (pestaña en segundo plano): la ficha no se queda escondida
  }
 
  /* =============== tu mano: sigue el dedo / el mouse y arrastra fichas =============== */

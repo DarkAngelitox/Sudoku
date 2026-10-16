@@ -221,8 +221,9 @@
   }
   function renderPanel() {
     const el = $('#dpPanel'); if (!el || !g) return;
-    el.innerHTML = busy && isMe() ? (cardResolve ? '<div class="dp-btns"><button class="arc-btn dp-big" data-a="cardok">Entendido</button></div>' : '') + `<div class="dp-log">${logHTML()}</div>` : panelHTML();
+    el.innerHTML = offerHTML() + (busy && isMe() ? (cardResolve ? '<div class="dp-btns"><button class="arc-btn dp-big" data-a="cardok">Entendido</button></div>' : '') + `<div class="dp-log">${logHTML()}</div>` : panelHTML());
     el.querySelectorAll('[data-a]').forEach(b => b.onclick = () => onAction(b.dataset.a));
+    el.querySelectorAll('[data-of]').forEach(b => b.onclick = () => trade({ t: 'answer', yes: b.dataset.of === '1', p: me }));
     const hud = $('#dpHud'); if (hud) hud.innerHTML = hudHTML();
     ui.stage.querySelectorAll('.dp-decks .dk').forEach(d => d.classList.toggle('pulse', !busy && !g.over && g.phase === 'draw' && isMe() && d.dataset.d === g.deck));
     const off = $('#dpOff'); if (off) off.style.display = offline ? 'block' : 'none';
@@ -266,7 +267,23 @@
     const r = D.act(g, a); if (!r.ok) return toast(r.err);
     play('tap'); refresh(); propsSheet(); saveGame(); if (netMode === 'host') bcast(g.ev.slice());
   }
-  function infoSheet(i) { openSheet(`${tileCard(i)}<button class="arc-btn alt" id="dpSheetX">Cerrar</button>`, s => { s.querySelector('#dpSheetX').onclick = closeSheet }) }
+  /* 0.3.80 — OFERTA DE COMPRA (reglas en dominopolis-engine.js, «INTERCAMBIOS»). Al tocar una propiedad de otro jugador en tu turno, la hoja trae
+     un campo para ofrecerle dinero por ella. Si el dueño es una persona, le sale un aviso con Aceptar / Rechazar en su panel (offerHTML). */
+  function trade(a) { closeSheet(); if (netMode === 'guest') { net.send({ t: 'act', a }); return } enqueue(() => doRun(a, false)) }
+  function canOffer(i) { const o = g.own[i]; return !!o && !g.over && !busy && D.cur(g).id === me && (g.phase === 'roll' || g.phase === 'end') && !g.offer && o.o !== me && !D.tradeWhy(g, me, i, 1) }
+  function offerHTML() {
+    const of = g.offer; if (!of || g.over) return '';
+    if (of.to === me) return `<div class="dp-offer"><p class="dp-note">${esc(`${g.players[of.from].name} te ofrece ${money(of.cash)} por ${T[of.i].n}.`)}</p><div class="dp-btns"><button class="arc-btn" data-of="1">Aceptar</button><button class="arc-btn alt" data-of="0">Rechazar</button></div></div>`;
+    if (of.from === me) return `<div class="dp-offer"><p class="dp-note">${esc(`Esperando la respuesta de ${g.players[of.to].name} a tu oferta por ${T[of.i].n}. Si terminas el turno, la oferta se retira.`)}</p></div>`;
+    return '';
+  }
+  function infoSheet(i) {
+    const ok = canOffer(i), cash = g.players[me] ? g.players[me].cash : 0;
+    openSheet(`${tileCard(i)}${ok ? `<div class="dp-offer"><label for="dpOfferCash">Ofrecer a ${esc(g.players[g.own[i].o].name)} por esta propiedad</label><div class="dp-btns"><input id="dpOfferCash" type="number" inputmode="numeric" min="1" max="${cash}" step="10" value="${Math.min(cash, T[i].p)}"><button class="arc-btn" id="dpOfferGo">Ofrecer</button></div><p class="dp-note small">Tienes ${money(cash)}. Precio de lista: ${money(T[i].p)}.</p></div>` : ''}<button class="arc-btn alt" id="dpSheetX">Cerrar</button>`, s => {
+      s.querySelector('#dpSheetX').onclick = closeSheet;
+      const go = s.querySelector('#dpOfferGo'); if (go) go.onclick = () => trade({ t: 'offer', i, cash: Math.round(+s.querySelector('#dpOfferCash').value) || 0, p: me });
+    });
+  }
   function showCard(ev) {
     const human = ev.p === me && !g.players[ev.p].ai;
     return new Promise(res => {
@@ -397,8 +414,28 @@
   function pushLobby() { seats.forEach((s, i) => { if (s.id && s.id !== 'host' && s.kind === 'human') net.send(s.id, { t: 'lobby', seats: publicSeats(), you: i, mode: setup.mode, code: roomCode }) }) }
   const fid = () => (window.SudomiFriends && SudomiFriends.myCode()) || '';
   const isAway = i => netMode === 'host' ? !!(seats[i] && seats[i].away) : !!awayFlags[i];
-  function sendState(i, evs) { const s = seats[i]; if (s && s.id && s.id !== 'host' && s.kind === 'human' && g) net.send(s.id, { t: 'state', g, ev: evs, you: i, mode: setup.mode, away: seats.map(x => !!x.away) }) }
-  function bcast(evs) { seats.forEach((s, i) => sendState(i, evs)); saveHost() }
+  function sendState(i, evs) { const s = seats[i]; if (s && s.id && s.id !== 'host' && s.kind === 'human' && g) net.send(s.id, { t: 'state', g, ev: evs, you: i, mode: setup.mode, away: seats.map(x => !!x.away), succ: HO() ? HO().successor(seats) : -1 }) }
+  function bcast(evs) { seats.forEach((s, i) => sendState(i, evs)); saveHost(); sendMig() }
+  /* 0.3.98 — RELEVO DEL ANFITRIÓN (js/host-handoff.js). Los invitados ya reciben la partida entera (g); al sucesor solo le falta la lista de
+     sillas con sus llaves ({t:'mig'}). Si el anfitrión se va, el sucesor reabre la sala con el mismo código, como «Reanudar sala». */
+  let mig = null, hw = null, handing = false;
+  const HO = () => window.SudomiHandoff, migOk = window.SudomiHandoff ? SudomiHandoff.throttle(2000) : () => false;
+  function sendMig(force) { if (netMode !== 'host' || !net || !started || !g || g.over || !HO()) return -1; const k = HO().successor(seats); if (k >= 0 && migOk(force)) net.send(seats[k].id, { t: 'mig', seats: seats.map(s => Object.assign({}, s)), mode: setup.mode }); return k }
+  async function takeover() {
+    const snap = mig; if (!snap || !HO() || !g) return;
+    toast('El anfitrión se fue: abriendo la sala para seguir…');
+    { const old = net; net = null; try { old && old.close() } catch (_) {} }   // primero se suelta la conexión vieja: si no, se reconectaría a la sala nueva
+    const r = await HO().takeover('dominopolis', roomCode, onHostEvent, () => netMode !== 'guest');
+    if (!r) { if (netMode === 'guest') { leaveNet(); netMode = 'solo'; status = 'El anfitrión se fue y no se pudo seguir la partida.'; renderMenu() } return }
+    netMode = 'host'; net = r;
+    seats = snap.seats.map(s => Object.assign({}, s)); setup.mode = snap.mode || setup.mode;
+    const oh = seats.findIndex((s, i) => s.id === 'host' && i !== me);
+    seats[me].id = 'host'; seats[me].away = false;
+    if (oh >= 0) { seats[oh].kind = 'ai'; seats[oh].id = null; g.players[oh].ai = true; if (!/ \(IA\)$/.test(g.players[oh].name)) g.players[oh].name += ' (IA)'; seats[oh].name = g.players[oh].name }   // el que se fue: juega la IA
+    seats.forEach((s, i) => { if (i !== me && s.kind === 'human') s.away = true });   // los demás vuelven solos al reconectarse
+    started = true; mig = null; if (hw) hw.stop(); hw = null; handing = false; offline = false;
+    track(); toast('Ahora llevas tú la partida.'); bcast([]); refresh(); step();
+  }
   /* La sala del anfitrión se guarda en este dispositivo: si se cierra la app o se cae la conexión, "Reanudar sala" la abre con el mismo código
      y los invitados (que siguen intentando reconectar) vuelven a sus sillas; mientras tanto la computadora juega por los ausentes. */
   const HOST_KEY = 'sudomi-dp-host';
@@ -483,13 +520,15 @@
     net = SudomiParty.join('dominopolis', code, { name: myName(), color: setup.color, token: setup.tok, fid: fid() }, e => {
       if (netMode !== 'guest') return;
       if (e.type === 'open') { status = 'Conectado. Esperando al anfitrión…'; offline = false; track(); if (!started) renderMenu() }
-      else if (e.type === 'away') { offline = true; renderPanel() }
-      else if (e.type === 'back') { offline = false; renderPanel() }
+      else if (e.type === 'away') { offline = true; if (hw) hw.away(); renderPanel() }
+      else if (e.type === 'back') { offline = false; if (hw) hw.back(); renderPanel() }
       else if (e.type === 'closed') { const m = e.message; leaveNet(); netMode = 'solo'; status = m; renderMenu() }
       else if (e.type === 'msg') {
         const d = e.data;
+        if (d.t === 'mig') { mig = d; if (!hw && HO()) hw = HO().watcher(takeover); return }
+        if (d.t === 'handoff') { handing = true; if (hw) hw.handoff(); return }
         if (d.t === 'lobby') { seats = d.seats; me = d.you; setup.mode = d.mode; started = false; g = null; renderLobby() }
-        else if (d.t === 'state') enqueue(() => onState(d));
+        else if (d.t === 'state') { if (d.succ !== d.you && mig) { mig = null; if (hw) { hw.stop(); hw = null } } enqueue(() => onState(d)) }
       }
     });
   }
@@ -508,6 +547,8 @@
   }
   function leaveNet() {
     clearTimeout(aiTimer);
+    if (net && netMode === 'host') { const k = sendMig(true); if (k >= 0) { try { net.send(seats[k].id, { t: 'handoff' }); net.close(true) } catch (_) {} net = null } }   // 0.3.98: me voy con la partida en marcha: se la paso al sucesor
+    mig = null; if (hw) hw.stop(); hw = null; handing = false;
     if (net) { try { net.close() } catch (_) {} net = null }
     seats = []; started = false; offline = false;
   }
@@ -623,10 +664,16 @@
     });
   }
   function open(opts) { ui = opts; ui.hub.classList.add('hidden'); ui.stage.classList.remove('hidden'); netMode = 'solo'; status = ''; renderMenu() }
-  function leave() { untrack(); try { if (netMode === 'host') localStorage.removeItem(HOST_KEY) } catch (_) {} token++; clearTimeout(aiTimer); const u = ui; g = null; leaveNet(); netMode = 'solo'; if (u) { u.stage.innerHTML = ''; u.exit() } }
+  // 0.3.63: la partida contra la máquina ya se guardaba sola (SAVE_KEY, tras cada jugada); ahora además sale en la fila «Continuar» del arcade
+  // (ver PARK_MODS en other-games.js). La copia sigue siendo la de SAVE_KEY: en la lista solo va un aviso de que existe.
+  const parkSync = () => { try { window.SudomiPark && SudomiPark.sync() } catch (_) {} };
+  function parkState() { return netMode === 'solo' && g && started ? (g.over ? { mode: 'pve', over: true } : getSave() ? { mode: 'pve', snap: { own: 1 } } : null) : null }
+  function parkResume(o) { if (!getSave()) return false; open(o); resumeSolo(); return true }
+  function parkDrop() { try { localStorage.removeItem(SAVE_KEY) } catch (_) {} }
+  function leave() { parkSync(); untrack(); try { if (netMode === 'host') localStorage.removeItem(HOST_KEY) } catch (_) {} token++; clearTimeout(aiTimer); const u = ui; leaveNet(); g = null; netMode = 'solo'; if (u) { u.stage.innerHTML = ''; u.exit() } }
   function joinFromInvite(code, opts) {
     if (opts && opts.role === 'host') { if (getHostSave()) return resumeHost(); untrack(); status = 'La sala ya no se puede reabrir.'; return renderMenu() }
     joinCode = code; if (ui) joinRoom(code);
   }
-  window.SudomiDominopolis = { open, join: joinFromInvite, resumeHost, soloSetup: () => renderMenu(), create: n => { setup.size = n; createRoom() }, close() { token++; g = null; leaveNet() }, _state: () => g, _refresh: () => { if (g) refresh() }, _seats: () => seats };
+  window.SudomiDominopolis = { open, join: joinFromInvite, resumeHost, soloSetup: () => renderMenu(), create: n => { setup.size = n; createRoom() }, close() { parkSync(); token++; leaveNet(); g = null }, parkState, parkResume, parkDrop, hasSave: () => !!getSave(), _state: () => g, _refresh: () => { if (g) refresh() }, _seats: () => seats };
 })();

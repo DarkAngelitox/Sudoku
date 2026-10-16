@@ -340,7 +340,8 @@ class UI{
  showFeatureInDevelopment(){this.closeHomeMenu();showModal('🚧 Función en desarrollo','Estamos preparando esta función para ti. ❤️',[['Volver','primary-action',hideModal]])}
  flashHint(){const b=$('#hintBtn'),old=b.textContent;b.textContent='Sin pistas disponibles';setTimeout(()=>b.textContent=old,1000)}
  render(){
-  const g=this.game;if(!g)return;$('#difficulty').value=g.difficulty;$('#difficultyLabel').textContent=DIFFICULTIES[g.difficulty].label+(g.daily?' · diario':'');
+  const g=this.game;if(!g)return;{const an=$('#autoNotesBtn');if(an){const off=['expert','master','extreme'].includes(g.difficulty);an.classList.toggle('hidden',off);if(an.parentNode)an.parentNode.classList.toggle('no-auto',off)}}   /* 0.3.68 (dueño): en Experto, Maestro y Extremo no hay notas automáticas */
+  $('#difficulty').value=g.difficulty;$('#difficultyLabel').textContent=DIFFICULTIES[g.difficulty].label+(g.daily?' · diario':'');
   // 0.2.16: the difficulty selector disappears once the player has made a move in this game
   $('#difficulty').classList.toggle('hidden',g.history.length>0||g.future.length>0||g.errors>0||g.hints>0||g.board.some((v,i)=>v!==g.puzzle[i])||g.notes.some(s=>s.size>0)||!!g.daily);
    $('#newBtn').classList.toggle('hidden',!!g.daily);   // 0.2.32: the daily puzzle has no "new sudoku" button
@@ -385,9 +386,9 @@ class UI{
  }
  wrong(i){const el=document.querySelector(`.cell[data-i="${i}"]`);if(el){el.classList.add('wrong');navigator.vibrate?.(120);setTimeout(()=>el.classList.remove('wrong'),220)}}
  // 0.2.28: a different Dominican congratulation each time ({n} = ", Name" when there is a profile)
- win(g){const n=window.SudomiProfile&&SudomiProfile.safeName()?', '+SudomiProfile.safeName():'',line=CONGRATS[Math.floor(Math.random()*CONGRATS.length)].replace('{n}',n);showModal(`🏆 ¡SUDOKU COMPLETADO!`,`${line}<br>Terminaste en <b>${fmt(g.seconds)}</b> con <b>${g.errors}</b> errores y <b>${g.hints}</b> pistas.`,[['Nuevo Sudoku','primary-action',()=>{hideModal();g.newGame(g.difficulty)}],['Cerrar','secondary-action',hideModal]])}
+ win(g){const n=window.SudomiProfile&&SudomiProfile.safeName()?', '+SudomiProfile.safeName():'',line=CONGRATS[Math.floor(Math.random()*CONGRATS.length)].replace('{n}',n);showModal(`🏆 ¡SUDOKU COMPLETADO!`,`${line}<br>Terminaste en <b>${fmt(g.seconds)}</b> con <b>${g.errors}</b> errores y <b>${g.hints}</b> pistas.`,[['Nuevo Sudoku','primary-action',()=>{hideModal();g.newGame(g.difficulty)}],['Ver tablero','secondary-action',hideModal],['Cerrar','secondary-action',()=>{hideModal();this.openHome()}]])}
  // 0.2.28: after losing — same puzzle again, a new one, or another difficulty
- lose(g){showModal(`💥 SUDOMI TE VENCIÓ`,`Llegaste a <b>3 errores</b>.<br>Tiempo: <b>${fmt(g.seconds)}</b>`,[['Reintentar este sudoku','primary-action',()=>{hideModal();g.restartSame()}],['Nuevo sudoku','secondary-action',()=>{hideModal();g.newGame(g.difficulty)}],['Cambiar dificultad','secondary-action',()=>{hideModal();this.showDifficultyPicker()}],['Cerrar','secondary-action',hideModal]])}
+ lose(g){showModal(`💥 SUDOMI TE VENCIÓ`,`Llegaste a <b>3 errores</b>.<br>Tiempo: <b>${fmt(g.seconds)}</b>`,[['Reintentar este sudoku','primary-action',()=>{hideModal();g.restartSame()}],['Nuevo sudoku','secondary-action',()=>{hideModal();g.newGame(g.difficulty)}],['Cambiar dificultad','secondary-action',()=>{hideModal();this.showDifficultyPicker()}],['Ver tablero','secondary-action',hideModal],['Cerrar','secondary-action',()=>{hideModal();this.openHome()}]])}
 }
 const CONGRATS=['¡Excelente{n}!','¡Tremendo{n}! Eso fue de campeón.','¡Qué nivel{n}! Lo resolviste como un tigre.','¡Eso ta’ chévere{n}!','¡Bacano{n}! Sudoku completado.','¡Diablo{n}, qué cabeza!','¡Eres un duro{n}!','¡Ta’ to’{n}! Misión cumplida.','¡Wepa{n}! Lo lograste.','¡Así se hace{n}! Orgullo dominicano. 🇩🇴'];
 function fmt(s){return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`}

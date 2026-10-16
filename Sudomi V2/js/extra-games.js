@@ -54,6 +54,7 @@ function newDomino(g,keep){
  const all=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)all.push([a,b]);shuffle(all);
  g.n=4;g.hands=[0,1,2,3].map(i=>all.slice(i*7,i*7+7));g.row=[];g.mid=0;g.sel=-1;g.passes=0;g.phase='play';g.summary=null;g.stock=[];g.first=null;g.over=false;g.winner=null;g.lastPlayer=-1;g.blocker=-1;g.bonus=[0,0];g.bonusLog=[];g.corrido='';
  g.score=keep?keep.score.slice():[0,0];g.handNo=keep?keep.handNo:1;
+ g.hist=keep&&keep.hist?keep.hist:[];   // 0.3.72: historial de puntos por mano: [{n, a, b}] = lo que sumó cada equipo en la mano n (premios incluidos)
  if(!g.sips){g.sips=[0,0,0,0];g.drunk=[0,0,0,0];g.say=[];g.sayN=0}   // 0.3.30: vaso de cerveza y globos (Mesa 3D); siguen de una mano a la otra
  if(!g.seats)g.seats=[0,1,2,3].map(i=>({name:`Jugador ${i+1}`}));
  if(keep&&keep.opener!=null){g.turn=keep.opener;g.message=`${dName(g,g.turn)} abre la mano ${g.handNo}.`}
@@ -105,6 +106,7 @@ function dHandEnd(g,winnerSeat,blocked,capicua){
  if(team>=0)g.score[team]+=pts;
  const prem=g.bonusLog.length?` Premios: ${g.bonusLog.join(' · ')}.`:'';
  g.score[0]+=g.bonus[0];g.score[1]+=g.bonus[1];txt+=prem;
+ (g.hist=g.hist||[]).push({n:g.handNo,a:(team===0?pts:0)+g.bonus[0],b:(team===1?pts:0)+g.bonus[1]});
  g.summary={team,pts,pips,blocked,text:txt,bonus:g.bonus.slice()};g.phase='handend';g.fx=[];g.curtain=false;
  g.message=`${txt}${team>=0?` El equipo ${team?'B':'A'} suma ${pts}${g.bonus[team]?' + '+g.bonus[team]+' de premio':''}.`:''}`;
  if(g.score[0]>=DOM_TARGET||g.score[1]>=DOM_TARGET){
@@ -134,7 +136,7 @@ function dSettle(g){
 function applyDomino(g,p,a){
  if(g.over)return;
  if(a.a==='sip'){dSip(g,g.wifi?p:(inRange(a.s,4)?a.s:p));return}   // tomar un trago: se puede en cualquier momento, no gasta turno
- if(g.phase==='handend'){if(a.a==='next')newDomino(g,{score:g.score,handNo:g.handNo+1,opener:g.nextOpener});return}
+ if(g.phase==='handend'){if(a.a==='next')newDomino(g,{score:g.score,handNo:g.handNo+1,opener:g.nextOpener,hist:g.hist});return}
  if(p!==g.turn)return;
  if(a.a==='pass'){
   if(!g.row.length||dPlayable(g,p))return;
@@ -182,17 +184,25 @@ const MEM_ART={
  rana:`<circle cx="12" cy="11" r="6" fill="#43a047"/><circle cx="28" cy="11" r="6" fill="#43a047"/><ellipse cx="20" cy="23" rx="15" ry="12" fill="#4caf50"/><circle cx="12" cy="11" r="3.600" fill="#fff"/><circle cx="28" cy="11" r="3.600" fill="#fff"/>${EYES(12,28,11)}<path d="M10 25c6 6 14 6 20 0" stroke="#1b5e20" stroke-width="1.800" fill="none" stroke-linecap="round"/><circle cx="9" cy="24" r="2" fill="#f48fb1" opacity=".7"/><circle cx="31" cy="24" r="2" fill="#f48fb1" opacity=".7"/>`,
  león:`<circle cx="20" cy="20" r="17" fill="#a85f1c"/><g fill="#8a4a12"><circle cx="20" cy="3.500" r="3"/><circle cx="32" cy="8" r="3"/><circle cx="36.500" cy="20" r="3"/><circle cx="32" cy="32" r="3"/><circle cx="20" cy="36.500" r="3"/><circle cx="8" cy="32" r="3"/><circle cx="3.500" cy="20" r="3"/><circle cx="8" cy="8" r="3"/></g><circle cx="20" cy="21" r="11" fill="#f2b84b"/>${EYES(15.500,24.500,19)}<path d="M18 23.500h4l-2 2.500z" fill="#7a3b10"/><path d="M20 26v1.500m0 0c-1.500 2-3.500 2-4.500 .5m4.500-.5c1.500 2 3.500 2 4.500 .5" stroke="#7a3b10" stroke-width="1" fill="none" stroke-linecap="round"/>`,
  tortuga:`<ellipse cx="9" cy="30" rx="4" ry="3" fill="#7cb342"/><ellipse cx="31" cy="30" rx="4" ry="3" fill="#7cb342"/><circle cx="33" cy="20" r="5.500" fill="#8bc34a"/><circle cx="35" cy="18.500" r="1.300" fill="#1c2a3f"/><path d="M4 28a14 14 0 0 1 28 0z" fill="#2e7d32"/><path d="M11 28l3-9h8l3 9M14 19l4-4 4 4M18 28v-9" stroke="#a5d6a7" stroke-width="1.300" fill="none" stroke-linejoin="round"/>`,
+ // 0.3.97: cuatro más para el tablero grande (12 parejas)
+ conejo:`<ellipse cx="14" cy="9" rx="4" ry="9" fill="#f4f4f4" stroke="#c9cfd8"/><ellipse cx="26" cy="9" rx="4" ry="9" fill="#f4f4f4" stroke="#c9cfd8"/><ellipse cx="14" cy="9" rx="2" ry="6" fill="#f8bbd0"/><ellipse cx="26" cy="9" rx="2" ry="6" fill="#f8bbd0"/><circle cx="20" cy="25" r="12" fill="#fafafa" stroke="#c9cfd8"/>${EYES(15.500,24.500,23)}<path d="M18.500 27h3l-1.500 2z" fill="#e2566b"/><path d="M20 29v2M17 31.500h6" stroke="#9aa3ad" stroke-width="1" stroke-linecap="round"/>`,
+ pingüino:`<ellipse cx="20" cy="21" rx="14" ry="16" fill="#1c2a3f"/><ellipse cx="20" cy="25" rx="9" ry="11" fill="#fff"/><circle cx="15.500" cy="15" r="3.200" fill="#fff"/><circle cx="24.500" cy="15" r="3.200" fill="#fff"/>${EYES(15.500,24.500,15)}<path d="M17 19h6l-3 4z" fill="#ffb300"/><ellipse cx="14" cy="36" rx="4" ry="2" fill="#ffb300"/><ellipse cx="26" cy="36" rx="4" ry="2" fill="#ffb300"/>`,
+ cerdo:`<path d="M8 12l2-7 6 5zM32 12l-2-7-6 5z" fill="#f48fb1"/><circle cx="20" cy="21" r="14" fill="#f8bbd0"/>${EYES(14.500,25.500,17)}<ellipse cx="20" cy="25" rx="6" ry="4.500" fill="#f48fb1"/><circle cx="18" cy="25" r="1.300" fill="#ad1457"/><circle cx="22" cy="25" r="1.300" fill="#ad1457"/>`,
+ pulpo:`<path d="M8 26c-4 6-2 10 2 8M14 28c-2 7 0 10 3 8M26 28c2 7 0 10-3 8M32 26c4 6 2 10-2 8" stroke="#8e24aa" stroke-width="4" fill="none" stroke-linecap="round"/><ellipse cx="20" cy="18" rx="13" ry="13" fill="#ab47bc"/>${EYES(15,25,18)}<circle cx="15.600" cy="17.300" r=".8" fill="#fff"/><circle cx="25.600" cy="17.300" r=".8" fill="#fff"/><path d="M17 24c2 2 4 2 6 0" stroke="#4a148c" stroke-width="1.300" fill="none" stroke-linecap="round"/>`,
  búho:`<path d="M9 9l-2-6 7 3zM31 9l2-6-7 3z" fill="#6d4c41"/><ellipse cx="20" cy="22" rx="14" ry="15" fill="#8d6e63"/><ellipse cx="20" cy="28" rx="8" ry="8" fill="#d7ccc8"/><circle cx="13.500" cy="16" r="6" fill="#fff"/><circle cx="26.500" cy="16" r="6" fill="#fff"/><circle cx="13.500" cy="16" r="3" fill="#ffb300"/><circle cx="26.500" cy="16" r="3" fill="#ffb300"/>${EYES(13.500,26.500,16)}<path d="M18 20h4l-2 4z" fill="#ef6c00"/>`
 };
 const memArt=v=>MEM_ART[v]?`<svg viewBox="0 0 40 40" aria-hidden="true">${MEM_ART[v]}</svg>`:v;
+// 0.3.97 (roadmap): TABLERO GRANDE de Memoria (interruptor en «Elige tu partida»): 12 parejas en 6 × 4 en vez de 8 en 4 × 4
+const memBig=()=>{try{return localStorage.getItem('sudomi-mem-size')==='big'}catch(_){return false}};
 function newMemory(g){
- g.tiles=shuffle(ANIMALS.flatMap(v=>[v,v])).map((v,i)=>({v,id:i,gone:false,owner:-1}));
+ const list=memBig()?ANIMALS.concat(['conejo','pingüino','cerdo','pulpo']):ANIMALS;
+ g.tiles=shuffle(list.flatMap(v=>[v,v])).map((v,i)=>({v,id:i,gone:false,owner:-1}));
  g.open=[];g.pairs=[0,0];g.locked=false;g.message='Voltea dos fichas iguales.';
 }
 function applyMemory(g,p,a){
  if(g.over||p!==g.turn)return;
  if(a.a==='tile'){
-  if(g.locked||g.open.length>=2||!inRange(a.i,16))return;
+  if(g.locked||g.open.length>=2||!inRange(a.i,g.tiles.length))return;
   const t=g.tiles[a.i];if(t.gone||g.open.includes(a.i))return;
   g.open.push(a.i);g.fx=[a.i];(g.seen=g.seen||{})[a.i]=t.v;       // what the computer player may remember
   if(g.open.length===2){
@@ -200,7 +210,7 @@ function applyMemory(g,p,a){
    if(g.tiles[x].v===g.tiles[y].v){
     g.tiles[x].gone=g.tiles[y].gone=true;g.tiles[x].owner=g.tiles[y].owner=p;g.pairs[p]++;g.open=[];g.fx=[x,y];
     g.message='¡Pareja! Sigues jugando.';
-    if(g.pairs[0]+g.pairs[1]===8)win(g,sideWinner(g.pairs[0],g.pairs[1]),`Memoria terminada · ${g.pairs[0]} a ${g.pairs[1]} parejas`);
+    if(g.pairs[0]+g.pairs[1]===g.tiles.length/2)win(g,sideWinner(g.pairs[0],g.pairs[1]),`Memoria terminada · ${g.pairs[0]} a ${g.pairs[1]} parejas`);
    }else{g.locked=true;g.message='No coinciden. Memoriza dónde están.'}
   }
  }else if(a.a==='continue'){
@@ -212,21 +222,25 @@ function applyMemory(g,p,a){
 /* =====================================================================
  * PUNTOS Y CAJAS — 4×4 boxes; closing a box scores and gives another move.
  * ===================================================================== */
-function newDots(g){g.w=4;g.edges={};g.boxes=Array(16).fill(-1);g.score=[0,0];g.message='Une dos puntos. Si cierras un cuadro, juegas otra vez.'}
+// 0.3.85: TABLERO GRANDE. g.w = cuadros por lado: 4 (el de siempre) o 6 (interruptor «Tablero grande» en «Elige tu partida»). Una partida
+// guardada de antes trae w=4, así que sigue igual. Todo lo demás (reglas, bot, dibujo) lee g.w en vez de un 4 fijo.
+// 0.3.99 (dueño): tercer tamaño, 8 × 8 (64 cuadros). 'sudomi-dots-size' = '4' | '6' | '8'
+const dotsSize=()=>{try{const n=+localStorage.getItem('sudomi-dots-size');return [4,6,8].includes(n)?n:4}catch(_){return 4}};
+function newDots(g){g.w=dotsSize();g.edges={};g.boxes=Array(g.w*g.w).fill(-1);g.score=[0,0];g.message='Une dos puntos. Si cierras un cuadro, juegas otra vez.'}
 function applyDots(g,p,a){
  if(g.over||p!==g.turn||a.a!=='edge')return;
- const k=String(a.k||''),m=/^([hv])(\d+),(\d+)$/.exec(k);if(!m)return;
+ const W=g.w||4,k=String(a.k||''),m=/^([hv])(\d+),(\d+)$/.exec(k);if(!m)return;
  const x=+m[2],y=+m[3];
- if(m[1]==='h'&&(x>3||y>4))return;
- if(m[1]==='v'&&(x>4||y>3))return;
+ if(m[1]==='h'&&(x>W-1||y>W))return;
+ if(m[1]==='v'&&(x>W||y>W-1))return;
  if(g.edges[k]!==undefined)return;
  g.edges[k]=p;g.fx=[k];
  let made=0;
- for(let by=0;by<4;by++)for(let bx=0;bx<4;bx++){
-  const ix=by*4+bx;
+ for(let by=0;by<W;by++)for(let bx=0;bx<W;bx++){
+  const ix=by*W+bx;
   if(g.boxes[ix]<0&&[`h${bx},${by}`,`h${bx},${by+1}`,`v${bx},${by}`,`v${bx+1},${by}`].every(z=>g.edges[z]!==undefined)){g.boxes[ix]=p;g.score[p]++;g.fx.push('b'+ix);made++}
  }
- if(Object.keys(g.edges).length===40){win(g,sideWinner(g.score[0],g.score[1]),`Puntos y cajas · ${g.score[0]} a ${g.score[1]}`);return}
+ if(Object.keys(g.edges).length===2*W*(W+1)){win(g,sideWinner(g.score[0],g.score[1]),`Puntos y cajas · ${g.score[0]} a ${g.score[1]}`);return}
  if(made){g.message=made>1?`¡${made} cuadros! Juegas otra vez.`:'¡Cuadro cerrado! Juegas otra vez.'}
  else{g.turn=1-g.turn;g.message=`Turno del Jugador ${g.turn+1}.`}
 }
@@ -432,11 +446,19 @@ function sCombos(table,need){
  for(let m=1;m<(1<<n);m++){let s=0;const ix=[];for(let i=0;i<n;i++)if(m&(1<<i)){s+=sval(table[i]);ix.push(i);if(s>need)break}if(s===need)out.push(ix)}
  return out;
 }
+/* 0.3.77 — ESCOBA DE 4 EN PAREJAS (solo contra la máquina; interruptor en «Elige tu partida»). g.four = partida de cuatro: tú (asiento 0) y tu pareja
+ * (asiento 2, la máquina) contra los asientos 1 y 3. Lo capturado, las escobas y los puntos son de la PAREJA: se guardan en [0] (ustedes) y [1] (ellos),
+ * igual que en la partida de dos; eT(p) dice de qué pareja es un asiento. Todo lo demás (reglas, puntuación, meta) no cambia. */
+const escobaFour=()=>{try{return localStorage.getItem('sudomi-escoba-4')==='1'}catch(_){return false}};
+const eT=(g,p)=>g.four?p%2:p,eN=g=>g.four?4:2;
+const eName=(g,p)=>g.four?['Tú','El rival de la derecha','Tu pareja','El rival de la izquierda'][p]:`Jugador ${p+1}`;
+const ePass=g=>{if(g.four)g.turn=(g.turn+1)%4;else pass(g)};
 function newEscoba(g,keep){
- g.deck=spanishDeck();g.hands=[g.deck.splice(0,3),g.deck.splice(0,3)];g.table=g.deck.splice(0,4);
+ if(!keep)g.four=g.mode==='pve'&&escobaFour();
+ g.deck=spanishDeck();g.hands=Array.from({length:eN(g)},()=>g.deck.splice(0,3));g.table=g.deck.splice(0,4);
  g.captured=[[],[]];g.escobas=[0,0];g.last=-1;g.sel=[];g.card=-1;g.phase='play';g.summary=null;
  g.total=keep?keep.total:[0,0];g.round=keep?keep.round:1;g.dealer=keep?keep.dealer:1;
- g.turn=1-g.dealer;g.message=`Ronda ${g.round}: juega primero el Jugador ${g.turn+1}.`;
+ g.turn=(g.dealer+1)%eN(g);g.message=g.four?`Ronda ${g.round}: empieza ${eName(g,g.turn).toLowerCase()}.`:`Ronda ${g.round}: juega primero el Jugador ${g.turn+1}.`;
 }
 function escobaScore(g){
  const cnt=p=>g.captured[p].length,oros=p=>g.captured[p].filter(c=>c.s==='Oros').length,sev=p=>g.captured[p].filter(c=>c.v===7).length;
@@ -461,7 +483,7 @@ function escobaEndRound(g){
 function applyEscoba(g,p,a){
  if(g.over)return;
  if(g.phase==='roundend'){
-  if(a.a==='next'){newEscoba(g,{total:g.total,round:g.round+1,dealer:1-g.dealer});g.curtain=!g.wifi&&g.mode!=='pve';g.fx=[...g.hands[0],...g.hands[1]].map(c=>c.id)}
+  if(a.a==='next'){newEscoba(g,{total:g.total,round:g.round+1,dealer:(g.dealer+1)%eN(g)});g.curtain=!g.wifi&&g.mode!=='pve';g.fx=g.hands.flat().map(c=>c.id)}
   return;
  }
  if(g.phase!=='play'||p!==g.turn)return;
@@ -476,41 +498,46 @@ function applyEscoba(g,p,a){
   if(sCombos(g.table,15-sval(c)).length){g.message='Con esa carta puedes capturar: en la escoba es obligatorio.';return}
  }
  h.splice(g.card,1);g.card=-1;
- const lastPlay=!g.deck.length&&!g.hands[0].length&&!g.hands[1].length;   // the final card of the round
+ const empty=g.hands.every(x=>!x.length),lastPlay=!g.deck.length&&empty,t=eT(g,p),who=eName(g,p);   // lastPlay: the final card of the round
  if(capture){
-  g.captured[p].push(c,...g.sel.map(ix=>g.table[ix]));
-  g.table=g.table.filter((_,ix)=>!g.sel.includes(ix));g.last=p;g.fx=[c.id];
-  if(!g.table.length&&!lastPlay){g.escobas[p]++;g.message=`¡ESCOBA! 🧹 Jugador ${p+1} barrió la mesa (+1).`}
-  else g.message=`Jugador ${p+1} capturó con ${sum}.`;
- }else{g.table.push(c);g.fx=[c.id];g.message=`Jugador ${p+1} dejó una carta en la mesa.`}
+  g.captured[t].push(c,...g.sel.map(ix=>g.table[ix]));
+  g.table=g.table.filter((_,ix)=>!g.sel.includes(ix));g.last=t;g.fx=[c.id];
+  if(!g.table.length&&!lastPlay){g.escobas[t]++;g.message=`¡ESCOBA! 🧹 ${who} barrió la mesa (+1).`}
+  else g.message=`${who} capturó con ${sum}.`;
+ }else{g.table.push(c);g.fx=[c.id];g.message=`${who} dejó una carta en la mesa.`}
  g.sel=[];
- if(!g.hands[0].length&&!g.hands[1].length){
-  if(g.deck.length){g.hands=[g.deck.splice(0,3),g.deck.splice(0,3)];g.fx=[...g.hands[0],...g.hands[1]].map(x=>x.id);g.message+=' Se reparten 3 cartas más.';pass(g)}
+ if(empty){
+  if(g.deck.length){g.hands=Array.from({length:eN(g)},()=>g.deck.splice(0,3));g.fx=g.hands.flat().map(x=>x.id);g.message+=' Se reparten 3 cartas más.';ePass(g)}
   else escobaEndRound(g);
- }else pass(g);
+ }else ePass(g);
 }
 
 /* =====================================================================
  * RUMMY — draw, lay down sets/runs, add to any meld, discard.
  * ===================================================================== */
 const rv=(c,hi)=>c.v===1&&hi?14:c.v;
+/* 0.3.74 — COMODINES: el mazo del Rummy trae 2 (carta {s:'★', v:0}). Valen por cualquier carta en un grupo o una escalera, pero cada combinación
+ * necesita al menos 2 cartas de verdad. Un comodín que se queda en la mano cuesta 15 puntos. No se cambian por la carta que representan. */
+const isJoker=c=>c.v===0;
 function rKind(cs){
  const n=cs.length;if(n<3)return null;
- if(n<=4&&cs.every(c=>c.v===cs[0].v)&&new Set(cs.map(c=>c.s)).size===n)return 'set';
- if(cs.every(c=>c.s===cs[0].s)){
+ const nat=cs.filter(c=>!isJoker(c));if(nat.length<2)return null;
+ if(n<=4&&nat.every(c=>c.v===nat[0].v)&&new Set(nat.map(c=>c.s)).size===nat.length)return 'set';
+ if(nat.every(c=>c.s===nat[0].s)){
   for(const hi of [false,true]){
-   const v=cs.map(c=>rv(c,hi)).sort((x,y)=>x-y);
-   if(new Set(v).size===n&&v.every((x,i)=>!i||x===v[i-1]+1))return 'run';   // A is low (A-2-3) or high (Q-K-A)
+   const v=nat.map(c=>rv(c,hi)).sort((x,y)=>x-y);
+   if(new Set(v).size===v.length&&v[v.length-1]-v[0]+1<=n&&n<=13)return 'run';   // A is low (A-2-3) or high (Q-K-A); los comodines tapan los huecos o alargan una punta
   }
  }
  return null;
 }
-function sortRun(cs){for(const hi of [false,true]){const s=[...cs].sort((x,y)=>rv(x,hi)-rv(y,hi));if(s.every((c,i)=>!i||rv(c,hi)===rv(s[i-1],hi)+1))return s}return cs}
-const rPoints=c=>Math.min(c.v,10);
+// ordena una escalera para dibujarla; los comodines van en los huecos y los que sobran, al final
+function sortRun(cs){const nat=cs.filter(c=>!isJoker(c)),jk=cs.filter(isJoker);for(const hi of [false,true]){const s=[...nat].sort((x,y)=>rv(x,hi)-rv(y,hi));if(new Set(s.map(c=>rv(c,hi))).size!==s.length||rv(s[s.length-1],hi)-rv(s[0],hi)+1>cs.length)continue;const out=[],free=[...jk];s.forEach((c,i)=>{if(i)for(let k=rv(s[i-1],hi)+1;k<rv(c,hi);k++)out.push(free.pop());out.push(c)});return out.concat(free)}return cs}
+const rPoints=c=>isJoker(c)?15:Math.min(c.v,10);
 function newRummy(g){
- g.deck=stdDeck();g.hands=[g.deck.splice(0,7),g.deck.splice(0,7)];g.discard=[g.deck.pop()];
+ g.deck=shuffle([...stdDeck(),{s:'★',v:0,id:uid()},{s:'★',v:0,id:uid()}]);g.hands=[g.deck.splice(0,7),g.deck.splice(0,7)];g.discard=[g.deck.pop()];
  g.melds=[[],[]];g.drawn=false;g.fromDiscard=null;g.sel=[];g.reshuffles=0;
- g.message='Roba una carta, baja combinaciones si puedes y descarta una.';
+ g.message='Roba una carta, baja combinaciones si puedes y descarta una.';   // los comodines se explican en el tutorial (el aviso de arriba no admite un texto más largo)
 }
 // 0.3.19: el Rummy se juega A PUNTOS en varias manos. Quien gana una mano suma las cartas sueltas del rival (o la diferencia, si se acabó
 // el mazo); el primero en llegar a RUMMY_TARGET gana la partida. g.rscore = marcador, g.rhand = número de mano.
@@ -597,7 +624,7 @@ function applyRummy(g,p,a){
  * The comodín is placed anywhere; a piece whose twin is already face up on your side can ONLY go on that column (slAllowed). */
 const SL_THEMES=[
  {name:'Frutas',icons:['🥭','🍌','🍍','🥥','🍉','🍋']},{name:'Música',icons:['🥁','🎷','🎺','🎸','🎻','🎤']},
- {name:'Banderas',icons:['🇩🇴','🇺🇸','🇧🇷','🇲🇽','🇪🇸','🇯🇵']},{name:'Anime',icons:['🥷','🐉','🍙','🌸','⛩️','🎴']},
+ {name:'Banderas',names:['RD','EE. UU.','Brasil','México','España','Japón'],icons:['<svg class="slflag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#fff"/><rect width="13" height="8" fill="#002d62"/><rect x="17" width="13" height="8" fill="#ce1126"/><rect y="12" width="13" height="8" fill="#ce1126"/><rect x="17" y="12" width="13" height="8" fill="#002d62"/><circle cx="15" cy="10" r="1.6" fill="#1f7a3a"/><rect width="30" height="20" fill="none" stroke="#0003"/></svg>','<svg class="slflag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#fff"/><rect y="0.00" width="30" height="1.54" fill="#b22234"/><rect y="2.86" width="30" height="1.54" fill="#b22234"/><rect y="5.71" width="30" height="1.54" fill="#b22234"/><rect y="8.57" width="30" height="1.54" fill="#b22234"/><rect y="11.43" width="30" height="1.54" fill="#b22234"/><rect y="14.29" width="30" height="1.54" fill="#b22234"/><rect y="17.14" width="30" height="1.54" fill="#b22234"/><rect width="13" height="10.8" fill="#3c3b6e"/><g fill="#fff"><circle cx="3" cy="3" r=".7"/><circle cx="7" cy="3" r=".7"/><circle cx="11" cy="3" r=".7"/><circle cx="5" cy="6" r=".7"/><circle cx="9" cy="6" r=".7"/><circle cx="3" cy="9" r=".7"/><circle cx="7" cy="9" r=".7"/><circle cx="11" cy="9" r=".7"/></g><rect width="30" height="20" fill="none" stroke="#0003"/></svg>','<svg class="slflag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#009c3b"/><path d="M15 2.5L27 10L15 17.5L3 10Z" fill="#ffdf00"/><circle cx="15" cy="10" r="4.6" fill="#002776"/><path d="M10.6 9.2Q15 8 19.4 10.6" stroke="#fff" stroke-width=".9" fill="none"/><rect width="30" height="20" fill="none" stroke="#0003"/></svg>','<svg class="slflag" viewBox="0 0 30 20" aria-hidden="true"><rect width="10" height="20" fill="#006847"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ce1126"/><circle cx="15" cy="10" r="2.6" fill="#8a5a2b"/><path d="M12.5 11.5Q15 13.5 17.5 11.5" stroke="#3a7a3a" stroke-width=".8" fill="none"/><rect width="30" height="20" fill="none" stroke="#0003"/></svg>','<svg class="slflag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#aa151b"/><rect y="5" width="30" height="10" fill="#f1bf00"/><rect x="7" y="7.5" width="3.5" height="5" rx=".8" fill="#aa151b"/><rect width="30" height="20" fill="none" stroke="#0003"/></svg>','<svg class="slflag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#fff"/><circle cx="15" cy="10" r="6" fill="#bc002d"/><rect width="30" height="20" fill="none" stroke="#0003"/></svg>']},{name:'Anime',icons:['🥷','🐉','🍙','🌸','⛩️','🎴']},
  {name:'Letras japonesas',icons:['あ','き','す','ぬ','ほ','ん'],text:true},{name:'Superhéroes',icons:['🦇','🕷️','🛡️','🔨','⚡','🦸']},
  {name:'Animales',icons:['🐶','🐱','🐼','🦁','🐸','🐵']},{name:'Deportes',icons:['⚽','🏀','⚾','🏈','🎾','🥊']},
  {name:'Espacio',icons:['🚀','🪐','🌙','⭐','☄️','👽']},{name:'Comida',icons:['🍕','🍔','🌮','🍣','🍩','🍦']},
@@ -616,7 +643,7 @@ function slDeck(){const d=[];let n=0;for(let s=0;s<2;s++)for(let t=0;t<6;t++)for
 function newSlide(g){g.phase='rps';g.themes=slPickThemes();g.rpsSeq=0;g.rps=[null,null];g.rpsLast=null;g.sets=[null,null];g.chooser=-1;g.cols=[[],[]];g.hand=null;g.turn=0;g.moves=0;g.message='Piedra, papel o tijera: quien gane elige su tema y empieza.'}
 function slColDone(col,set){const real=col.filter(x=>!x.w);return col.length===4&&col.every(x=>x.up)&&real.length>0&&real.every(x=>x.s===set&&x.t===real[0].t)}
 const slDoneCount=(g,p)=>g.cols[p].filter(c=>slColDone(c,g.sets[p])).length;
-const slIcon=(g,t)=>t.w?'★':slTheme(g,t.s).icons[t.t];
+const slIcon=(g,t)=>{if(t.w)return '★';const th=slTheme(g,t.s);return th.names?th.names[t.t]:th.icons[t.t]};   // 0.3.99: las banderas van dibujadas (los emojis de bandera no salen en Windows ni en muchos Android): en los mensajes, su nombre
 // Columns where the tile in hand may be placed: the comodín goes anywhere; a piece whose twin is already face up on your side can ONLY go on that column.
 function slAllowed(g,p,t){
  const all=[0,1,2,3,4,5];if(t.w)return all;
@@ -680,6 +707,7 @@ const cardFx=(g,c)=>!!c&&g.fx.includes(c.id);
 // c === null is a hidden / face-down card.
 function pcard(c,o={}){
  if(!c)return `<span class="pcard back${o.mini?' mini':''}"${o.i!=null?` style="--i:${o.i}"`:''}></span>`;
+ if(c.v===0)return `<span class="pcard joker${o.fx?' deal':''}"${o.i!=null?` style="--i:${o.i}"`:''} aria-label="Comodín"><b>★</b><i></i><em>★</em><u>★</u></span>`;   // 0.3.74: comodín del Rummy
  return `<span class="pcard ${isRed(c.s)?'red':'blk'}${c.v>10?' fig':''}${o.fx?' deal':''}"${o.i!=null?` style="--i:${o.i}"`:''}><b>${rank(c.v)}</b><i>${c.s}</i><em>${c.v>10?rank(c.v):c.s}</em><u>${rank(c.v)}</u></span>`;
 }
 // 0.3.24: los palos de la baraja española van dibujados (antes eran emoji, que cambian de un teléfono a otro).
@@ -783,7 +811,7 @@ function drawDomino(g,ctx,I){
  const drunkN=DM&&DM.drunk?DM.drunk(me):0,drunk=drunkN>0;
  const arena=`<div class="dm-arena"><div class="dm-a dm-at">${av(seatOf(2),'top','Compañero')}${backs(seatOf(2),'h')}</div><div class="dm-a dm-al">${av(seatOf(3),'left','Rival')}${backs(seatOf(3),'v')}</div><div class="dm-a dm-ab"><div class="d-ends"${e?'':' style="visibility:hidden"'}><span>◀ ${e?e[0]:0}</span><span>${e?e[1]:0} ▶</span></div>${row}</div><div class="dm-a dm-ar">${av(seatOf(1),'right','Rival')}${backs(seatOf(1),'v')}</div></div>`;   // 0.3.41 (dueño): se juega hacia la derecha — el siguiente jugador (asiento +1) va a tu derecha
  const score=`<div class="dm-score"><span class="mine">Tu equipo <b>${g.score[myTeam]}</b></span><i>meta ${DOM_TARGET}</i><span>Rivales <b>${g.score[1-myTeam]}</b></span></div><p class="dm-dir">↺ Se juega hacia la derecha</p>`;
- const sum=reveal&&g.summary?`<div class="dm-sum${g.look&&g.look.t==='green'?' tl-green':''}"><h4>${g.over?'🏆 Fin de la partida':`Mano ${g.handNo}`}</h4>${[0,1,2,3].map(p=>{const s=(g.seats&&g.seats[p])||{name:`Jugador ${p+1}`};return `<div class="dm-sum-row ${dTeam(p)===myTeam?'mine':''}"><b>${esc(s.name)}</b><span>${(g.hands[p]||[]).map(t=>dtile(t,'sm')).join('')||'<em>sin fichas</em>'}</span><i>${g.summary.pips[p]}</i></div>`}).join('')}${g.over?'':'<div class="arc-actions"><button class="arc-btn big" data-a="next">Siguiente mano ▶</button></div>'}</div>`:'';
+ const sum=reveal&&g.summary?`<div class="dm-sum${g.look&&g.look.t==='green'?' tl-green':''}"><h4>${g.over?'🏆 Fin de la partida':`Mano ${g.handNo}`}</h4>${[0,1,2,3].map(p=>{const s=(g.seats&&g.seats[p])||{name:`Jugador ${p+1}`};return `<div class="dm-sum-row ${dTeam(p)===myTeam?'mine':''}"><b>${esc(s.name)}</b><span>${(g.hands[p]||[]).map(t=>dtile(t,'sm')).join('')||'<em>sin fichas</em>'}</span><i>${g.summary.pips[p]}</i></div>`}).join('')}${g.hist&&g.hist.length?`<table class="es-sum dm-hist"><thead><tr><th>Mano</th><th>Equipo A</th><th>Equipo B</th></tr></thead><tbody>${g.hist.map(h=>`<tr><td>${h.n}</td><td class="${h.a?'pt':''}">${h.a?'+'+h.a:'–'}</td><td class="${h.b?'pt':''}">${h.b?'+'+h.b:'–'}</td></tr>`).join('')}</tbody><tfoot><tr><td>Total (meta ${DOM_TARGET})</td><td>${g.score[0]}</td><td>${g.score[1]}</td></tr></tfoot></table>`:''}${g.over?'':'<div class="arc-actions"><button class="arc-btn big" data-a="next">Siguiente mano ▶</button></div>'}</div>`:'';
  // 0.3.30: MESA 3D (js/domino-3d.js) — otra forma de pintar la misma partida; se elige con el interruptor del menú de Dominó
  if(window.SudomiDomino3D&&SudomiDomino3D.on())return SudomiDomino3D.draw(g,I,{dLayout,dSvg,dFits,dEnds,dPlayable,dTeam,esc,msg,sum,DOM_TARGET,D3_SIPS,DU});
  const tl=g.look&&g.look.t==='green'?' tl-green':'';   /* 0.3.54: los dominos verdes de la tienda tambien salen en la mesa clasica (los pone quien saca) */
@@ -800,21 +828,21 @@ function drawMemory(g,ctx,I){
   return `<button class="${cls.join(' ')}" data-a="tile" data-i="${i}" ${dis?'disabled':''} aria-label="${up?t.v:'Ficha oculta'}"><span class="mc-back">?</span><span class="mc-face">${up&&t.v?memArt(t.v):''}</span></button>`;
  }).join('');
  const cont=g.locked&&I.mine?`<button class="arc-btn pulse" data-a="continue">Ocultar y pasar turno</button><small class="arc-sub">Se ocultan solas en unos segundos.</small>`:'';
- return `${msg(g)}<div class="mem-grid">${cards}</div><div class="arc-actions">${cont}</div>`;
+ return `${msg(g)}<div class="mem-grid${g.tiles.length>16?' big':''}">${cards}</div><div class="arc-actions">${cont}</div>`;
 }
 
 /* ---------- Puntos y cajas ---------- */
 function drawDots(g,ctx,I){
  const edge=(k,dir)=>{const o=g.edges[k];return `<button class="dedge ${dir}${o!==undefined?' on p'+o:''}${g.fx[0]===k?' last':''}" data-a="edge" data-k="${k}" ${o!==undefined||!I.mine?'disabled':''} aria-label="Línea"></button>`};
- let cells='';
- for(let y=0;y<5;y++){
-  for(let x=0;x<5;x++){cells+='<i class="dd"></i>';if(x<4)cells+=edge(`h${x},${y}`,'h')}
-  if(y<4)for(let x=0;x<5;x++){
+ let cells='';const W=g.w||4;
+ for(let y=0;y<=W;y++){
+  for(let x=0;x<=W;x++){cells+='<i class="dd"></i>';if(x<W)cells+=edge(`h${x},${y}`,'h')}
+  if(y<W)for(let x=0;x<=W;x++){
    cells+=edge(`v${x},${y}`,'v');
-   if(x<4){const ix=y*4+x,ow=g.boxes[ix];cells+=`<span class="dbox${ow>=0?' own'+ow:''}${g.fx.includes('b'+ix)?' pairpop':''}">${ow>=0?ow+1:''}</span>`}
+   if(x<W){const ix=y*W+x,ow=g.boxes[ix];cells+=`<span class="dbox${ow>=0?' own'+ow:''}${g.fx.includes('b'+ix)?' pairpop':''}">${ow>=0?ow+1:''}</span>`}
   }
  }
- return `${msg(g)}<div class="dots-board">${cells}</div>`;
+ return `${msg(g)}<div class="dots-board${W>4?' w'+W:''}">${cells}</div>`;
 }
 
 /* ---------- STOP ---------- */
@@ -899,13 +927,15 @@ function drawEscoba(g,ctx,I){
  const pile=p=>`<span class="es-pile p${p}"><b>${g.captured[p].length}</b> cartas · ${ICO.broom}${g.escobas[p]}</span>`;
  let summary='';
  if(g.summary&&(round||g.over)){
-  summary=`<table class="es-sum"><thead><tr><th>Ronda ${g.round}</th><th>J1</th><th>J2</th></tr></thead><tbody>${g.summary.rows.map(r=>`<tr><td>${r.name}</td><td class="${r.pt[0]?'pt':''}">${r.a}${r.pt[0]?' <small>+'+r.pt[0]+'</small>':''}</td><td class="${r.pt[1]?'pt':''}">${r.b}${r.pt[1]?' <small>+'+r.pt[1]+'</small>':''}</td></tr>`).join('')}</tbody><tfoot><tr><td>Total (meta ${ESCOBA_TARGET})</td><td>${g.total[0]}</td><td>${g.total[1]}</td></tr></tfoot></table>${round&&!g.over?'<div class="arc-actions"><button class="arc-btn big" data-a="next">Siguiente ronda ▶</button></div>':''}`;
+  summary=`<table class="es-sum"><thead><tr><th>Ronda ${g.round}</th><th>${g.four?'Ustedes':'J1'}</th><th>${g.four?'Ellos':'J2'}</th></tr></thead><tbody>${g.summary.rows.map(r=>`<tr><td>${r.name}</td><td class="${r.pt[0]?'pt':''}">${r.a}${r.pt[0]?' <small>+'+r.pt[0]+'</small>':''}</td><td class="${r.pt[1]?'pt':''}">${r.b}${r.pt[1]?' <small>+'+r.pt[1]+'</small>':''}</td></tr>`).join('')}</tbody><tfoot><tr><td>Total (meta ${ESCOBA_TARGET})</td><td>${g.total[0]}</td><td>${g.total[1]}</td></tr></tfoot></table>${round&&!g.over?'<div class="arc-actions"><button class="arc-btn big" data-a="next">Siguiente ronda ▶</button></div>':''}`;
  }
  const hands=round||g.over?'':`<div class="d-hand">${mine}</div>
   <div class="es-sumline">${I.mine&&card?`Suma: <b class="${sum===15?'ok':sum>15?'over':''}">${sum}</b> / 15`:'&nbsp;'}</div>
   <div class="arc-actions"><button class="arc-btn big" data-a="play" ${I.mine&&g.card>=0?'':'disabled'}>${g.sel.length?`Capturar (suma ${sum})`:'Dejar carta en la mesa'}</button><button class="arc-btn alt" data-a="hint" ${I.mine?'':'disabled'}>${ICO.bulb} Pista</button></div>`;
- return `${msg(g)}<div class="es-score">Ronda ${g.round} · primero en llegar a ${ESCOBA_TARGET} · <b>J1 ${g.total[0]}</b> — <b>J2 ${g.total[1]}</b></div>
-  <div class="arc-felt es">${round||g.over?'':`<div class="es-opp">${backs(g.hands[I.opp].length)}<span class="arc-sub">Jugador ${I.opp+1} · mazo: ${g.deck.length}</span></div>`}<div class="es-table">${round||g.over?'':tableHtml}</div><div class="es-piles">${pile(0)}${pile(1)}</div></div>${summary}${hands}`;
+ // partida de cuatro: arriba van los otros tres (rival, tu pareja, rival), con sus cartas boca abajo y a quién le toca
+ const others=g.four?`<div class="es-opp es-opp4">${[1,2,3].map(p=>`<div class="${g.turn===p?'on':''}">${backs(g.hands[p].length)}<span class="arc-sub">${p===2?'🤝 Tu pareja':p===1?'Rival (der.)':'Rival (izq.)'}</span></div>`).join('')}<span class="arc-sub es-deck">Mazo: ${g.deck.length}</span></div>`:`<div class="es-opp">${backs(g.hands[I.opp].length)}<span class="arc-sub">Jugador ${I.opp+1} · mazo: ${g.deck.length}</span></div>`;
+ return `${msg(g)}<div class="es-score">Ronda ${g.round} · primero en llegar a ${ESCOBA_TARGET} · <b>${g.four?'Ustedes':'J1'} ${g.total[0]}</b> — <b>${g.four?'Ellos':'J2'} ${g.total[1]}</b></div>
+  <div class="arc-felt es">${round||g.over?'':others}<div class="es-table">${round||g.over?'':tableHtml}</div><div class="es-piles">${pile(0)}${pile(1)}</div></div>${summary}${hands}`;
 }
 
 /* ---------- Rummy ---------- */
@@ -1096,6 +1126,8 @@ function tick(id,g,ctx){
  * ===================================================================== */
 const BOTS={};
 const chance=p=>Math.random()<p;
+// 0.3.71: NIVEL DE LA MÁQUINA (el selector único del arcade, other-games.js). Cada bot de abajo lo lee: 'easy' | 'normal' | 'hard'
+const LV=()=>window.SudomiAILevel?SudomiAILevel():'normal';
 const sameSet=(a,b)=>a.length===b.length&&a.every(x=>b.includes(x));
 
 BOTS.domino=g=>{
@@ -1104,8 +1136,10 @@ BOTS.domino=g=>{
  const h=g.hands[p],fit=h.map((t,i)=>i).filter(i=>dFits(g,h[i]));if(!fit.length)return null;
  const e=dEnds(g),count=v=>h.reduce((n,t)=>n+(t[0]===v)+(t[1]===v),0);
  // play the heaviest tile (get rid of points first), doubles slightly first; when it fits both ends keep the end whose number we hold most
- fit.sort((x,y)=>(dTotal(h[y])+(h[y][0]===h[y][1]?2:0))-(dTotal(h[x])+(h[x][0]===h[x][1]?2:0)));
- const i=fit[0],t=h[i];let side;
+ // 0.3.71: en difícil además pesa quedarse con la mesa en los números que más tiene (para no pasar); en fácil tira cualquiera que quepa
+ const lv=LV(),keep=t=>lv==='hard'?Math.max(count(t[0]),count(t[1]))*3:0;
+ fit.sort((x,y)=>(dTotal(h[y])+(h[y][0]===h[y][1]?2:0)+keep(h[y]))-(dTotal(h[x])+(h[x][0]===h[x][1]?2:0)+keep(h[x])));
+ const i=lv==='easy'?fit[Math.floor(Math.random()*fit.length)]:fit[0],t=h[i];let side;
  if(e){
   const fitL=t[0]===e[0]||t[1]===e[0],fitR=t[0]===e[1]||t[1]===e[1];
   if(fitL&&fitR)side=count(e[0])>=count(e[1])?'R':'L';else side=fitR?'R':'L';
@@ -1116,7 +1150,7 @@ BOTS.domino=g=>{
 BOTS.memory=g=>{
  if(g.over||g.turn!==1||g.locked||g.open.length>=2)return null;
  const seen=g.seen||{},avail=g.tiles.map((t,i)=>i).filter(i=>!g.tiles[i].gone&&!g.open.includes(i));
- const known=i=>seen[i]!==undefined&&chance(.82);        // it sometimes forgets, like a person
+ const known=i=>seen[i]!==undefined&&chance({easy:.45,hard:1}[LV()]||.82);        // it sometimes forgets, like a person (0.3.71: fácil olvida mucho, difícil nunca)
  let pick=null;
  if(g.open.length===1){
   const v=g.tiles[g.open[0]].v;
@@ -1130,21 +1164,25 @@ BOTS.memory=g=>{
 
 BOTS.dotsboxes=g=>{
  if(g.over||g.turn!==1)return null;
- const free=[];for(let y=0;y<5;y++)for(let x=0;x<4;x++)free.push(`h${x},${y}`);for(let y=0;y<4;y++)for(let x=0;x<5;x++)free.push(`v${x},${y}`);
+ const W=g.w||4,free=[];for(let y=0;y<=W;y++)for(let x=0;x<W;x++)free.push(`h${x},${y}`);for(let y=0;y<W;y++)for(let x=0;x<=W;x++)free.push(`v${x},${y}`);
  const open=free.filter(k=>g.edges[k]===undefined);if(!open.length)return null;
  const boxesOf=k=>{const m=/^([hv])(\d+),(\d+)$/.exec(k),x=+m[2],y=+m[3],o=[];
-  if(m[1]==='h'){if(y>0)o.push([x,y-1]);if(y<4)o.push([x,y])}else{if(x>0)o.push([x-1,y]);if(x<4)o.push([x,y])}
-  return o.filter(([bx,by])=>bx<4&&by<4)};
+  if(m[1]==='h'){if(y>0)o.push([x,y-1]);if(y<W)o.push([x,y])}else{if(x>0)o.push([x-1,y]);if(x<W)o.push([x,y])}
+  return o.filter(([bx,by])=>bx<W&&by<W)};
  const edgesOf=([bx,by])=>[`h${bx},${by}`,`h${bx},${by+1}`,`v${bx},${by}`,`v${bx+1},${by}`];
  const have=b=>edgesOf(b).filter(z=>g.edges[z]!==undefined).length;
  const closes=k=>boxesOf(k).filter(b=>have(b)===3).length;       // boxes this line completes
  const gives=k=>boxesOf(k).filter(b=>have(b)===2).length;        // boxes this line leaves with 3 sides (a gift for the rival)
  let best=open.filter(k=>closes(k)>0).sort((a,b)=>closes(b)-closes(a));
- let k;
- if(best.length)k=best[0];
+ let k;const lv=LV(),any=()=>open[Math.floor(Math.random()*open.length)];
+ // 0.3.71: en difícil, cuando toca regalar, cuenta cuántas cajas se llevaría el rival de corrido con cada línea y regala la cadena más corta
+ const chain=z=>{const put=[z];g.edges[z]=1;let n=0,more=true;while(more){more=false;for(const e of open){if(g.edges[e]!==undefined)continue;const c=closes(e);if(c){g.edges[e]=1;put.push(e);n+=c;more=true}}}put.forEach(e=>delete g.edges[e]);return n};
+ if(best.length&&!(lv==='easy'&&chance(.35)))k=best[0];
+ else if(lv==='easy')k=any();
  else{
   const safe=open.filter(z=>gives(z)===0);
   if(safe.length)k=safe[Math.floor(Math.random()*safe.length)];
+  else if(lv==='hard'){const cs=open.map(chain),m=Math.min(...cs);k=open[cs.indexOf(m)]}
   else{const m=Math.min(...open.map(gives));const pool=open.filter(z=>gives(z)===m);k=pool[Math.floor(Math.random()*pool.length)]}
  }
  return {a:'edge',k,delay:750};
@@ -1190,24 +1228,27 @@ BOTS.poker=g=>{
  return {a:'confirm',delay:800};
 };
 
-function escobaPlan(g){
- const hand=g.hands[1];let best=null;
+function escobaPlan(g,seat=1){
+ const hand=g.hands[seat],lv=LV();let best=null;
  hand.forEach((c,i)=>{
   sCombos(g.table,15-sval(c)).forEach(ix=>{
    const cards=[c,...ix.map(k=>g.table[k])];
    let score=cards.length+cards.filter(x=>x.s==='Oros').length*2+cards.filter(x=>x.v===7).length*2+(cards.some(x=>x.s==='Oros'&&x.v===7)?6:0)+(ix.length===g.table.length?12:0);
+   if(lv==='easy')score=-score;   // 0.3.71: en fácil se lleva la baza más pobre (sin azar: el plan se recalcula en cada paso y no debe cambiar)
    if(!best||score>best.score)best={card:i,sel:ix,score};
   });
  });
  if(best)return best;
  // no capture possible: leave the least valuable card on the table
- const worth=c=>(c.s==='Oros'?3:0)+(c.v===7?4:0)+(c.s==='Oros'&&c.v===7?10:0)+(c.v<=4?1:0);
+ // 0.3.71: en difícil evita dejar la mesa sumando menos de 15 (le serviría la escoba al rival)
+ const sum=g.table.reduce((n,x)=>n+sval(x),0),worth=c=>(c.s==='Oros'?3:0)+(c.v===7?4:0)+(c.s==='Oros'&&c.v===7?10:0)+(c.v<=4?1:0)+(lv==='hard'&&sum+sval(c)<15?5:0);
  let w=0,lowest=99;hand.forEach((c,i)=>{const s=worth(c);if(s<lowest){lowest=s;w=i}});
  return {card:w,sel:[],score:0};
 }
 BOTS.escoba=g=>{
- if(g.over||g.phase!=='play'||g.turn!==1)return null;
- const plan=escobaPlan(g);
+ const seat=g.four?g.turn:1;   // 0.3.77: en la partida de cuatro la máquina lleva los asientos 1, 2 (tu pareja) y 3
+ if(g.over||g.phase!=='play'||g.turn!==seat||seat===0)return null;
+ const plan=escobaPlan(g,seat);
  if(g.sel.some(i=>i<0||i>=g.table.length))return {a:'hand',i:g.card>=0?g.card:plan.card,delay:200};       // stale selection: clear it
  if(g.card!==plan.card)return {a:'hand',i:plan.card,delay:800};
  const need=plan.sel.find(i=>!g.sel.includes(i));if(need!==undefined)return {a:'table',i:need,delay:550};
@@ -1228,10 +1269,10 @@ function rummyMelds(h){
 }
 BOTS.rummy=g=>{
  if(g.over||g.turn!==1)return null;
- const h=g.hands[1];
+ const h=g.hands[1],lv=LV();
  if(!g.drawn){
   const top=g.discard[g.discard.length-1];
-  if(top){
+  if(top&&lv!=='easy'){   // 0.3.71: en fácil nunca aprovecha el descarte
    const useful=rummyMelds([...h,top]).some(ix=>ix.includes(h.length))||[0,1].some(o=>g.melds[o].some(m=>rKind([...m.cards,top])===m.kind));
    if(useful)return {a:'top',delay:900};
   }
@@ -1256,7 +1297,9 @@ BOTS.rummy=g=>{
  // 3) discard the card that is least useful (many points, no partner nearby), never the one just taken from the discard pile
  const potential=(c,j)=>h.reduce((s,d,k)=>{if(k===j)return s;if(d.v===c.v)s+=3;else if(d.s===c.s&&Math.abs(d.v-c.v)<=2)s+=2;return s},0);
  let best=-1,score=-1e9;
- h.forEach((c,j)=>{if(c.id===g.fromDiscard)return;const sc=rPoints(c)-potential(c,j)*2;if(sc>score){score=sc;best=j}});
+ // 0.3.71: fácil bota la carta de más puntos sin mirar si le servía; difícil no bota una carta que le cabe al rival en una combinación de la mesa
+ const gift=c=>lv==='hard'&&[0,1].some(o=>g.melds[o].some(m=>rKind([...m.cards,c])===m.kind))?6:0;
+ h.forEach((c,j)=>{if(c.id===g.fromDiscard||c.v===0&&h.length>1)return;   /* nunca bota un comodín (salvo que sea lo único) */const sc=rPoints(c)-(lv==='easy'?0:potential(c,j)*2)-gift(c);if(sc>score){score=sc;best=j}});
  if(best<0)best=0;
  return {a:'discard',i:best,delay:900};
 };
@@ -1279,7 +1322,7 @@ BOTS.slide=g=>{
   const bottom=col[col.length-1];
   if(bottom.up&&!bottom.w&&dedicated&&bottom.s===dedicated.s&&bottom.t===dedicated.t&&nSame>0)s-=8;
   if(!bottom.up)s+=1;
-  s+=Math.random()*.5;
+  s+=Math.random()*({easy:14,hard:0}[LV()]??.5);   // 0.3.71: en fácil el azar pesa más que el cálculo
   if(s>best){best=s;bc=c}
  });
  return {a:'insert',c:bc,seat:1,delay:950};

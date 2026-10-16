@@ -24,7 +24,7 @@
    body.innerHTML=`${langGroup}<h3 class="ach-group">Apariencia</h3>
    <div class="cust-group">${seg('theme',[['light','☀️ Claro'],['dark','🌙 Oscuro']],dark?'dark':'light')}<button type="button" class="set-row" id="setStyle"><span>🎨</span><div><b>Estilo y colores</b><small>Navidad, Anime, Galaxia, tamaño de números…</small></div><i>›</i></button></div>
    <h3 class="ach-group">Sonido y vibración</h3>
-   <div class="cust-group">${seg('sound',[['on','🔊 Sonido'],['off','🔇 Silencio']],snd.sound?'on':'off')}<div style="height:6px"></div>${seg('vibe',[['on','📳 Vibración'],['off','▫️ Sin vibrar']],snd.vibe?'on':'off')}<div style="height:6px"></div><b class="set-l">Efectos especiales (confeti y destellos al completar)</b>${seg('fx',[['on','✨ Activados'],['off','▫️ Apagados']],window.SudomiFX&&!SudomiFX.on?'off':'on')}<label class="cust-vol"><span>Volumen</span><input type="range" id="setVol" min="0" max="100" value="${Math.round(snd.vol*100)}"><button type="button" id="setTest">Probar</button></label></div>
+   <div class="cust-group">${seg('sound',[['on','🔊 Sonido'],['off','🔇 Silencio']],snd.sound?'on':'off')}<div style="height:6px"></div>${seg('vibe',[['on','📳 Vibración'],['off','▫️ Sin vibrar']],snd.vibe?'on':'off')}<div style="height:6px"></div><b class="set-l">Sonidos del estilo (cada estilo del juego suena distinto)</b>${seg('themed',[['on','🎶 Del estilo'],['off','🎵 Clásicos']],snd.themed!==false?'on':'off')}<div style="height:6px"></div><b class="set-l">Efectos especiales (confeti y destellos al completar)</b>${seg('fx',[['on','✨ Activados'],['off','▫️ Apagados']],window.SudomiFX&&!SudomiFX.on?'off':'on')}<label class="cust-vol"><span>Volumen</span><input type="range" id="setVol" min="0" max="100" value="${Math.round(snd.vol*100)}"><button type="button" id="setTest">Probar</button></label></div>
    <h3 class="ach-group">Juego</h3>
    <div class="cust-group"><b class="set-l">Dificultades por nivel</b>${seg('lock',[['on','🔒 Se desbloquean'],['off','🔓 Todas abiertas']],lock?'on':'off')}
     <button type="button" class="set-row" id="setTut"><span>📘</span><div><b>Tutorial</b><small>Aprende a jugar paso a paso</small></div><i>›</i></button>
@@ -47,6 +47,7 @@
     if(k==='lang'){if(window.SudomiI18n&&v!==SudomiI18n.lang())SudomiI18n.setLang(v);return}
     if(k==='theme'){if((v==='dark')!==(window.SudomiTheme&&SudomiTheme.current==='dark'))SudomiTheme.toggle()}
     else if(k==='sound'){if(window.SudomiSound){SudomiSound.set({sound:v==='on'});if(v==='on')SudomiSound.test()}}
+    else if(k==='themed'){if(window.SudomiSound){SudomiSound.set({themed:v==='on'});SudomiSound.test()}}
     else if(k==='vibe'){if(window.SudomiSound){SudomiSound.set({vibe:v==='on'});if(v==='on'&&navigator.vibrate)navigator.vibrate(40)}}
     else if(k==='fx'){if(window.SudomiFX){SudomiFX.set(v==='on');if(v==='on')SudomiFX.demo()}}
     else if(k==='lock'){if(window.SudomiXP)SudomiXP.setLock(v==='on')}
@@ -62,7 +63,7 @@
    $(body,'#setUpdate').onclick=async()=>{say('Buscando…');const r=await SudomiBackup.checkUpdate();say(r==='waiting'?'Hay una versión nueva: toca «Actualizar» en el aviso.':r==='latest'?'Ya tienes la última versión.':'No se pudo comprobar (¿sin internet?).')};
    $(body,'#setPriv').onclick=()=>textScreen('privScreen','🔒 Privacidad',PRIVACY);
    $(body,'#setTerms').onclick=()=>textScreen('termsScreen','📄 Términos de uso',TERMS);
-   $(body,'#setAbout').onclick=()=>textScreen('aboutScreen','🇩🇴 Acerca de SUDOMI',`<div class="ab-card"><div class="ab-logo">SUDOMI</div><p>Sudoku con sabor dominicano.<br><em>Hecho con lógica. Jugado con amor.</em></p><small>Versión ${version()}</small></div><p class="st-note">SUDOMI reúne el sudoku, 17 juegos de mesa y de cartas, retos diarios, logros, multijugador online y sin internet, y un maestro que te ayuda a mejorar.</p>${CFG.contactEmail?'<p class="st-note">Contacto: '+CFG.contactEmail+'</p>':''}`);
+   $(body,'#setAbout').onclick=()=>textScreen('aboutScreen','🇩🇴 Acerca de SUDOMI',`<div class="ab-card"><div class="ab-logo">SUDOMI</div><p>Sudoku con sabor dominicano.<br><em>Hecho con lógica. Jugado con amor.</em></p><small>Versión ${version()}</small></div><p class="st-note">SUDOMI reúne el sudoku, 19 juegos de mesa y de cartas, retos diarios, logros, multijugador online y sin internet, y un maestro que te ayuda a mejorar.</p>${CFG.contactEmail?'<p class="st-note">Contacto: '+CFG.contactEmail+'</p>':''}`);
    let armed=false;const wipe=$(body,'#setWipe');
    wipe.onclick=()=>{
     if(!armed){armed=true;wipe.classList.add('armed');$(wipe,'b').textContent='¿Seguro? Toca otra vez para borrar todo';setTimeout(()=>{armed=false;if(wipe.isConnected){wipe.classList.remove('armed');$(wipe,'b').textContent='Borrar mi progreso'}},4000);return}

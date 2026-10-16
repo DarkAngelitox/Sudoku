@@ -14,6 +14,30 @@
  let env=null,net=null,role=null,room={humans:[],started:false},mySeat=0,game=null,botTimer=null,code='',alive=false;
  const prof=()=>{const p=window.SudomiProfile;return p&&p.get()?{name:p.name(),avatar:p.avatar()}:{name:'Jugador',avatar:'🦊'}};
  const $=s=>env.hub.querySelector(s)||env.stage.querySelector(s);
+ /* 0.3.98 — RELEVO DEL ANFITRIÓN (js/host-handoff.js): el anfitrión le manda al sucesor la partida entera ({t:'mig'}); si se va (o se le cae la
+  * conexión), el sucesor reabre la sala con el mismo código y sigue. Quien se fue lo juega la IA; los demás recuperan su sitio al reconectarse. */
+ let mig=null,hw=null,handing=false,offline=false;
+ const HO=()=>window.SudomiHandoff,migOk=window.SudomiHandoff?SudomiHandoff.throttle(2000):()=>false;
+ const succHuman=()=>room.humans.find(h=>h.id!=='host'&&!h.gone);
+ function sendMig(force){if(role!=='host'||!net||!game||game.over||!HO())return null;const h=succHuman();if(h&&migOk(force))net.send(h.id,{t:'mig',room,game});return h}
+ async function takeover(){
+  const snap=mig,c=code,seat=mySeat;if(!snap||!HO())return;
+  toast('El anfitrión se fue: abriendo la sala para seguir…',true);
+  {const old=net;net=null;try{old&&old.close()}catch(_){}}   // primero se suelta la conexión vieja
+  const r=await HO().takeover('domino4',c,onHost,()=>role!=='guest'||!alive);
+  if(!r){if(role==='guest'&&alive)menu('El anfitrión se fue y no se pudo seguir la partida.');return}
+  role='host';net=r;
+  room=snap.room;game=snap.game;game.wifi=true;
+  const myTok=game.seats[seat]&&game.seats[seat].id;
+  room.humans.forEach(h=>{
+   if(h.id===myTok){h.id='host';h.gone=false;if(game.seats[seat])game.seats[seat].id='host';return}
+   if(h.gone)return;const s=game.seats.findIndex(x=>x&&x.id===h.id);if(s<0)return;const o=game.seats[s];
+   h.seat=s;h.orig={name:o.name,avatar:o.avatar};h.gone=true;game.seats[s]={name:o.name+' (IA)',avatar:o.avatar,bot:true};   // la IA lo cubre hasta que vuelva (restoreSeat)
+   if(h.id==='host')h.id='__se-fue';
+  });
+  mig=null;if(hw)hw.stop();hw=null;handing=false;offline=false;
+  toast('Ahora llevas tú la partida.');publish();scheduleBot();
+ }
 
  function open(e,pending,create){
   env=e;alive=true;
@@ -24,6 +48,8 @@
  }
  function close(){
   alive=false;clearTimeout(botTimer);
+  if(net&&role==='host'){const h=sendMig(true);if(h){try{net.send(h.id,{t:'handoff'});net.close(true)}catch(_){}net=null}}   // 0.3.98: me voy con la partida en marcha: se la paso al sucesor
+  mig=null;if(hw)hw.stop();hw=null;handing=false;offline=false;
   try{if(net&&net.close)net.close()}catch(_){}
   net=null;role=null;game=null;room={humans:[],started:false};
   awayBar();try{window.SudomiFriends&&SudomiFriends.untrack()}catch(_){}
@@ -76,12 +102,28 @@
    const i=room.humans.findIndex(h=>h.id===e.id);if(i<0)return;
    if(!room.started){room.humans.splice(i,1);lobbyView();broadcastLobby()}
    else{const seat=seatOfId(e.id);if(seat>=0&&game){const o=game.seats[seat];room.humans[i].seat=seat;room.humans[i].orig={name:o.name,avatar:o.avatar};game.seats[seat]={name:o.name+' (IA)',avatar:o.avatar,bot:true};room.humans[i].gone=true;toast(`${o.name} salió: lo reemplaza la IA.`);awayBar();publish();scheduleBot()}}
+  }else if(e.type==='msg'&&e.data&&e.data.t==='talk'&&game){
+   const seat=seatOfId(e.id);if(seat>=0)talkOut(seat,e.data.k);
   }else if(e.type==='msg'&&e.data&&e.data.t==='act'&&game){
    const seat=seatOfId(e.id);if(seat<0)return;
    X().apply('domino',game,seat,e.data.act);publish();scheduleBot();
   }
  }
  const seatOfId=id=>game?game.seats.findIndex(s=>s.id===id):-1;
+ /* 0.3.76 — FRASES DE MESA. Botón 💬 en la partida online: se elige una frase de TALK y a todos les sale un aviso «Nombre: frase».
+  * Solo viaja el número de la frase (nunca texto libre). El anfitrión la reparte; una cada 2 segundos como mucho. */
+ const TALK=['¡Capicúa!','¡Tranca ese juego!','¡Pégate, compañero!','¡Agua!','¡Ese doble seis pesa!','¡Dale, que es tarde!','¡Buena esa!','Jajaja','👍','😡'];
+ let talkOpen=false,talkAt=0;
+ function talkShow(seat,k){const s=game&&game.seats[seat],t=TALK[k];if(s&&t)toast(`💬 ${s.name}: ${t}`)}
+ function talkOut(seat,k){   // solo el anfitrión: lo manda a todos y lo enseña aquí
+  if(!Number.isInteger(k)||k<0||k>=TALK.length)return;
+  room.humans.forEach(h=>{if(h.id!=='host'&&!h.gone)net.send(h.id,{t:'talk',seat,k})});talkShow(seat,k);
+ }
+ function talkSend(k){
+  talkOpen=false;if(Date.now()-talkAt<2000){draw();return}talkAt=Date.now();
+  if(role==='host')talkOut(mySeat,k);else if(net)net.send({t:'talk',k});
+  draw();
+ }
  // 0.2.76: quien se desconecta en plena partida la IA lo reemplaza; si vuelve (o entra otro con el enlace), recupera su lugar
  function restoreSeat(h){
   const s=h.seat;if(s==null||!game||!h.orig)return;
@@ -124,12 +166,12 @@
  }
  function publish(){
   if(role==='host'&&game)room.humans.forEach(h=>{if(h.id!=='host'&&!h.gone)sendState(h.id)});
-  draw();
+  draw();sendMig();
  }
  function sendState(id){
   const seat=seatOfId(id);if(seat<0)return;
-  const v=X().view('domino',game,seat);
-  net.send(id,{t:'state',seat,state:v});
+  const v=X().view('domino',game,seat),s=succHuman();
+  net.send(id,{t:'state',seat,state:v,succ:s?seatOfId(s.id):-1});
  }
  function scheduleBot(){
   clearTimeout(botTimer);botTimer=null;
@@ -147,12 +189,16 @@
    if(!alive||role!=='guest')return;
    if(e.type==='open'){status('Conectado. Esperando al anfitrión…');try{window.SudomiFriends&&SudomiFriends.track({game:'domino4',gameName:'Dominó',room:c,role:'guest'})}catch(_){}}
    else if(e.type==='closed'){const m=e.message||'La sala se cerró.';close();menu(m)}
-   else if(e.type==='away'){toast('Se perdió la conexión… reintentando.',true)}
-   else if(e.type==='back'){toast('¡Conexión recuperada!')}
+   else if(e.type==='away'){offline=true;if(hw)hw.away();toast('Se perdió la conexión… reintentando.',true)}
+   else if(e.type==='back'){offline=false;if(hw)hw.back();toast('¡Conexión recuperada!')}
    else if(e.type==='msg'&&e.data){
     const d=e.data;
+    if(d.t==='mig'){mig=d;if(!hw&&HO())hw=HO().watcher(takeover);return}
+    if(d.t==='handoff'){handing=true;if(hw)hw.handoff();return}
+    if(d.t==='state'&&d.succ!==d.seat&&mig){mig=null;if(hw){hw.stop();hw=null}}
     if(d.t==='lobby'){mySeat=d.you;room.seats=d.seats;seatsGuest=d.seats;lobbyView2()}
     else if(d.t==='state'){mySeat=d.seat;game=d.state;game.wifi=true;draw()}
+    else if(d.t==='talk')talkShow(d.seat,d.k);
    }
   });
  }
@@ -178,11 +224,13 @@
   const x=X().render('domino',game,ctx);
   const over=game.over;
   const end=over?`<div class="game-end-overlay"><div class="game-end-card"><div class="res-ic">${window.SudomiResult?SudomiResult.icon(game.winTeam===mySeat%2?'win':'lose'):''}</div><p>PARTIDA TERMINADA</p><h3>${game.winTeam===mySeat%2?'¡Ganó tu equipo!':'Ganó el otro equipo'}</h3><strong>${game.winTeam===mySeat%2?'Ganador: tu equipo':'Ganador: equipo rival'}</strong><small>${esc(game.message||'')}</small><div>${role==='host'?'<button id="dpAgain">Jugar otra</button>':'<button disabled>El anfitrión inicia otra</button>'}<button id="dpExit">Salir</button></div></div></div>`:'';
-  env.stage.innerHTML=`<div class="mini-game"><div class="mini-game-head"><div><p>ARCADE SUDOMI · MULTIJUGADOR</p><h2>Dominó</h2><small>Sala ${esc(P().pretty(code))}</small></div><div class="mini-game-actions"><button class="game-restart" id="dpLeave">Salir</button></div></div>${x.html}${end}</div>`;
+  env.stage.innerHTML=`<div class="mini-game"><div class="mini-game-head"><div><p>ARCADE SUDOMI · MULTIJUGADOR</p><h2>Dominó</h2><small>Sala ${esc(P().pretty(code))}</small></div><div class="mini-game-actions">${over?'':`<button class="game-restart" id="dpTalk" aria-label="Frases de mesa" aria-expanded="${talkOpen}">💬 Frases</button>`}<button class="game-restart" id="dpLeave">Salir</button></div></div>${talkOpen&&!over?`<div class="dp-talk">${TALK.map((t,k)=>`<button type="button" data-talk="${k}">${t}</button>`).join('')}</div>`:''}${x.html}${end}</div>`;
   x.bind();
+  const tk=$('#dpTalk');if(tk)tk.onclick=()=>{talkOpen=!talkOpen;draw()};
+  env.stage.querySelectorAll('[data-talk]').forEach(b=>b.onclick=()=>talkSend(+b.dataset.talk));
   $('#dpLeave').onclick=()=>{close();env.exit()};
   const again=$('#dpAgain');if(again)again.onclick=()=>{game=X().create('domino','party',{seats:game.seats});game.wifi=true;publish();scheduleBot()};
   const ex=$('#dpExit');if(ex)ex.onclick=()=>{close();env.exit()};
  }
- window.SudomiDominoParty={open,close};
+ window.SudomiDominoParty={open,close,_state:()=>game,_me:()=>mySeat};   // 0.3.97: el reloj de turno (js/table-talk.js) lee de quién es el turno
 })();

@@ -31,6 +31,20 @@
     const one = (k, label, ok) => `<label class="lb-sw ${s.mode === k ? 'on' : ''} ${ok ? '' : 'off'}"><input type="checkbox" role="switch" data-sw="${k}" ${s.mode === k ? 'checked' : ''} ${ok ? '' : 'disabled'}><i></i><span>${label}</span></label>`;
     return `<div class="lb-switches">${one('qr', '📷 Sin internet (QR)', s.qr)}${one('lan', '📶 Wi‑Fi local', s.lan)}</div><p class="lb-swhelp">${esc(SW_HELP[s.mode] || SW_HELP.online)}</p>`;
   }
+  /* 0.3.78 — SALA ABIERTA. Con el servidor dedicado conectado (js/cloud.js), el anfitrión puede anunciar su sala en la lista «Salas abiertas»
+   * para que entre cualquiera. pub = la sala anunciada; mientras la sala de espera siga en pantalla se repite el anuncio (el servidor lo
+   * borra solo si deja de llegar) y, cuando la sala de espera desaparece (empezó la partida o saliste), se retira. Solo salas por internet. */
+  let pub = null, pubO = null, pubTick = 0, pubTimer = null;
+  // STOP clásico queda fuera: su sala usa el mismo nombre de juego que el STOP normal y quien entrara desde la lista caería en el juego equivocado
+  const cloudOk = o => !!(o.host && o.code && window.SudomiCloud && SudomiCloud.ready() && (!o.switches || o.switches.mode === 'online') && o.gameName !== 'STOP clásico');
+  let wantPub = 0;                          // 0.3.84: «Rival al azar» pidió que la próxima sala que se cree salga ya abierta (vale un minuto)
+  const isPub = o => !!pub && pub.code === o.code && pub.game === o.game;
+  const pubData = o => { const me = o.seats.find(s => s.state === 'me'); return { game: o.game, gameName: o.gameName || '', code: o.code, name: me ? me.name : '', free: o.seats.filter(s => s.state === 'open').length } };
+  function pubStop() { if (pub && window.SudomiCloud) SudomiCloud.publish({ game: pub.game, code: pub.code, close: true }); pub = pubO = null; clearInterval(pubTimer); pubTimer = null }
+  function pubStart(o) {
+    pub = { game: o.game, code: o.code }; pubO = o; SudomiCloud.publish(pubData(o)); clearInterval(pubTimer); pubTick = 0;
+    pubTimer = setInterval(() => { if (!pub) return; if (!document.querySelector('.lb [data-pub]')) { pubStop(); return } if (++pubTick % 4 === 0 && pubO) SudomiCloud.publish(pubData(pubO)) }, 15000);
+  }
   function seatRow(s, i, o) {
     const n = i + 1, host = o.host;
     let act = '';
@@ -48,6 +62,7 @@
     return `<div class="lb">
       ${switchesHTML(o.switches)}
       ${code}
+      ${cloudOk(o) ? `<label class="lb-sw lb-pub ${isPub(o) ? 'on' : ''}"><input type="checkbox" role="switch" data-pub ${isPub(o) ? 'checked' : ''}><i></i><span>🌍 Sala abierta: cualquiera puede entrar</span></label>` : ''}
       <div class="lb-head"><b>${esc(`Jugadores (${n} de ${o.seats.length})`)}</b></div>
       <ol class="lb-seats">${o.seats.map((s, i) => seatRow(s, i, o)).join('')}</ol>
       ${o.code ? '<button type="button" class="lb-invite" data-lb="invite">👥 Invitar amigos</button>' : ''}
@@ -76,7 +91,14 @@
     const s = o.switches;
     if (s) root.querySelectorAll('[data-sw]').forEach(c => c.onchange = () => { if (s.onSwitch) s.onSwitch(c.checked ? c.dataset.sw : 'online') });
     if (o.bindExtra) o.bindExtra(root);
+    const pb = root.querySelector('[data-pub]');
+    if (pb) pb.onchange = () => { if (pb.checked) pubStart(o); else pubStop(); pb.parentNode.classList.toggle('on', pb.checked) };
+    if (isPub(o)) { const was = pubO ? pubData(pubO).free : -1; pubO = o; if (pubData(o).free !== was) SudomiCloud.publish(pubData(o)) }   // entró o salió alguien: se actualiza cuántos faltan
   }
-  function render(root, o) { if (!root) return; root.innerHTML = html(o); bind(root, o) }
-  window.SudomiLobby = { render, html, bind, switchesHTML };
+  function render(root, o) {
+    if (!root) return;
+    if (wantPub && Date.now() - wantPub < 60000 && cloudOk(o) && !isPub(o)) { wantPub = 0; pubStart(o) }
+    root.innerHTML = html(o); bind(root, o);
+  }
+  window.SudomiLobby = { render, html, bind, switchesHTML, autoOpen: () => { wantPub = Date.now() } };
 })();

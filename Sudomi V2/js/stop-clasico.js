@@ -152,7 +152,14 @@
  const $=sel=>ui.stage.querySelector(sel);
  function reset(){clearInterval(clock);clock=null;clearTimeout(sendTimer);if(net){try{net.close()}catch(_){}}net=null;gsend=null;S=null;V=null;seats=[];status='';roomCode='';offline=false;mode=null;busy=false;lastKey='';lastPhase='';screen='';sess={order:null,used:[],turn:0}}
  function open(opts){ui=opts;reset();ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden')}
- function close(){if(!ui)return;reset()}
+ function close(){if(!ui)return;try{window.SudomiPark&&SudomiPark.sync()}catch(_){}reset()}
+ // 0.3.63: la partida contra la máquina se guarda al salir (ronda, letras usadas, tu hoja y los puntos) y se retoma desde «Continuar»
+ function parkState(){return mode==='solo'&&S?(S.phase==='final'?{mode:'clasico',over:true}:{mode:'clasico',snap:{S,sess,seats,draft}}):null}
+ function parkResume(o,s){
+  if(!s||!s.S||!Array.isArray(s.S.hist)||!s.sess||!Array.isArray(s.seats))return false;
+  open(o);mode='solo';seats=s.seats;S=s.S;sess=s.sess;draft=cleanN(s.draft);draftKey=S.round+':'+S.letter+':'+S.hist.length;focus=-1;lockF=-1;
+  snapKey=S.phase==='stopped'?draftKey:'';lastPhase=S.phase;startClock();pushState();return true;
+ }
  function leave(){const u=ui;close();if(u){u.stage.innerHTML='';u.exit()}}
 
  /* ----- anfitrión / solo ----- */
@@ -346,5 +353,5 @@
   }
  }
 
- window.SudomiStopClasico={open,close,solo,create,adopt,guest,leave,active:()=>!!mode,playing:()=>!!V&&screen==='game'&&V.phase!=='final',_state:()=>S,_view:()=>V,_sess:()=>sess,_ev:e=>onHostEvent(e),_net:()=>net};
+ window.SudomiStopClasico={open,close,parkState,parkResume,solo,create,adopt,guest,leave,active:()=>!!mode,playing:()=>!!V&&screen==='game'&&V.phase!=='final',_state:()=>S,_view:()=>V,_sess:()=>sess,_ev:e=>onHostEvent(e),_net:()=>net};
 })();

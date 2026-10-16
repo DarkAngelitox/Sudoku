@@ -57,6 +57,14 @@
  const KILL_HEART=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M50 92C12 62 3 42 3 29A22.500 22.500 0 0 1 50 21A22.500 22.500 0 0 1 97 29C97 42 88 62 50 92Z" fill="#ff3b6b" stroke="#fff" stroke-width="4"/><text x="50" y="52" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="900" fill="#fff">sorry :(</text></svg>');
  const KILL_A=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="#e53935" stroke="#fff" stroke-width="6"/><g fill="#1a0b0b"><circle cx="38" cy="40" r="7"/><circle cx="62" cy="34" r="6"/><circle cx="56" cy="62" r="7"/><circle cx="34" cy="64" r="5"/></g><g stroke="#ffd54a" stroke-width="3" stroke-linecap="round"><path d="M38 28v-8M27 40h-8M62 22v-7M72 34h7"/></g></svg>');
  const KILL_B=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g fill="#e53935" stroke="#fff" stroke-width="4" stroke-linejoin="round"><path d="M46 44L20 30l18-16z"/><path d="M54 44l10-30 18 14z"/><path d="M58 54l30-4-6 22z"/><path d="M52 60l14 26-24 2z"/><path d="M44 56L14 70l2-24z"/></g></svg>');
+ // 0.3.70 — miniaturas de las dos animaciones de captura nuevas (Corte y Espadas) y las fichas de madera del dueño para Damas (img/damas/)
+ const KILL_SLASH=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g fill="#e53935" stroke="#fff" stroke-width="5"><path d="M44 12A38 38 0 0 0 44 88z" transform="rotate(-10 44 50)"/><path d="M56 12A38 38 0 0 1 56 88z" transform="rotate(10 56 50)"/></g><path d="M50 4v92" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M50 4v92" stroke="#ffd54a" stroke-width="2" stroke-linecap="round"/></svg>');
+ const KILL_SWORDS=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="30" fill="#e53935" stroke="#fff" stroke-width="5"/><g stroke-linecap="round"><g transform="rotate(45 50 50)"><path d="M50 4v70" stroke="#e9eef5" stroke-width="8"/><path d="M38 74h24" stroke="#c9a23a" stroke-width="6"/><path d="M50 76v18" stroke="#5a3a1a" stroke-width="7"/></g><g transform="rotate(-45 50 50)"><path d="M50 4v70" stroke="#e9eef5" stroke-width="8"/><path d="M38 74h24" stroke="#c9a23a" stroke-width="6"/><path d="M50 76v18" stroke="#5a3a1a" stroke-width="7"/></g></g></svg>');
+ // 0.3.95 - miniaturas de Rayo, Bola de fuego y Dragón
+ const KILL_BOLT=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g fill="#4a4e5a"><circle cx="34" cy="26" r="16"/><circle cx="56" cy="20" r="18"/><circle cx="74" cy="30" r="13"/><rect x="24" y="26" width="58" height="16" rx="8"/></g><path d="M56 38L42 64h11L40 94l26-36H55l9-20z" fill="#fff59a" stroke="#ffc400" stroke-width="3" stroke-linejoin="round"/></svg>');
+ const KILL_FIRE=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><radialGradient id="f" cx=".6" cy=".6" r=".6"><stop offset="0" stop-color="#fff"/><stop offset=".25" stop-color="#ffe25a"/><stop offset=".6" stop-color="#ff7a1a"/><stop offset="1" stop-color="#d62000"/></radialGradient></defs><path d="M10 14L52 46" stroke="#ff9a1a" stroke-width="16" stroke-linecap="round" opacity=".5"/><circle cx="60" cy="60" r="28" fill="url(#f)"/></svg>');
+ const KILL_DRAGON=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="16" fill="#1a0b08"/><path d="M28 70L92 30v40z" fill="#ff7a1a" opacity=".85"/><path d="M28 70L92 42v18z" fill="#ffe25a"/><circle cx="22" cy="74" r="14" fill="#1761b2" stroke="#fff" stroke-width="3"/><path d="M10 64q-6-14 0-24q5 10 10 14zM34 64q6-14 0-24q-5 10-10 14z" fill="#f2e3b8"/><path d="M8 70q0-18 14-18t14 18" fill="#b3161b"/><circle cx="17" cy="64" r="2.5" fill="#ffd400"/><circle cx="27" cy="64" r="2.5" fill="#ffd400"/></svg>');
+ const WOOD_RED='url("img/damas/madera-roja.png")',WOOD_BLUE='url("img/damas/madera-azul.png")';
  /* Cada skin: id · game (el id del juego) · gameName · name · price · desc · preview (dos imágenes para la tienda) · shared (true = en una partida online el rival también la ve) */
  // 0.3.55 — skins del Sudoku: cambian SOLO los números que pones tú, sus notas y el teclado con sus opciones (Notas, Auto, Borrar, Pista). Los números fijos del tablero no cambian.
  const FONT_LAPIZ='"Segoe Print","Bradley Hand","Chalkboard SE","Marker Felt","Comic Sans MS",cursive',FONT_ORO='Georgia,"Times New Roman",serif';
@@ -90,7 +98,7 @@ body.skin-sudoku-lapiz #gameScreen .cell.sk-bad.sk-in::after{animation:skScrib .
  const sdCss=(id,r)=>[`body.skin-sudoku-${id} #gameScreen`,`#shopScreen .pv-sk-${id}`].map(S=>`
 ${S} .cell:not(.given):not(.wrong):not(.sk-bad){${r.num}}
 ${S} .cell.selected{background:var(--cell,#fff)!important;${r.sel}}
-${S} .cell.same:not(.given):not(.wrong):not(.sk-bad){color:${r.col}!important}
+${r.col?`${S} .cell.same:not(.given):not(.wrong):not(.sk-bad){color:${r.col}!important}`:""}
 ${S} .cell.sk-bad:not(.given){${r.bad}}
 ${S} .note.on{${r.note}}
 ${S} .num-btn,${S} .erase-key,${S} .tool{${r.key}}
@@ -103,10 +111,10 @@ ${S} .num-btn.exhausted{${r.off}}`).join('');
   +sdCss('lapiz',{bad:LAPIZ_BAD,col:'#0b0b0d',sel:'outline:2.500px dashed #0b0b0d;outline-offset:-5px;box-shadow:inset 0 0 0 1.500px #0b0b0d55',num:`color:#0b0b0d;font-family:${FONT_LAPIZ};font-weight:700`,note:`color:#6a7180;font-family:${FONT_LAPIZ}`,
    key:`background:#fff8c9;color:#3d4350;border-color:#e2cf6a;border-radius:5px 15px 7px 13px;box-shadow:2px 3px 0 #d9c65a;font-family:${FONT_LAPIZ}`,small:'color:#8a7a2a',
    active:'background:#ffd54a;color:#2a2200;border-color:#c9a400',off:'background:#efe9c8;color:#b3ab84;box-shadow:none'})
-  +sdCss('oro',{bad:ORO_BAD,col:'#e6a400',sel:'box-shadow:inset 0 0 0 3px #e6a400,inset 0 0 0 4.500px #fff3b0,inset 0 0 11px #ffd54acc',num:`color:#e6a400;font-family:${FONT_ORO};font-weight:900;text-shadow:0 1px 0 #fff6c8,0 -1px 0 #8a5a00,0 0 7px #ffd54acc;animation:skShine 2.6s ease-in-out infinite`,note:'color:#c98f00;text-shadow:0 0 3px #ffd54a',
+  +sdCss('oro',{bad:ORO_BAD,col:'',sel:'box-shadow:inset 0 0 0 3px #e6a400,inset 0 0 0 4.500px #fff3b0,inset 0 0 11px #ffd54acc',num:`color:#e6a400;font-family:${FONT_ORO};font-weight:900;text-shadow:0 1px 0 #fff6c8,0 -1px 0 #8a5a00,0 0 7px #ffd54acc;animation:skShine 2.6s ease-in-out infinite`,note:'color:#c98f00;text-shadow:0 0 3px #ffd54a',
    key:`background:linear-gradient(180deg,#3a2f14,#0e0c08);color:#ffe27a;border-color:#ffcf3f;box-shadow:0 3px 0 #8a6400,0 0 9px #ffc40077,inset 0 1px 0 #fff3b088;text-shadow:0 0 6px #ffc400cc;font-family:${FONT_ORO}`,small:'color:#ffd76a;text-shadow:none',
    active:'background:linear-gradient(180deg,#fff0a0,#f0b400);color:#2a1c00;border-color:#fff7d0;text-shadow:none;box-shadow:0 3px 0 #8a6400,0 0 14px #ffd54a',off:'opacity:.4;box-shadow:none;text-shadow:none'})
-  +'\nhtml[data-theme="dark"] body.skin-sudoku-oro #gameScreen .cell:not(.given):not(.wrong):not(.sk-bad){color:#ffd75e!important}\nhtml[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell:not(.given):not(.wrong):not(.sk-bad){color:#e9edf5!important}\nhtml[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell.selected{outline-color:#e9edf5;box-shadow:inset 0 0 0 1.500px #e9edf555}'
+  +'\nhtml[data-theme="dark"] body.skin-sudoku-oro #gameScreen .cell:not(.given):not(.wrong):not(.sk-bad):not(.same){color:#ffd75e!important}\nhtml[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell:not(.given):not(.wrong):not(.sk-bad){color:#e9edf5!important}\nhtml[data-theme="dark"] body.skin-sudoku-lapiz #gameScreen .cell.selected{outline-color:#e9edf5;box-shadow:inset 0 0 0 1.500px #e9edf555}'
   // 0.3.56 — animación al poner un número (la clase sk-in y el <span class="sk-num"> los pone watchBoard(), más abajo): neón sube desde abajo, a lápiz se va escribiendo, oro cae desde arriba del tablero
   +BAD_CSS+`\n@keyframes skShine{0%,100%{text-shadow:0 1px 0 #fff6c8,0 -1px 0 #8a5a00,0 0 5px #ffd54a99}50%{text-shadow:0 1px 0 #fff,0 -1px 0 #8a5a00,0 0 12px #ffe27a,0 0 20px #ffc40099}}
 #gameScreen .cell.sk-in{z-index:3}#gameScreen .cell .sk-num{display:inline-block;pointer-events:none}
@@ -142,6 +150,7 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
   {id:'fireworks',cat:'sudoku',pv:'win',game:'sudokuwin',gameName:'Animación final',name:'Fuegos artificiales',price:250,desc:'Al completar el sudoku, el tablero brilla en dorado y estallan fuegos artificiales encima.',preview:[WIN_FIRE]},
   {id:'oro',cat:'sudoku',pv:'sudoku',game:'sudoku',gameName:'Números',name:'Oro',price:200,desc:'Tus números van en dorado con letra elegante y el teclado es negro con oro.',preview:SD_ORO},
   {id:'caps',cat:'checkers',pv:'board',game:'checkers',gameName:'Damas',name:'Tapitas de refresco',price:150,desc:'Las fichas se cambian por tapas de botella de vidrio: rojas contra azules.',preview:[CAP_RED,CAP_BLUE],shared:true},
+  {id:'wood',cat:'checkers',pv:'board',game:'checkers',gameName:'Damas',name:'Madera pirata',price:200,desc:'Fichas de madera pintada, dibujadas por el dueño de SUDOMI: la calavera pirata roja contra el ancla azul.',preview:[WOOD_RED,WOOD_BLUE],shared:true},   // 0.3.70: arte del dueño
   {id:'faces',cat:'connect4',pv:'grid',game:'connect4',gameName:'4 en línea',name:'Caritas',price:150,desc:'Las fichas amarillas son caritas felices y las rojas, caras enojadas.',preview:[FACE_ANGRY,FACE_HAPPY],shared:true},
   // 0.3.47 — Mesa 3D del dominó: tres ranuras separadas (fondo, dominós, sillas). Se ven en la mesa de TODOS cuando la mano la saca quien los lleva (js/domino-3d.js)
   {id:'colmado',cat:'domino',pv:'img',game:'d3scene',gameName:'Mesa 3D · Fondo',name:'Colmado',price:100,desc:'Estantes de botellas, mostrador rojo y piso de losetas.',preview:[THUMB_COLMADO],note:' Se pone cuando sacas tú.'},
@@ -153,17 +162,35 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
   {id:'killshots',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Balacera',price:200,desc:'Cuando te comes una ficha sale volando, recibe cuatro disparos, se rompe en pedazos y se arma otra vez en su casa.',preview:[KILL_A,KILL_B],shared:true},
   // 0.3.53 - dos animaciones de captura mas (misma ranura: se lleva una a la vez)
   {id:'killbat',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Batazo',price:200,desc:'Cuando te comes una ficha, un bate de pelota le da un batazo, la rompe en pedazos y se arma otra vez en su casa.',preview:[KILL_BAT,KILL_B],shared:true},
-  {id:'killbomb',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Bomba «sorry»',price:250,desc:'Cuando te comes una ficha se le pega una bomba, explota y sale un corazón que dice «sorry :(».',preview:[KILL_BOMB,KILL_HEART],shared:true}
+  {id:'killbomb',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Bomba «sorry»',price:250,desc:'Cuando te comes una ficha se le pega una bomba, explota y sale un corazón que dice «sorry :(».',preview:[KILL_BOMB,KILL_HEART],shared:true},
+  // 0.3.70 - dos mas (ideas del dueño)
+  {id:'killslash',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Corte',price:250,desc:'Cuando te comes una ficha, la tuya salta detrás de ella y la corta en dos de arriba abajo; las mitades caen y se arma otra vez en su casa.',preview:[KILL_SLASH,KILL_B],shared:true},
+  {id:'killswords',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Espadas',price:250,desc:'Cuando te comes una ficha, dos espadas la cruzan en X y la parten en cuatro.',preview:[KILL_SWORDS,KILL_B],shared:true},
+  // 0.3.95 - tres más (pedido del dueño): rayo, bola de fuego y el dragón legendario
+  {id:'killbolt',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Rayo',price:250,desc:'Cuando te comes una ficha, sale una nube negra y le cae un rayo: queda quemada y se deshace en ceniza.',preview:[KILL_BOLT,KILL_B],shared:true},
+  {id:'killfire',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura',name:'Bola de fuego',price:250,desc:'Cuando te comes una ficha, le cae una bola de fuego, explota y la ficha arde hasta volverse ceniza.',preview:[KILL_FIRE,KILL_B],shared:true},
+  {id:'killdragon',cat:'parchis',pv:'kill',game:'parchiskill',gameName:'Animación de captura · Legendaria',name:'Dragón',price:2000,legend:true,desc:'La pantalla se oscurece: tu ficha aparece en la esquina con un casco de dragón y la comida en el centro. Tu ficha le lanza una llamarada y la quema.',preview:[KILL_DRAGON,KILL_FIRE],shared:true}
  ];
  const read=()=>{try{const v=JSON.parse(localStorage.getItem(SKEY));return {own:Array.isArray(v&&v.own)?v.own:[],on:(v&&v.on&&typeof v.on==='object')?v.on:{}}}catch(_){return {own:[],on:{}}}};
  const write=v=>{try{localStorage.setItem(SKEY,JSON.stringify(v))}catch(_){}apply();try{window.dispatchEvent(new CustomEvent('sudomi-shop-skins'))}catch(_){}};   // el aviso sirve para mandársela al rival si estás en una partida online
+ /* 0.3.95 (dueño): en cada ranura se pueden poner VARIAS cosas a la vez (v.on[juego] = lista) y en cada partida sale una al azar.
+    active(juego) da la que salió esta vez (se vuelve a sortear al terminar cada partida: reroll) y pick(juego) sortea una nueva ya (animaciones del final). */
+ const onList=(v,game)=>{const x=v.on[game];return (Array.isArray(x)?x:x?[x]:[]).filter(id=>v.own.includes(id))};
+ let roll={};
  const Skins={
   list:()=>SKINS.slice(),
   owns:id=>read().own.includes(id),
-  active:game=>{const v=read(),id=v.on[game];return id&&v.own.includes(id)?id:''},
-  buy(id){const s=SKINS.find(x=>x.id===id),v=read();if(!s||v.own.includes(id))return false;if(!Coins.spend(s.price))return false;v.own.push(id);v.on[s.game]=id;write(v);return true},   // al comprarla queda puesta
-  equip(id,on){const s=SKINS.find(x=>x.id===id),v=read();if(!s||!v.own.includes(id))return false;if(on)v.on[s.game]=id;else delete v.on[s.game];write(v);return true}
+  mix:game=>onList(read(),game),
+  active:game=>{const L=onList(read(),game);if(L.length<2)return L[0]||'';if(!L.includes(roll[game]))roll[game]=L[Math.random()*L.length|0];return roll[game]},
+  pick:game=>{const L=onList(read(),game);roll[game]=L[Math.random()*L.length|0]||'';return roll[game]},
+  reroll(){roll={};apply()},
+  buy(id){const s=SKINS.find(x=>x.id===id),v=read();if(!s||v.own.includes(id))return false;if(!Coins.spend(s.price))return false;v.own.push(id);v.on[s.game]=[id];write(v);return true},   // al comprarla queda puesta
+  // on = true: «Cambiar» (queda sola en su ranura) · false: «Quitar» (sale de la mezcla)
+  equip(id,on){const s=SKINS.find(x=>x.id===id),v=read();if(!s||!v.own.includes(id))return false;const L=onList(v,s.game).filter(x=>x!==id);v.on[s.game]=on?[id]:L;if(!v.on[s.game].length)delete v.on[s.game];delete roll[s.game];write(v);return true},
+  // «Al azar»: se suma a las que ya están puestas en esa ranura
+  add(id){const s=SKINS.find(x=>x.id===id),v=read();if(!s||!v.own.includes(id))return false;const L=onList(v,s.game);if(!L.includes(id))L.push(id);v.on[s.game]=L;delete roll[s.game];write(v);return true}
  };
+ ['sudomi-arcade','sudomi-win'].forEach(ev=>window.addEventListener(ev,()=>setTimeout(()=>Skins.reroll(),4500)));   // la próxima partida puede salir con otra
  function css(){
   // 0.3.39: la skin va en CADA ficha (clase sk-caps), no en toda la página: así en una partida online cada lado lleva la skin de su dueño.
   // Quién lleva qué lo decide skinOf() en js/other-games.js. Si te tocan las rojas, tu tapa es la roja; si te tocan las negras, la azul.
@@ -172,6 +199,11 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
 #miniGameStage .checker-piece.sk-caps.red-piece{background-image:${CAP_RED};background-color:transparent}
 #miniGameStage .checker-piece.sk-caps.black-piece{background-image:${CAP_BLUE};background-color:transparent}
 #miniGameStage .checker-piece.sk-caps b{filter:drop-shadow(0 1px 1px #000a)}
+#miniGameStage .checker-piece.sk-wood{border:0;border-radius:50%;background-size:100% 100%;background-repeat:no-repeat;background-color:transparent;box-shadow:none;filter:drop-shadow(0 3px 3px #0008)}
+#miniGameStage .checker-piece.sk-wood::before,#miniGameStage .checker-piece.sk-wood::after{display:none}
+#miniGameStage .checker-piece.sk-wood.red-piece{background-image:${WOOD_RED}}
+#miniGameStage .checker-piece.sk-wood.black-piece{background-image:${WOOD_BLUE}}
+#miniGameStage .checker-piece.sk-wood b{filter:drop-shadow(0 1px 1px #000a)}
 #miniGameStage .connect-slot.sk-faces.red-disc{background:${FACE_ANGRY} center/100% 100% no-repeat;box-shadow:0 2px 4px #0007}
 #miniGameStage .connect-slot.sk-faces.yellow-disc{background:${FACE_HAPPY} center/100% 100% no-repeat;box-shadow:0 2px 4px #0007}
 #miniGameStage .connect-slot.sk-faces.falling-disc{background:radial-gradient(circle at 50% 40%,#0a2f73 0 60%,#0d3a85 100%)}
@@ -191,7 +223,7 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
  /* ---------- la pantalla ---------- */
  // 0.3.54: la tienda va separada por juego (pestañas arriba) y cada objeto tiene «Ver»: una vista previa grande; las animaciones de captura se ven en movimiento
  const CATS=[['all','Todo'],['sudoku','Sudoku'],['checkers','Damas'],['connect4','4 en línea'],['domino','Dominó'],['parchis','Parchimi']];
- let taps=0,tapAt=0,cat='all',pvId='';
+ let cat='all',pvId='';
  const bgi=u=>`style="background-image:${u.replace(/"/g,'&quot;')}"`;
  function pvHTML(s){
   const P=s.preview;
@@ -206,15 +238,20 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
   if(s.pv==='kill')return `<div class="shop-stage pv-kill" data-kill="${s.id}"></div>`;
   return `<div class="shop-stage pv-img"><i ${bgi(P[0])}></i></div>`;
  }
- function open(){
+ function open(c){
+  if(c&&CATS.some(x=>x[0]===c))cat=c;   // 0.3.95: la radio del dominó abre la tienda en su pestaña
   const S=window.SudomiScreen;if(!S)return;
   S.open('shopScreen','Tienda de skins',(body,api)=>{
    const coins=Coins.get();
-   const item=s=>{const own=Skins.owns(s.id),on=Skins.active(s.game)===s.id,can=coins>=s.price;
-     return `<div class="shop-item${on?' on':''}"><button type="button" class="shop-prev g-${s.game}" data-pv="${s.id}" aria-label="Ver ${s.name}">${s.preview.map(u=>`<i ${bgi(u)}></i>`).join('')}<em>👁 Ver</em></button>
+   // 0.3.95: «Usar» (o «Cambiar» si ya hay otra puesta en esa ranura), «+ Al azar» (se suma a las puestas: en cada partida sale una) y «Quitar»
+   const item=s=>{const own=Skins.owns(s.id),mix=Skins.mix(s.game),on=mix.includes(s.id),can=coins>=s.price,many=mix.length>1;
+     const btns=!own?`<button type="button" class="shop-btn buy" data-buy="${s.id}" ${can?'':'disabled'}>${coinSvg()} ${s.price}</button>`
+      :on?`<button type="button" class="shop-btn alt" data-eq="${s.id}" data-on="0">Quitar</button>`
+      :`<span class="shop-btns"><button type="button" class="shop-btn" data-eq="${s.id}" data-on="1">${mix.length?'Cambiar':'Usar'}</button>${mix.length?`<button type="button" class="shop-btn mixb" data-add="${s.id}" title="Se suma a las que tienes puestas y en cada partida sale una al azar">🎲 Al azar</button>`:''}</span>`;
+     return `<div class="shop-item${on?' on':''}${s.legend?' legend':''}"><button type="button" class="shop-prev g-${s.game}" data-pv="${s.id}" aria-label="Ver ${s.name}">${s.preview.map(u=>`<i ${bgi(u)}></i>`).join('')}<em>👁 Ver</em></button>
       <div class="shop-txt"><small>${s.gameName}</small><b>${s.name}</b><p>${s.desc}${s.note||(s.shared?' Tu rival online también las ve.':'')}</p></div>
-      ${own?`<button type="button" class="shop-btn ${on?'alt':''}" data-eq="${s.id}" data-on="${on?0:1}">${on?'Quitar':'Usar'}</button>`:`<button type="button" class="shop-btn buy" data-buy="${s.id}" ${can?'':'disabled'}>${coinSvg()} ${s.price}</button>`}
-      ${own?`<em class="shop-tag">${on?'Puesta':'Comprada'}</em>`:can?'':`<em class="shop-tag miss">Te faltan ${s.price-coins}</em>`}</div>`};
+      ${btns}
+      ${own?`<em class="shop-tag">${on?(many?`🎲 Al azar (${mix.length})`:'Puesta'):'Comprada'}</em>`:can?'':`<em class="shop-tag miss">Te faltan ${s.price-coins}</em>`}</div>`};
    const groups=CATS.slice(1).filter(c=>cat==='all'||c[0]===cat).map(c=>{const L=SKINS.filter(s=>s.cat===c[0]);return L.length?`<h3 class="shop-h">${c[1]} <small>${L.filter(s=>Skins.owns(s.id)).length}/${L.length}</small></h3><div class="shop-list">${L.map(item).join('')}</div>`:''}).join('');
    const pv=SKINS.find(s=>s.id===pvId);
    body.innerHTML=`<div class="shop-bank">${coinSvg()}<div><b>${coins.toLocaleString('es')}</b><small>monedas</small></div></div>
@@ -223,11 +260,9 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
     ${groups}
     <p class="shop-how small">Pronto habrá más skins. Las monedas y las compras se guardan en este teléfono.</p>
     ${pv?`<div class="shop-pv" role="dialog" aria-label="Vista previa de ${pv.name}"><div class="shop-pvcard"><small>${[(CATS.find(c=>c[0]===pv.cat)||[0,''])[1],pv.gameName].filter((x,k,a)=>x&&a.indexOf(x)===k).join(' · ')}</small><b>${pv.name}</b>${pvHTML(pv)}<p>${pv.desc}</p><button type="button" class="shop-btn alt" data-pvx>Cerrar</button></div></div>`:''}`;
-   // 0.3.40 — TRUCO DE PRUEBAS (quitar antes de publicar en tiendas): tocar 7 veces seguidas la moneda grande da 500 monedas
-   const bank=body.querySelector('.shop-bank .coin');
-   if(bank)bank.onclick=()=>{const now=Date.now();taps=now-tapAt<1200?taps+1:1;tapAt=now;if(taps>=7){taps=0;Coins.add(500,'Monedas de prueba');api.redraw()}};
    body.querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>{if(Skins.buy(b.dataset.buy))api.redraw()});
    body.querySelectorAll('[data-eq]').forEach(b=>b.onclick=()=>{Skins.equip(b.dataset.eq,b.dataset.on==='1');api.redraw()});
+   body.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{Skins.add(b.dataset.add);api.redraw()});
    body.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{cat=b.dataset.cat;api.redraw()});
    body.querySelectorAll('[data-pv]').forEach(b=>b.onclick=()=>{pvId=b.dataset.pv;api.redraw()});
    const ov=body.querySelector('.shop-pv');
@@ -246,9 +281,10 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
  const WIN_HOLD=2600,WIN_HOLD_SKIN=4000,WIN_FX={flag:1,fall:1,fireworks:1};
  function winAnim(id,cells,side,rect){
   const mid=(side-1)/2,FX=window.SudomiFX;
+  try{window.SudomiSound&&SudomiSound.play('w'+id)}catch(_){}   // 0.3.86: cada animaciÃ³n del final trae su sonido
   cells.forEach((c,i)=>{
    const r=Math.floor(i/side),k=i%side;c.classList.remove('wfx-flag','wfx-fall','wfx-gold');void c.offsetWidth;
-   if(id==='flag'){const cross=r===mid||k===mid;c.style.setProperty('--wc',cross?'#ffffff':(r<mid)===(k<mid)?'#002d62':'#ce1126');c.style.setProperty('--wt',cross?'#10213b':'#ffffff');c.style.setProperty('--wd',(r+k)*55+'ms');c.classList.add('wfx-flag')}
+   if(id==='flag'){const cross=r===mid||k===mid;c.style.setProperty('--wc',cross?'#ffffff':(r<mid)===(k<mid)?'#002d62':'#ce1126');c.style.setProperty('--wt',cross?'#10213b':'#ffffff');c.style.setProperty('--wd',(r+k)*55+'ms');c.classList.add('wfx-flag');const wt=cross?'#10213b':'#ffffff',d=(r+k)*55;setTimeout(()=>c.style.setProperty('color',wt,'important'),d+430);setTimeout(()=>c.style.removeProperty('color'),d+3000)}
    else if(id==='fall'){c.style.setProperty('--wd',Math.round(k*45+Math.random()*420)+'ms');c.style.setProperty('--wr',Math.round(Math.random()*120-60)+'deg');c.style.setProperty('--wy',Math.round(rect.height*(1.05-r/side)+40)+'px');c.classList.add('wfx-fall')}
    else{c.style.setProperty('--wd',Math.round(Math.hypot(r-mid,k-mid)*110)+'ms');c.classList.add('wfx-gold')}
   });
@@ -258,7 +294,7 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
  }
  function winHold(){
   const m=document.getElementById('modal'),b=document.getElementById('board');if(!m)return;
-  const id=Skins.active('sudokuwin'),on=!!WIN_FX[id];
+  const id=Skins.pick('sudokuwin'),on=!!WIN_FX[id];   // 0.3.95: con varias puestas, una al azar cada vez
   if(on&&b&&b.children.length===81)setTimeout(()=>{if(b.children.length===81)winAnim(id,[...b.children],9,b.getBoundingClientRect())},250);
   m.classList.add('win-wait');
   const show=()=>{m.classList.remove('win-wait');document.removeEventListener('pointerdown',skip,true)},skip=()=>setTimeout(show,0);
@@ -271,6 +307,9 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
   if(!box)return;const side=5;box.innerHTML=Array.from({length:side*side},(_,i)=>`<span class="cell${i%3?'':' given'}">${(i*7+3)%9+1}</span>`).join('');
   const loop=()=>{if(!box.isConnected)return;winAnim(id,[...box.children],side,box.getBoundingClientRect());setTimeout(loop,4700)};setTimeout(loop,500);
  }
- const boot=()=>{apply();watchBoard()};
+ // 0.3.95 — canciones de la radio de bachata del dominó (js/radio.js): cada una de pago es un objeto de la tienda, ranura «radio»
+ const THUMB_RADIO=uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="16" fill="#ffd27a"/><path d="M22 34L74 16" stroke="#3a2a1a" stroke-width="4" stroke-linecap="round"/><rect x="12" y="32" width="76" height="52" rx="10" fill="#c0392b" stroke="#6b1a12" stroke-width="4"/><circle cx="36" cy="58" r="15" fill="#3a2a1a"/><circle cx="36" cy="58" r="9" fill="#6b4a3a"/><rect x="58" y="44" width="22" height="10" rx="3" fill="#fff3c0"/><circle cx="64" cy="70" r="5" fill="#ffd84a"/><circle cx="78" cy="70" r="5" fill="#ffd84a"/><path d="M80 12q8 6 4 16M86 8q12 10 6 24" stroke="#2a6ee0" stroke-width="3" fill="none" stroke-linecap="round"/></svg>');
+ function radioItems(){try{(window.SudomiRadio?SudomiRadio.songs():[]).filter(s=>s.price>0&&!SKINS.some(x=>x.id==='radio-'+s.id)).forEach(s=>SKINS.push({id:'radio-'+s.id,cat:'domino',pv:'img',game:'radio',gameName:'Radio de bachata',name:s.name,price:s.price,desc:'Una canción para la radio 📻 de la mesa de dominó.',preview:[THUMB_RADIO],note:' Con «🎲 Al azar» la radio va cambiando entre las que tengas puestas.'}))}catch(_){}}
+ const boot=()=>{radioItems();apply();watchBoard()};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();

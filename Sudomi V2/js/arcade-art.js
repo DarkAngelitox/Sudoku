@@ -19,7 +19,7 @@ window.SudomiArcadeArt=(()=>{
   home:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.500 11.200L12 4l8.500 7.200M6 9.800V20h4.200v-5.400h3.600V20H18V9.800" fill="none" stroke="currentColor" stroke-width="2.300" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   back:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.500 5L7.500 12l7 7M8 12h9.500" fill="none" stroke="currentColor" stroke-width="2.600" stroke-linecap="round" stroke-linejoin="round"/></svg>'
  };
- const BCOL={dos:'#ffb300',mines:'#6d7b8d',fleet:'#1e88e5',chess:'#8d6e63',checkers:'#c62828',tictactoe:'#7e57c2',connect4:'#1565c0',domino:'#2e7d32',memory:'#ef6c00',dotsboxes:'#00897b',stop:'#d81b60',mahjong:'#00796b',blackjack:'#1b5e20',poker:'#4a148c',escoba:'#ad6f00',rummy:'#283593',slide:'#f4511e',dominopolis:'#0277bd',parchis:'#f9a825'};
+ const BCOL={dos:'#ffb300',mines:'#6d7b8d',fleet:'#1e88e5',chess:'#8d6e63',checkers:'#c62828',tictactoe:'#7e57c2',connect4:'#1565c0',domino:'#2e7d32',memory:'#ef6c00',dotsboxes:'#00897b',stop:'#d81b60',mahjong:'#00796b',blackjack:'#1b5e20',poker:'#4a148c',escoba:'#ad6f00',rummy:'#283593',slide:'#f4511e',dominopolis:'#0277bd',parchis:'#f9a825',oculta:'#2e9e48',ahorcado:'#6a3fb5'};
  function banner(id,name,sub){
   const art=(window.SudomiGameArt&&SudomiGameArt[id])||'';
   return `<div class="arc-banner" style="--bn:${BCOL[id]||'#0b3d91'}">${art?`<div class="arc-banner-art">${art}</div>`:''}<div class="arc-banner-name">${sub?`<small>${sub}</small>`:''}<b>${name}</b></div></div>`;
@@ -38,6 +38,8 @@ window.SudomiArcadeArt=(()=>{
   dotsboxes:{pve:['✏️','slide'],pvp:['🟦','zoom'],online:['▫️','pulse']},
   stop:{pve:['✋','zoom'],pvp:['⏱','shake'],online:['🔤','flip']},
   mahjong:{pve:['🀄','flip'],pvp:['🎋','wave'],online:['🐉','slide']},
+  oculta:{pve:['🟩','flip'],pvp:['🟨','pulse'],online:['🔠','hop']},
+  ahorcado:{pve:['🪢','shake'],pvp:['👥','pulse'],online:['🌐','spin']},
   blackjack:{pve:['♠️','flip'],pvp:['♥️','pulse'],online:['💰','hop']},
   poker:{pve:['♦️','spin'],pvp:['♣️','flip'],online:['🪙','drop']},
   escoba:{pve:['🧹','wave'],pvp:['🪙','hop'],online:['⚔️','shake']},

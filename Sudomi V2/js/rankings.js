@@ -58,6 +58,15 @@
    <div class="rk-me ${pl.rank?'':'none'}"><div><small>TU POSICIÓN</small><b>${pl.rank?'#'+fmt(pl.rank):'—'}</b></div><div><small>${kind==='score'?'TU MEJOR':kind==='level'?'TU NIVEL':'TU MEJOR RACHA'}</small><b>${val?fmt(val)+' '+unit[kind]:'Sin datos'}</b></div></div>
    ${pl.rank?`<p class="rk-hint">${pl.inList?'¡Estás entre los 15 mejores!':`Estás en el puesto ${fmt(pl.rank)} de ${fmt(TOTAL)} jugadores.${kind==='score'?` Para entrar al top 15 necesitas más de ${fmt(list[list.length-1].v)} puntos.`:kind==='level'?` Para entrar al top 15 necesitas pasar del nivel ${list[list.length-1].v}.`:` Para entrar al top 15 necesitas más de ${list[list.length-1].v} días seguidos.`}`}</p>`:`<p class="rk-hint">${kind==='score'?'Termina un sudoku de esta dificultad para aparecer en la clasificación.':'Juega para aparecer en la clasificación.'}</p>`}
    <div class="rk-list">${rows.map(r=>`<div class="rk-row ${r.me?'me':''} ${r.rank<=3?'top':''}"><span class="rk-pos">${medal(r.rank)}</span><span class="rk-av">${r.p[1]}</span><b class="rk-name">${String(r.p[0]).replace(/[<>&]/g,'')} <i>${r.p[2]}</i></b><span class="rk-val">${fmt(r.v)}<small>${unit[kind]}</small></span></div>`).join('')}</div>`;
+   /* 0.3.75 — RANKINGS REALES. Si el servidor dedicado responde (js/cloud.js), la lista de ejemplo de arriba se cambia por la del servidor.
+      Sin servidor, o mientras llega la respuesta, se queda la de ejemplo: la pantalla nunca sale vacía por un fallo de conexión. */
+   let live=null;try{live=window.SudomiCloud?SudomiCloud.board(kind,diff,()=>{const el=document.getElementById('rankScreen');if(el&&!el.classList.contains('hidden'))api.redraw()}):null}catch(_){}
+   if(live){
+    const safe=t=>String(t).replace(/[<>&"']/g,''),u=unit[kind];
+    body.querySelector('.rk-list').innerHTML=live.rows.length?live.rows.map((r,i)=>`<div class="rk-row ${r.me?'me':''} ${i<3?'top':''}"><span class="rk-pos">${medal(i+1)}</span><span class="rk-av">${safe(r.avatar)||'🙂'}</span><b class="rk-name">${safe(r.name)}</b><span class="rk-val">${fmt(r.v)}<small>${u}</small></span></div>`).join(''):'<p class="rk-hint">Todavía no hay nadie en esta clasificación. ¡Sé el primero!</p>';
+    const me=body.querySelector('.rk-me');if(me){me.classList.toggle('none',!live.me);const b=me.querySelector('b');if(b)b.textContent=live.me?'#'+fmt(live.me.rank):'—'}
+    const h=body.querySelector('.rk-hint');if(h)h.textContent=`Clasificación real · ${live.total} ${live.total===1?'jugador':'jugadores'} con cuenta.${live.me?'':SudomiCloud.account()?' Sincroniza tu cuenta para aparecer.':' Crea tu cuenta en Perfil → Cuenta y nube para aparecer.'}`;
+   }
    body.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{kind=b.dataset.k;api.redraw()});
    body.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{diff=b.dataset.d;api.redraw()});
   });

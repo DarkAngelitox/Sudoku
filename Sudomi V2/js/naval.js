@@ -91,9 +91,9 @@
   const f=1-p;G.phase='fire';
   for(const i of cells){
    const r=shotOn(f,i);if(!r)continue;
-   G.msg=`${nm(p)} disparó a ${at(i,G.N)}: ${r.hit?'¡TOCADO!':'agua'}`;play(r.hit?'bad':'pop');push();
+   G.msg=`${nm(p)} disparó a ${at(i,G.N)}: ${r.hit?'¡TOCADO!':'agua'}`;play(r.hit?'nvhit':'nvmiss');push();
    if(!await sleep(620,t))return false;
-   if(r.sunk){G.msg=`💥 ¡${nm(p)} hundió ${r.sunk.k==='boat'?'la':'el'} ${SHIPS.find(S=>S.k===r.sunk.k).n.toLowerCase()} de ${nm(f)}!`;play('bonus');push();if(!await sleep(950,t))return false}
+   if(r.sunk){G.msg=`💥 ¡${nm(p)} hundió ${r.sunk.k==='boat'?'la':'el'} ${SHIPS.find(S=>S.k===r.sunk.k).n.toLowerCase()} de ${nm(f)}!`;play('nvsink');push();if(!await sleep(950,t))return false}
    if(alive(f)===0){if(G.sim)return true;G.over=true;G.winner=p;G.phase='over';G.msg=`🏆 ¡${nm(p)} hundió toda la flota de ${nm(f)}!`;play('win');push();try{window.SudomiFX&&SudomiFX.confetti&&SudomiFX.confetti()}catch(_){}return true}
   }
   return true;
@@ -108,12 +108,12 @@
   const f=1-p,N=G.N,i=Math.max(0,Math.min(N*N-1,a.i|0)),r=i/N|0,c=i%N,cl=(v,m)=>Math.max(0,Math.min(m,v));
   if(a.k==='sub'){
    const n=sonar(p,i);
-   G.phase='fire';G.msg=`📡 Sonar de ${nm(p)} en ${at(i,N)}: ${n?n+(n===1?' contacto':' contactos'):'nada'}`;play('tap');push();return await sleep(1300,t);
+   G.phase='fire';G.msg=`📡 Sonar de ${nm(p)} en ${at(i,N)}: ${n?n+(n===1?' contacto':' contactos'):'nada'}`;play('nvsonar');push();return await sleep(1300,t);
   }
   if(a.k==='battle'){const r0=cl(r,N-2),c0=cl(c,N-2);G.msg=`💥 Andanada de ${nm(p)}`;return await shoot(p,[r0*N+c0,r0*N+c0+1,(r0+1)*N+c0,(r0+1)*N+c0+1],t)}
-  if(a.k==='carrier'){const c0=cl(c-2,N-5);G.msg=`✈️ Ataque aéreo de ${nm(p)}`;return await shoot(p,[0,1,2,3,4].map(k=>r*N+c0+k),t)}
+  if(a.k==='carrier'){const c0=cl(c-2,N-5);G.msg=`✈️ Ataque aéreo de ${nm(p)}`;play('nvplane');return await shoot(p,[0,1,2,3,4].map(k=>r*N+c0+k),t)}
   if(a.k==='destroyer'){
-   G.phase='fire';G.msg=`🚀 Torpedo de ${nm(p)} por la fila ${ABC[r]}…`;play('tap');push();if(!await sleep(900,t))return false;
+   G.phase='fire';G.msg=`🚀 Torpedo de ${nm(p)} por la fila ${ABC[r]}…`;play('nvtorpedo');push();if(!await sleep(900,t))return false;
    for(let cc=0;cc<N;cc++){const j=r*N+cc;if(G.shots[f][j]!==2&&shipAt(f,j))return await shoot(p,[j],t)}
    G.msg=`🚀 El torpedo recorrió la fila ${ABC[r]} y no encontró nada`;push();return await sleep(1000,t);
   }
@@ -193,9 +193,23 @@
   }
   return true;
  }
- async function run(t){
+ /* 0.3.63 — PARTIDA GUARDADA (contra la máquina o en este dispositivo; ver PARK_MODS en other-games.js). Se guarda la foto CK que run() toma al
+  * empezar cada ronda (o cada turno, en el mismo dispositivo), con las flotas ya colocadas: al retomar se vuelve a elegir el ataque de esa ronda.
+  * run(t,true) retoma: se salta la colocación de las flotas. */
+ let CK=null;
+ const ck=()=>{if(net.role!=='solo')return;try{CK=JSON.stringify(G)}catch(_){CK=null}};
+ function parkState(){const m=umode==='pvp'?'pvp':'pve';return net.role==='solo'&&G?(G.over?{mode:m,over:true}:CK?{mode:m,snap:{ck:CK}}:null):null}
+ function parkResume(o,s,m){
+  let st=null;try{st=JSON.parse(s.ck)}catch(_){}
+  if(!st||!MODES[st.mode]||!Array.isArray(st.fleets)||!Array.isArray(st.shots)||!Array.isArray(st.seats))return false;
+  open(o,st.local?'pvp':'pve');stop();
+  G=st;noTouch=!!G.noTouch;setup.mode=G.mode;setup.noTouch=!!G.noTouch;build(G.N);run(++token,true);return true;
+ }
+ async function run(t,resumed){
   // 1) cada quien coloca su flota
   const place=(p,a)=>{G.fleets[p]=a&&validFleet(a.ships,G.N)?a.ships.map(s=>({k:s.k,len:s.len,r:s.r,c:s.c,v:!!s.v})):randomFleet(G.N);G.ready[p]=true};
+  if(resumed){if(G.local){G.phase='pass';push();await ask(G.turn);if(t!==token)return}}
+  else{
   G.phase='setup';
   if(net.role==='host'){push();await Promise.all([0,1].map(p=>(auto(p)?Promise.resolve(null):ask(p)).then(a=>{if(t!==token)return;place(p,a);push()})));if(t!==token)return}
   else if(!G.local){G.fleets[1]=randomFleet(G.N);G.ready[1]=true;push();const a=await ask(0);if(t!==token)return;place(0,a)}
@@ -206,15 +220,16 @@
    G.turn=0;G.phase='pass';push();await ask(0);if(t!==token)return;
   }
   G.turn=0;
-  if(G.sim){while(G&&!G.over&&t===token){if(!await simRound(t))return}return}
+  }
+  if(G.sim){while(G&&!G.over&&t===token){ck();if(!await simRound(t))return}return}
   // 2) turnos (solo en el mismo teléfono)
   while(G&&!G.over&&t===token){
-   const p=G.turn,f=1-p;
+   const p=G.turn,f=1-p;ck();
    G.turnNo++;G.phase='aim';G.used[p]=false;G.moved[p]=false;Object.keys(G.cd[p]).forEach(k=>{if(G.cd[p][k]>0)G.cd[p][k]--});
    G.msg='';push();
    for(;;){
     const a=auto(p)?await aiAction(p,t):await ask(p);if(t!==token)return;if(!a||a.t==='auto')continue;
-    if(a.t==='move'){if(G.mode==='tactic'&&!G.moved[p]){const m=canMove(p,a.d);if(m){G.fleets[p][m.k]=m.ns;G.moved[p]=true;G.msg=`🧭 ${nm(p)} movió su lancha`;play('tap');push()}}continue}
+    if(a.t==='move'){if(G.mode==='tactic'&&!G.moved[p]){const m=canMove(p,a.d);if(m){G.fleets[p][m.k]=m.ns;G.moved[p]=true;G.msg=`🧭 ${nm(p)} movió su lancha`;play('nvmove');push()}}continue}
     if(a.t==='ab'){if(G.mode==='tactic'&&!G.used[p]&&AB[a.k]&&AB[a.k].pick&&abReady(p,a.k)){G.used[p]=true;G.cd[p][a.k]=AB[a.k].cd;if(!await ability(p,a,t))return;if(G.over)break;G.phase='aim';push()}continue}
     if(a.t==='fire'){const cells=[...new Set(a.cells||[])].filter(i=>Number.isInteger(i)&&i>=0&&i<G.N*G.N&&!G.shots[f][i]).slice(0,SHOTS);if(!cells.length)continue;if(!await shoot(p,cells,t))return;break}
    }
@@ -347,7 +362,7 @@
   }
   pass.classList.add('hidden');cs.classList.remove('hidden');
   const show=boardShown(),data=show==='foe'?V.out:V.inc,ships=V.phase==='setup'?(draft||V.fleet):show==='foe'?V.foe:V.fleet;
-  cs.dataset.b=show;$('#nvTabs').classList.toggle('hidden',V.phase==='setup');
+  cs.dataset.b=show;cs.classList.toggle('aiming',aiming&&show==='foe');   /* 0.3.95: al apuntar, el cursor y las casillas elegidas son una mira */$('#nvTabs').classList.toggle('hidden',V.phase==='setup');
   ui.stage.querySelectorAll('#nvTabs [data-b]').forEach(b=>b.classList.toggle('on',b.dataset.b===show));
   // casillas: agua, llamas, selección, sonar; lo que acaba de cambiar lleva su efecto
   const key=show+':'+(V.phase==='setup'?'s':'g'),same=prev.key===key&&prev.cells;
@@ -356,7 +371,10 @@
    e.classList.toggle('miss',v===1);e.classList.toggle('hit',v===2);
    e.classList.toggle('sel',show==='foe'&&(sel.includes(i)||(sim&&V.phase==='aim'&&V.locked[me]&&V.plan.includes(i))));
    e.classList.toggle('scan2',show==='foe'&&!v&&V.scan[i]===2);e.classList.toggle('scan1',show==='foe'&&!v&&V.scan[i]===1);
-   if(same&&v&&!prev.cells[i]){const c=v===2?'fx-boom':'fx-splash';e.classList.remove('fx-boom','fx-splash');void e.offsetWidth;e.classList.add(c);setTimeout(()=>e.classList.remove(c),1100)}
+   // 0.3.79: antes del impacto cae un MISIL sobre la casilla (.incoming tapa la llama o el agua mientras llega). Con «sin animaciones» va directo al impacto
+   if(same&&v&&!prev.cells[i]){const c=v===2?'fx-boom':'fx-splash',quiet=document.documentElement.dataset.fx==='off'||!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);e.classList.remove('fx-boom','fx-splash');
+    const land=()=>{e.classList.remove('incoming');const m=e.querySelector('.nv-missile');if(m)m.remove();void e.offsetWidth;e.classList.add(c);setTimeout(()=>e.classList.remove(c),1100)};
+    if(quiet)land();else{e.classList.add('incoming');const m=document.createElement('i');m.className='nv-missile';m.setAttribute('aria-hidden','true');e.appendChild(m);setTimeout(land,300)}}
   });
   prev={key,cells:V.phase==='setup'?Array(N*N).fill(0):data.slice()};
   $('#nvShips').innerHTML=ships.map((s,k)=>`<div class="nv-ship${s.sunk?' sunk':''}${V.phase==='setup'&&k===pick?' pick':''}" style="left:${pc(s.c,N)};top:${pc(s.r,N)};width:${pc(s.v?1:s.len,N)};height:${pc(s.v?s.len:1,N)}">${sil(s)}${V.phase==='setup'&&draft&&!V.ready[me]?`<button type="button" class="nv-rot" data-k="${k}" aria-label="Girar">↻</button>`:''}</div>`).join('');
@@ -469,12 +487,12 @@
   else if(d.t==='snd'){try{window.SudomiSound&&SudomiSound.play(d.n)}catch(_){}}
  }
  function leaveNet(){net.tok++;if(net.room){try{net.room.close()}catch(_){}}if(net.conn){try{net.conn.close()}catch(_){}}Object.assign(net,{role:'solo',room:null,conn:null,code:'',seats:[],started:false,me:0})}
- function stop(){token++;G=null;V=null;const p=[...waits.values()];waits.clear();p.forEach(r=>r(null))}
- function close(){stop();leaveNet();net.status=''}
+ function stop(){token++;G=null;V=null;CK=null;const p=[...waits.values()];waits.clear();p.forEach(r=>r(null))}
+ function close(){try{window.SudomiPark&&SudomiPark.sync()}catch(_){}stop();leaveNet();net.status=''}
  function open(opts,m,code){
   ui=opts;ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');
   if(m==='join'){umode='online';joinRoom(code);return}
   umode=m==='pvp'||m==='online'?m:'pve';renderMenu();
  }
- window.SudomiNaval={open,close,join:code=>joinRoom(code),_state:()=>G,_view:()=>V,_net:()=>net,_act:act,_ev:e=>onHost(e)};
+ window.SudomiNaval={open,close,parkState,parkResume,join:code=>joinRoom(code),_state:()=>G,_view:()=>V,_net:()=>net,_act:act,_ev:e=>onHost(e)};
 })();

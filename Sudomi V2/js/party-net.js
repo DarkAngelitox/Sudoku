@@ -110,9 +110,9 @@
    send(id,data){const l=links.get(id);if(l&&l.conn.open){try{l.conn.send(data);return true}catch(_){}}return false},
    // tell one phone why it cannot stay, then hang up
    reject(id,reason){const l=links.get(id);if(!l)return;links.delete(id);l.conn.__dead=true;try{l.conn.send({t:'reject',reason})}catch(_){}setTimeout(()=>{try{l.conn.close()}catch(_){}},500)},
-   close(){
+   close(silent){   // 0.3.98: silent = el anfitrión le pasa la sala a otro (js/host-handoff.js): no se avisa «sala cerrada», así los demás reintentan
     if(closed)return;closed=true;clearInterval(hb);document.removeEventListener('visibilitychange',onVisible);
-    for(const l of links.values()){l.conn.__dead=true;try{l.conn.send({t:'closed'})}catch(_){}}
+    for(const l of links.values()){l.conn.__dead=true;if(!silent){try{l.conn.send({t:'closed'})}catch(_){}}}
     const all=[...links.values()];links.clear();
     setTimeout(()=>{all.forEach(l=>{try{l.conn.close()}catch(_){}});try{peer.destroy()}catch(_){}},500);
    }

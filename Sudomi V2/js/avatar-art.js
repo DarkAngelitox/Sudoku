@@ -16,10 +16,11 @@
     { id: '🐉🛡', name: 'Dragón en pie', img: FILE(7) }
   ];
   // 0.2.82: iconos solo para el nombre «Yukiri» / «Yukiry» (carpeta img/yukiri/). No salen en la fila de dragones.
+  // 0.3.98 (Fase 9.2): eran imágenes de un personaje de anime con derechos de autor; ahora son dibujos propios (yukiri1-3.svg), mismo estilo y mismas ideas
   const YUKI = [
-    { id: '🌸🗡', name: 'Yukiri: espadachina', img: 'img/yukiri/yukiri1.png', pic: 1 },
-    { id: '🌸🌈', name: 'Yukiri: espada en alto', img: 'img/yukiri/yukiri2.png', pic: 1 },
-    { id: '🌸🌿', name: 'Yukiri: pradera', img: 'img/yukiri/yukiri3.png', pic: 1 }
+    { id: '🌸🗡', name: 'Yukiri: espadachina', img: 'img/yukiri/yukiri1.svg', pic: 1 },
+    { id: '🌸🌈', name: 'Yukiri: espada en alto', img: 'img/yukiri/yukiri2.svg', pic: 1 },
+    { id: '🌸🌿', name: 'Yukiri: pradera', img: 'img/yukiri/yukiri3.svg', pic: 1 }
   ];
   // 0.2.84: logo SUDOMI solo para el nombre «Maicolino» / «Maicolinno» (carpeta img/maicolino/)
   // 0.2.89: el logo se rehízo redondo, dibujado en SVG (logo.svg), y se agregó la cara con rizos (cara.png, recorte redondo)
