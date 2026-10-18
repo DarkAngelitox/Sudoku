@@ -25,6 +25,7 @@
  // mientras CONF de arriba esté vacío vale el que se creó en este teléfono (solo para la primera vez)
  const conf=()=>CONF.pub?CONF:get(K_CONF,null);
  const isAdmin=()=>!!get(K_KEY,null);
+ const autoOn=()=>get(K_AUTO,true)!==false;   // 0.3.101: encendido salvo que lo apagues en el panel
 
  // ---------- llaves ----------
  async function pinKey(pin,salt){
@@ -112,7 +113,7 @@
  function panel(){
   const S=window.SudomiScreen;if(!S)return;
   S.open('adminScreen','🛠 Admin',(body,api)=>{
-   const coins=window.SudomiCoins?SudomiCoins.get():0,log=get(K_LOG,[]),C=conf(),auto=!!get(K_AUTO,false),fast=get(K_SPEED,'n')==='f';
+   const coins=window.SudomiCoins?SudomiCoins.get():0,log=get(K_LOG,[]),C=conf(),auto=autoOn(),fast=get(K_SPEED,'n')==='f';
    body.innerHTML=`
     <section class="adm-box"><h3>💰 Mis monedas: <b class="adm-coins">${coins.toLocaleString('es')}</b></h3>
      <div class="adm-row">${[100,500,1000,10000].map(n=>`<button type="button" class="shop-btn" data-add="${n}">+${n.toLocaleString('es')}</button>`).join('')}</div>
@@ -149,7 +150,7 @@
 
  // ---------- botón 🤖 y el que juega ----------
  let btn=null,timer=null;
- const visible=el=>!!el&&!el.classList.contains('hidden')&&el.offsetParent!==null;
+ const visible=el=>{if(!el||el.classList.contains('hidden'))return false;const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(el).visibility!=='hidden'};   // 0.3.101: offsetParent falla con position:fixed
  const sudokuOn=()=>visible(document.getElementById('gameScreen'))&&!document.body.classList.contains('tut-open');
  const arcadeOn=()=>visible(document.getElementById('miniGameStage'));
  function sudokuStep(){
@@ -158,13 +159,13 @@
   return false;
  }
  function tick(){
-  if(!isAdmin()||!get(K_AUTO,false)){stopBot();return}
+  if(!isAdmin()||!autoOn()){stopBot();return}
   try{if(sudokuOn())sudokuStep();else if(arcadeOn()&&window.SudomiArcadeAuto)SudomiArcadeAuto.step();else stopBot()}catch(e){console.warn('SUDOMI admin auto:',e)}
  }
  function startBot(){if(timer)return;timer=setInterval(tick,get(K_SPEED,'n')==='f'?300:900);if(btn)btn.classList.add('on');tick()}
  function stopBot(){if(!timer)return;clearInterval(timer);timer=null;if(btn)btn.classList.remove('on');try{window.SudomiArcadeAuto&&SudomiArcadeAuto.off()}catch(_){}}
  function sync(){
-  const show=isAdmin()&&get(K_AUTO,false)&&(sudokuOn()||arcadeOn());
+  const show=isAdmin()&&autoOn()&&(sudokuOn()||arcadeOn());
   if(show&&!btn){btn=document.createElement('button');btn.type='button';btn.className='adm-bot';btn.textContent='🤖';btn.title='Modo auto';btn.setAttribute('aria-label','Modo auto');
    btn.onclick=()=>timer?stopBot():startBot();document.body.appendChild(btn)}
   if(btn){btn.classList.toggle('hidden',!show);btn.classList.toggle('on',!!timer)}
