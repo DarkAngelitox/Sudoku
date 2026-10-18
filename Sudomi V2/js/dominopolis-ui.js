@@ -675,5 +675,6 @@
     if (opts && opts.role === 'host') { if (getHostSave()) return resumeHost(); untrack(); status = 'La sala ya no se puede reabrir.'; return renderMenu() }
     joinCode = code; if (ui) joinRoom(code);
   }
-  window.SudomiDominopolis = { open, join: joinFromInvite, resumeHost, soloSetup: () => renderMenu(), create: n => { setup.size = n; createRoom() }, close() { parkSync(); token++; leaveNet(); g = null }, parkState, parkResume, parkDrop, hasSave: () => !!getSave(), _state: () => g, _refresh: () => { if (g) refresh() }, _seats: () => seats };
+  window.SudomiDominopolis = { _auto: on => { if (!g || netMode === 'guest' || g.over) return false; const p = g.players[me], want = on !== false; if (!p) return false; if (!!p.ai !== want) { p.ai = want; if (!busy) step() } return true },   // 0.3.100 (admin): modo auto (js/admin.js)
+    open, join: joinFromInvite, resumeHost, soloSetup: () => renderMenu(), create: n => { setup.size = n; createRoom() }, close() { parkSync(); token++; leaveNet(); g = null }, parkState, parkResume, parkDrop, hasSave: () => !!getSave(), _state: () => g, _refresh: () => { if (g) refresh() }, _seats: () => seats };
 })();

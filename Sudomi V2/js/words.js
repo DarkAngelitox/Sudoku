@@ -327,6 +327,9 @@
   open(ui,m,code){O.ui=ui;ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');if(m==='join'){O.mode='online';oJoin(code);return}O.mode=m==='pvp'||m==='online'?m:'pve';oMenu()},
   close(){oStop();oLeaveNet();O.H=null;O.net.status=''},
   playing:()=>!!((O.S&&!O.S.over)||O.H||(O.G&&O.G.phase!=='over')||(O.V&&O.V.phase!=='over')),
+  // 0.3.100 (admin): modo auto (js/admin.js): prueba una palabra que encaje con lo que ya sabe
+  _auto:on=>{const S=O.S;if(on===false||!S||S.over||O.view)return false;const pool=(dict(S.L).by[S.len]||[]).map(x=>x.n).filter(w=>S.rows.every(r=>score(r.g,w).join('')===r.r.join('')));
+   S.cur=(pool.length?rnd(pool):rnd(dict(S.L).by[S.len]).n);oKey(S,'⏎');return true},
   _dict:dict,_score:score
  };
 
@@ -521,6 +524,12 @@
   open(ui,m,code){A.ui=ui;ui.hub.classList.add('hidden');ui.stage.classList.remove('hidden');if(m==='join'){A.mode='online';aJoin(code);return}A.mode=m==='pvp'||m==='online'?m:'pve';aMenu()},
   close(){aStopAll();aLeaveNet();A.net.status=''},
   playing:()=>{const g=A.G||A.V;return !!g&&g.phase!=='over'&&!(g.pve&&g.phase==='end')},
-  _state:()=>A.G,_ai:aAiLetter
+  _state:()=>A.G,_ai:aAiLetter,
+  // 0.3.100 (admin): modo auto (js/admin.js): elige la palabra o pide la letra por quien le toque en este teléfono
+  _auto:on=>{const G=A.G;if(on===false||!G||A.net.role==='guest')return false;
+   if(G.phase==='end'&&A.net.role!=='host'){clearTimeout(A.timer);aNext(G);aStep();return true}
+   const who=aActor(G);if(who<0||G.seats[who].kind==='ai'||(A.net.role==='host'&&who!==0))return false;
+   if(G.phase==='pick'){const pool=dict(G.L).list.filter(x=>x.n.length>=5&&x.n.length<=9);aApply(who,{t:'pick',w:rnd(pool).n});return true}
+   if(G.phase==='guess'){aApply(who,{t:'guess',c:aAiLetter(G)});return true}return false}
  };
 })();

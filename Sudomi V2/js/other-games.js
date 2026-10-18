@@ -946,6 +946,51 @@ function chPhotoHTML(mv,canReplay,flip){
 }
 function renderChess(){let g=game,flip=wifi.active&&wifi.player===1,chips=seatChips('chess',flip),symbols={r:'♜',n:'♞',b:'♝',q:'♛',k:'♚',p:'♟',R:'♖',N:'♘',B:'♗',Q:'♕',K:'♔',P:'♙'},celebrate=localWinPending(),losingKing=g.done.includes('ganan blancas')?'k':'K',BA=window.SudomiBoardArt,mv=g.last&&g.last.before?g.last:null,lastMv=BA&&!mv?BA.moved(g,g.b):new Set();let fresh=false;const trail=new Set();if(mv){if(chSeen!==mv.id){fresh=true;chSeen=mv.id;chMark={id:mv.id,until:Date.now()+5400};clearTimeout(chTimer);chTimer=setTimeout(()=>{stage.querySelectorAll('.chess-main .ch-xm').forEach(e=>e.remove());stage.querySelectorAll('.chess-main .ck-trail').forEach(e=>e.classList.remove('ck-trail'))},5400)}if(chMark.id===mv.id&&Date.now()<chMark.until){trail.add(mv.from);trail.add(mv.to);if(mv.rook)mv.rook.forEach(i=>trail.add(i))}}const showX=i=>mv&&mv.cap&&i===mv.to&&!fresh&&trail.has(i),oppMv=(g.lastBy&&g.lastBy[chOppSide(g)])||null;shell('Ajedrez',g.busy?'Turno de la computadora…':g.done||g.msg,`<div class="ck-bar"><span>${g.done?'Fin de la partida':g.turn==='w'?'⚪ Juegan blancas':'⚫ Juegan negras'}</span><button class="mini-tool" id="chLast" ${oppMv?'':'disabled'}>📷 Última jugada</button><button class="mini-tool" id="chPromo" type="button">${PROMO_ICON[chessPromo]} Coronar: ${PROMO_NAMES[chessPromo]}</button></div>${chips[0]}<div class="chess-board chess-main">${seatOrder(g.b.length,flip).map(i=>{let p=g.b[i],r=i/8|0,c=i%8,dc=flip?7-c:c,dr=flip?7-r:r;return `<button class="chess-cell ${(r+c)%2?'dark-square':'light-square'} ${r>=6?'white-piece-square':''} ${g.sel===i?'chosen':''} ${g.moves.includes(i)?'possible':''} ${g.moves.includes(i)&&p?'capture-target':''} ${lastMv.has(i)?'last-move':''} ${trail.has(i)?'ck-trail':''} ${celebrate&&p===losingKing?'mated-king':''}" data-i="${i}" aria-label="${!p?'Casilla vacía':symbols[p]+' '+String.fromCharCode(97+c)+(8-r)}" ${(g.busy||!localTurn()||g.mode==='pve'&&g.turn==='b')?'disabled':''}>${dc===0?`<i class="co rk">${8-r}</i>`:''}${dr===7?`<i class="co fl">${String.fromCharCode(97+c)}</i>`:''}${p?(BA?BA.chess(p):symbols[p]):''}${showX(i)?'<i class="ch-xm">✕</i>':''}</button>`}).join('')}</div>${chips[1]}${chPhoto?chPhotoHTML(chPhoto,!!g.last&&g.last.id===chPhoto.id,flip):''}${chLogHTML(g)}<p class="board-hint">${g.mode==='pve'?'Tú juegas con blancas · computadora con negras':wifi.active?`Estás jugando como ${wifi.player===0?'blancas':'negras'}.`:'Dos jugadores · enroque, coronación a elegir y captura al paso.'}</p>`);stage.querySelectorAll('.chess-main .chess-cell').forEach(b=>b.onclick=()=>{if(!localTurn())return;g.move(+b.dataset.i);publishWifi();render()});const lastBtn=$('#chLast');if(lastBtn)lastBtn.onclick=()=>{if(oppMv){chPhoto=oppMv;render()}};const pc=$('#chPhotoClose');if(pc){const shut=()=>{chPhoto=null;render()};pc.onclick=shut;$('#chPhotoBox').onclick=e=>{if(e.target.id==='chPhotoBox')shut()};$('#chReplay').onclick=()=>{chPhoto=null;chSeen='';render()}}if(fresh&&mv){if(ckStill()){if(mv.cap){ckSound();chMarkX(mv.to)}}else chAnimate(mv)}}
 
+/* 0.3.100 (dueño, solo admin) — MODO AUTO para probar (lo maneja js/admin.js con el botón 🤖).
+ * step() hace UNA jugada por ti si te toca, decidida por la misma IA del juego:
+ *   · tres en raya, 4 en línea, damas y ajedrez: se le «da la vuelta» al tablero, porque su IA solo sabe jugar con las piezas de la máquina;
+ *   · juegos de cartas y fichas (js/extra-games.js): a su IA se le pasa una copia con los dos jugadores cambiados de sitio;
+ *   · buscaminas: abre casillas seguras (el admin sabe dónde están las minas);
+ *   · juegos con archivo propio (DOS, STOP, Parchimi, Batalla naval, Dominópolis, Blackjack, Póker, palabras…): su función _auto.
+ * off() devuelve tu asiento a ti en los juegos que lo pusieron en manos de la máquina. */
+const AUTO_MODS={dos:'SudomiDos',stop:'SudomiStop',parchis:'SudomiParchis',fleet:'SudomiNaval',dominopolis:'SudomiDominopolis',blackjack:'SudomiBlackjack',poker:'SudomiPoker',oculta:'SudomiOculta',ahorcado:'SudomiAhorcado',domino:'SudomiDominoParty'};
+const autoTmp=(o,extra)=>Object.assign(Object.create(Object.getPrototypeOf(o)),o,extra);
+function autoStep(){
+ if(stage.classList.contains('hidden'))return false;
+ const id=game?current:navId,M=AUTO_MODS[id]&&window[AUTO_MODS[id]];
+ if(!game){return !!(M&&M._auto&&M._auto(true))}
+ const done=()=>{publishWifi();render();return true};
+ try{
+  if(id==='mines'){if(game.over)return false;const N=game.n*game.n;if(!game.ready){game.reveal(Math.floor(N/2));return done()}for(let i=0;i<N;i++)if(!game.opened[i]&&!game.m[i]&&!game.flags[i]){game.reveal(i);return done()}return false}
+  if(id==='tictactoe'){const me=wifi.active?(wifi.player===0?'X':'O'):'X';if(game.over||game.turn!==me)return false;
+   const t=autoTmp(game,{b:game.b.map(v=>v===me?'O':v?'X':'')}),i=game.n===5?t.smart('hard'):t.perfect();if(i==null)return false;game.move(i);return done()}
+  if(id==='connect4'){const me=wifi.active?(wifi.player===0?'R':'Y'):'R';if(game.over||game.busy||game.turn!==me)return false;
+   const t=autoTmp(game,{b:game.b.map(v=>v===me?'Y':v?'R':'')});game.play(t.choose());return done()}
+  if(id==='checkers'){const me=wifi.active?(wifi.player===0?'r':'b'):'r';if(game.over||game.busy||game.turn!==me||game.chain>=0)return false;
+   ckFlying=!!game.fly;let pick=null;
+   if(me==='b')pick=ckBest(game.b);
+   else{const sw={r:'b',R:'B',b:'r',B:'R'},rot=Array(64);for(let i=0;i<64;i++)rot[i]=sw[game.b[63-i]]||'';const pk=ckBest(rot);if(pk)pick={from:63-pk.from,path:pk.path.map(x=>63-x)}}
+   if(!pick)return false;game.sel=pick.from;game.moves=game.legal(pick.from);for(const to of pick.path){if(game.over)break;game.click(to)}return done()}
+  if(id==='chess'){const me=wifi.active?(wifi.player===0?'w':'b'):'w';if(game.done||game.busy||game.turn!==me)return false;
+   let mv;if(me==='b')mv=game.bestMove();
+   else{const mir=i=>(7-(i>>3))*8+(i&7),sw=p=>p?(p===p.toUpperCase()?p.toLowerCase():p.toUpperCase()):'',b=Array(64),c=game.castle;for(let i=0;i<64;i++)b[mir(i)]=sw(game.b[i]);
+    const m=autoTmp(game,{b,castle:{K:c.k,Q:c.q,k:c.K,q:c.Q},ep:game.ep>=0?mir(game.ep):-1}).bestMove();mv=m&&[mir(m[0]),mir(m[1])]}
+   if(!mv)return false;game.sel=mv[0];game.moves=game.legal(mv[0]);game.move(mv[1]);return done()}
+  if(isExtra()&&window.SudomiExtraGames){
+   const me=wifi.active?wifi.player:0;if(game.over&&!(id==='domino'&&game.phase==='handend'))return false;
+   if(id==='memory'&&game.locked&&game.turn===me){dispatchExtra({a:'continue'});return true}
+   if(game.turn!==me)return false;
+   const g2=JSON.parse(JSON.stringify(game));g2.mode='pve';
+   if(id==='domino'||(id==='escoba'&&g2.four)){if(g2.seats&&g2.seats[me])g2.seats[me].bot=true;if(id==='escoba')return false}
+   else{for(const k in g2){const v=g2[k];if(Array.isArray(v)&&v.length===2)g2[k]=[v[1],v[0]]}g2.turn=1}   // la IA juega el asiento 1: se cambian de sitio los datos de los dos
+   const a=SudomiExtraGames.botAct(id,g2);if(!a)return false;if(a.seat===1&&id!=='domino')a.seat=me;
+   dispatchExtra(a);return true}   // como un toque tuyo: en Wi-Fi el invitado se lo manda al anfitrión
+ }catch(e){console.warn('SUDOMI auto:',e)}
+ return false;
+}
+function autoOff(){Object.values(AUTO_MODS).forEach(k=>{try{const M=window[k];if(M&&M._auto)M._auto(false)}catch(_){}})}
+window.SudomiArcadeAuto={step:autoStep,off:autoOff,game:()=>navId};
+
 init();
 // 0.2.29: wait until every script has loaded — DOS and STOP live in files that load after this one,
 // so before this fix an invitation link to a DOS room only opened the games menu

@@ -202,5 +202,11 @@
   open(o);T=t0;P=p0;T.turn=-1;if(!(T.street>=0))T.street=0;me().stack=C().get();if(me().stack<=0&&!me().fold)me().allin=true;
   dirty=true;const t=++token;render();streets(t);return true;
  }
- window.SudomiPoker={open,close,parkState,parkResume,playing:()=>!!T&&T.phase==='play',_state:()=>T,_players:()=>P,_rank5:rank5,_best:best,_answer:answer};
+ // 0.3.100 (admin): modo auto (js/admin.js): reparte, y en tu turno decide la misma IA de la mesa
+ let autoBusy=false;
+ function autoStep(on){if(on===false||!T)return false;
+  if(T.phase==='start'||T.phase==='done'){if(C().get()<BB){C().set(C().REFILL);me().stack=C().get()}T.note='';if(T.phase==='done')nextHand();else hand();return true}
+  if(waiting&&T.turn===0&&!autoBusy){autoBusy=true;aiAct(me(),Math.max(0,T.cur-me().bet),token).then(a=>{autoBusy=false;if(a&&waiting&&T&&T.turn===0)answer(a)});return true}
+  return false}
+ window.SudomiPoker={_auto:autoStep,open,close,parkState,parkResume,playing:()=>!!T&&T.phase==='play',_state:()=>T,_players:()=>P,_rank5:rank5,_best:best,_answer:answer};
 })();

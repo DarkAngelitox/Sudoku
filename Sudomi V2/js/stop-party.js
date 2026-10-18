@@ -369,5 +369,11 @@
   const lv=$('#spLeave');if(lv)lv.onclick=leave;
  }
 
- window.SudomiStop={cats:{html:catsHTML,bind:catsBind},open,close,parkState,parkResume,join:code=>joinRoom(code),solo:()=>startSolo(),create:n=>createRoom(n),_engine:{newRound,submit,mark,ready,tick,viewFor,score,aiAnswers,WORDS}};
+ window.SudomiStop={_auto:on=>{if(!S||mode==='guest')return false;const s=seats[hostSeat],want=on!==false;if(!s)return false;if(!!s.away!==want){s.away=want;pushState()}
+  if(want&&S.phase==='answer'&&!S.done[hostSeat]){const a=S.cats.map(c=>{const l=WORDS[c].split('|').filter(w=>norm(w)[0]===S.letter.toLowerCase());return l.length?l[Math.floor(Math.random()*l.length)]:S.letter+'…'});draft=a.slice();send({t:'stop',a})}   // llena las 10 y dice STOP
+  else if(want&&S.phase==='vote')send({t:'ready'});
+  else if(want&&S.phase!=='answer'&&$('#spNext'))nextRound();   // resultados: otra ronda
+  return true},
+ // 0.3.100 (admin): modo auto para probar (js/admin.js). on=false lo apaga
+ cats:{html:catsHTML,bind:catsBind},open,close,parkState,parkResume,join:code=>joinRoom(code),solo:()=>startSolo(),create:n=>createRoom(n),_engine:{newRound,submit,mark,ready,tick,viewFor,score,aiAnswers,WORDS}};
 })();

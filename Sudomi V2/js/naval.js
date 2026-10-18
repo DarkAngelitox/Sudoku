@@ -494,5 +494,10 @@
   if(m==='join'){umode='online';joinRoom(code);return}
   umode=m==='pvp'||m==='online'?m:'pve';renderMenu();
  }
- window.SudomiNaval={open,close,parkState,parkResume,join:code=>joinRoom(code),_state:()=>G,_view:()=>V,_net:()=>net,_act:act,_ev:e=>onHost(e)};
+ function autoSeat(on){   // 0.3.100 (admin): la máquina juega tu flota (js/admin.js)
+  if(!G||net.role==='guest'||G.over)return false;const want=on!==false;
+  G.seats.forEach((s,p)=>{if(s.kind!=='human'||(net.role==='host'&&p!==0))return;if(!!s.away===want)return;s.away=want;if(want)submit(p,{t:'auto'})});
+  push();return true;
+ }
+ window.SudomiNaval={_auto:autoSeat,open,close,parkState,parkResume,join:code=>joinRoom(code),_state:()=>G,_view:()=>V,_net:()=>net,_act:act,_ev:e=>onHost(e)};
 })();

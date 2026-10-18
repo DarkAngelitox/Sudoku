@@ -254,7 +254,7 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
       ${own?`<em class="shop-tag">${on?(many?`🎲 Al azar (${mix.length})`:'Puesta'):'Comprada'}</em>`:can?'':`<em class="shop-tag miss">Te faltan ${s.price-coins}</em>`}</div>`};
    const groups=CATS.slice(1).filter(c=>cat==='all'||c[0]===cat).map(c=>{const L=SKINS.filter(s=>s.cat===c[0]);return L.length?`<h3 class="shop-h">${c[1]} <small>${L.filter(s=>Skins.owns(s.id)).length}/${L.length}</small></h3><div class="shop-list">${L.map(item).join('')}</div>`:''}).join('');
    const pv=SKINS.find(s=>s.id===pvId);
-   body.innerHTML=`<div class="shop-bank">${coinSvg()}<div><b>${coins.toLocaleString('es')}</b><small>monedas</small></div></div>
+   body.innerHTML=`<div class="shop-bank">${coinSvg()}<div><b>${coins.toLocaleString('es')}</b><small>monedas</small></div>${window.SudomiAdmin?'<button type="button" class="shop-btn gift-btn" data-redeem>🎁 Canjear código</button>':''}</div>
     <p class="shop-how">Ganas <b>${DAILY_COINS} monedas</b> por cada reto diario que cumplas: el <b>Sudoku del día</b> y el <b>Reto de hoy</b> del arcade.</p>
     <div class="shop-cats" role="tablist">${CATS.map(c=>`<button type="button" role="tab" aria-selected="${cat===c[0]}" class="shop-cat${cat===c[0]?' on':''}" data-cat="${c[0]}">${c[1]}</button>`).join('')}</div>
     ${groups}
@@ -264,6 +264,7 @@ body.skin-sudoku-oro #gameScreen .sk-num{animation:skOro .6s cubic-bezier(.55,0,
    body.querySelectorAll('[data-eq]').forEach(b=>b.onclick=()=>{Skins.equip(b.dataset.eq,b.dataset.on==='1');api.redraw()});
    body.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{Skins.add(b.dataset.add);api.redraw()});
    body.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{cat=b.dataset.cat;api.redraw()});
+   const rd=body.querySelector('[data-redeem]');if(rd)rd.onclick=()=>SudomiAdmin.redeem();   // 0.3.100: códigos de regalo del admin (js/admin.js)
    body.querySelectorAll('[data-pv]').forEach(b=>b.onclick=()=>{pvId=b.dataset.pv;api.redraw()});
    const ov=body.querySelector('.shop-pv');
    if(ov){ov.onclick=ev=>{if(ev.target===ov||ev.target.closest('[data-pvx]')){pvId='';api.redraw()}};

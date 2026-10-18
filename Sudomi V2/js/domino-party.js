@@ -232,5 +232,6 @@
   const again=$('#dpAgain');if(again)again.onclick=()=>{game=X().create('domino','party',{seats:game.seats});game.wifi=true;publish();scheduleBot()};
   const ex=$('#dpExit');if(ex)ex.onclick=()=>{close();env.exit()};
  }
- window.SudomiDominoParty={open,close,_state:()=>game,_me:()=>mySeat};   // 0.3.97: el reloj de turno (js/table-talk.js) lee de quién es el turno
+ window.SudomiDominoParty={_auto:on=>{if(role!=='host'||!game||game.over)return false;const s=game.seats[mySeat],want=on!==false;if(!s)return false;if(!!s.bot!==want){s.bot=want;scheduleBot()}return true},   // 0.3.100 (admin): modo auto
+  open,close,_state:()=>game,_me:()=>mySeat};   // 0.3.97: el reloj de turno (js/table-talk.js) lee de quién es el turno
 })();

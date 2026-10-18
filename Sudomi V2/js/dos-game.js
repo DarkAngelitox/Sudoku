@@ -658,5 +658,7 @@
   if(v.winner>=0){$('#dosEndExit').onclick=leave;const again=$('#dosAgain');if(again)again.onclick=()=>{S=newGame(seats.map(x=>x.name),seats.map(x=>x.kind));pushState()}}
  }
 
- window.SudomiDos={house:{html:houseHTML,bind:houseBind},open,close,parkState,parkResume,join:code=>joinRoom(code),solo:()=>startSolo(),create:n=>createRoom(n),_engine:{newGame,act,viewFor,aiMove,canPlay}};
+ window.SudomiDos={_auto:on=>{if(!S||mode==='guest'||S.winner>=0)return false;const s=seats[hostSeat],want=on!==false;if(!s)return false;if(!!s.away!==want){s.away=want;pushState()}return true},
+ // 0.3.100 (admin): modo auto para probar (js/admin.js). on=false lo apaga
+ house:{html:houseHTML,bind:houseBind},open,close,parkState,parkResume,join:code=>joinRoom(code),solo:()=>startSolo(),create:n=>createRoom(n),_engine:{newGame,act,viewFor,aiMove,canPlay}};
 })();

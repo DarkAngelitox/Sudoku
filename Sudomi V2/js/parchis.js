@@ -1034,5 +1034,11 @@
   const loop=()=>{if(!box.isConnected)return;el.style.transition='none';at(A);setTimeout(()=>{if(!box.isConnected)return;at(H);killRun(box,el,{k:kind,x:A[0],y:A[1]},'#e53935',()=>H,()=>box.isConnected,()=>{});setTimeout(loop,KILLS[kind]+900)},700)};
   loop();
  }
- window.SudomiParchis={demoKill,open,close,parkState,parkResume,join:code=>joinRoom(code),themes:THEMES,cards:CARDS,_state:()=>g,_net:()=>net,_ev:e=>onHost(e),_legal:legal,_useCard:useCard,_targets:cardTargets,_setState:s=>{Object.assign(g,s);place();update()}};
+ function autoSeat(on){   // 0.3.100 (admin): tus fichas las juega la máquina (js/admin.js); también contesta lo que estaba esperando de ti
+  if(!g||net.role==='guest')return false;const want=on!==false;
+  const mine=net.role==='host'?[net.seats[0]&&net.seats[0].c]:Object.keys(g.seats).filter(k=>g.seats[k]&&g.seats[k].kind==='human').map(Number);
+  mine.forEach(c=>{const s=g.seats[c];if(!s)return;s.away=want;if(want){answer('roll',c,1);answer('pick',c,'auto');if(g.duel&&g.duel.need&&g.duel.need.includes(c))rpsAnswer(c,rndRps())}});
+  update();return true;
+ }
+ window.SudomiParchis={_auto:autoSeat,demoKill,open,close,parkState,parkResume,join:code=>joinRoom(code),themes:THEMES,cards:CARDS,_state:()=>g,_net:()=>net,_ev:e=>onHost(e),_legal:legal,_useCard:useCard,_targets:cardTargets,_setState:s=>{Object.assign(g,s);place();update()}};
 })();

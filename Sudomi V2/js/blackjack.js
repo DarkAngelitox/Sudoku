@@ -128,5 +128,10 @@
   else finish(t);
   return true;
  }
- window.SudomiBlackjack={open,close,parkState,parkResume,playing:()=>!!S&&(S.phase==='deal'||S.phase==='play'||S.phase==='dealer'),_state:()=>S,_deck:d=>{deck=d}};
+ // 0.3.100 (admin): modo auto (js/admin.js): apuesta 25, juega con la estrategia de la banca (pide hasta 12, o hasta 17 si la banca enseña 7 o más) y reparte otra
+ function autoStep(on){if(on===false||!S)return false;
+  if(S.phase==='bet'){if(readChips()<CHIPS[0])writeChips(REFILL);S.bet=Math.min(25,readChips());deal();return true}
+  if(S.phase==='play'){const h=S.hands[S.cur];if(!h)return false;const n=total(h.cards),up=val(S.dealer[0]);act(n<12||(n<17&&up>=7)?'hit':'stand');return true}
+  if(S.phase==='done'){newRound(S.last);return true}return false}
+ window.SudomiBlackjack={_auto:autoStep,open,close,parkState,parkResume,playing:()=>!!S&&(S.phase==='deal'||S.phase==='play'||S.phase==='dealer'),_state:()=>S,_deck:d=>{deck=d}};
 })();
