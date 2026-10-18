@@ -4727,3 +4727,27 @@ html[data-theme="dark"] #homeScreen::before{opacity:.22;filter:invert(1) hue-rot
 .rd-ext.tall{height:352px}
 .rd-ext.off{left:-10000px!important;top:0!important;width:300px!important;visibility:visible}
 .rd-ext iframe{width:100%;height:100%;border:0;display:block}
+
+/* 0.3.100: modo admin (js/admin.js) y canjear códigos de regalo */
+.shop-bank .gift-btn{margin-left:auto;font-size:.85rem}
+.adm-p{margin:.2rem 0 .6rem;line-height:1.4}
+.adm-p.small{font-size:.86rem;opacity:.85}
+.adm-box{border:1px solid rgba(128,128,128,.3);border-radius:14px;padding:.7rem .8rem;margin:0 0 .8rem}
+.adm-box.warn{border-color:#e0a100;background:rgba(224,161,0,.08)}
+.adm-box h3{margin:0 0 .5rem;font-size:1rem}
+.adm-row{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;margin:.35rem 0}
+.adm-num,.adm-gift,.adm-pin,.adm-pin2{flex:1 1 8rem;min-width:0;padding:.55rem .7rem;border-radius:10px;border:1px solid rgba(128,128,128,.45);font:inherit;background:transparent;color:inherit}
+.adm-pin,.adm-pin2{display:block;width:100%;box-sizing:border-box;margin:0 0 .5rem}
+.adm-code{display:block;width:100%;box-sizing:border-box;padding:.5rem;border-radius:10px;border:1px solid rgba(128,128,128,.45);font:.8rem/1.35 ui-monospace,Consolas,monospace;background:transparent;color:inherit;word-break:break-all;resize:vertical;margin:.3rem 0 .5rem}
+.adm-msg{min-height:1.2em;margin:.4rem 0 0;font-weight:600}
+.adm-msg.ok{color:#1a9b4b}
+.adm-msg.bad{color:#d33}
+.adm-log{margin-top:.4rem;font-size:.85rem}
+.adm-log div{display:flex;gap:.35rem;align-items:center;flex-wrap:wrap;padding:.2rem 0}
+.adm-log code{font-size:.75rem;opacity:.75}
+.adm-mini{font:inherit;font-size:.75rem;padding:.1rem .5rem;border-radius:8px;border:1px solid rgba(128,128,128,.45);background:transparent;color:inherit;cursor:pointer}
+.adm-out-btn{width:100%;margin-top:.2rem}
+.adm-bot{position:fixed;left:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:#5b5f6b;color:#fff;font-size:26px;line-height:1;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;opacity:.85}
+.adm-bot.on{background:#1a9b4b;opacity:1;animation:admPulse 1.2s ease-in-out infinite}
+.adm-bot.hidden{display:none}
+@keyframes admPulse{50%{transform:scale(1.08)}}
