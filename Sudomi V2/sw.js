@@ -1,55 +1,15 @@
-/* SUDOMI service worker — lets the app install to the home screen and run offline.
- *
- * Strategy: the whole app is stored in one versioned cache and served from it (so a visit never mixes files
- * from two different versions). A new release is picked up when this file changes: BUMP `VERSION` WHEN YOU
- * PUBLISH. The page then offers an "Actualizar" button (see js/pwa.js) instead of reloading in the middle of a game.
- * Cross-origin requests (the PeerJS library, the PeerJS signalling service) and /api/ calls always go to the network.
- */
-const VERSION = '0.3.101';
-const CACHE = 'sudomiv2-' + VERSION;   // V2: prefijo propio, para no borrarse las cachés con la V1 si las dos están publicadas en el mismo dominio
-const SHELL = [
-  './', 'index.html', 'manifest.webmanifest',
-  'css/main.css',
-  'js/app.js', 'js/lan-client.js', 'js/online-config.js', 'js/online-client.js', 'js/other-games.js', 'js/extra-games.js', 'js/parchis.js', 'js/naval.js', 'js/mahjong.js', 'js/blackjack.js', 'js/poker.js','js/arcade-art.js','js/pwa.js', 'js/install.js', 'js/qr-code.js', 'js/qr-client.js', 'js/theme.js', 'js/customize.js', 'js/skins.js', 'js/smart-hints.js', 'js/score.js', 'js/xp.js', 'js/achievements.js', 'js/stats.js', 'js/race.js', 'js/multi-online.js', 'js/sound.js', 'js/coach.js', 'js/screens.js', 'js/rankings.js', 'js/training.js', 'js/teacher.js', 'js/profile-screen.js', 'js/sync.js', 'js/cloud.js','js/settings.js', 'js/a11y.js', 'js/effects.js', 'js/domino-table.js', 'js/domino-3d.js', 'js/shop.js', 'js/domino-party.js', 'js/board-art.js', 'js/dominopolis-fotos.js', 'js/friends.js', 'js/no-zoom.js', 'js/lobby.js', 'js/avatar-art.js', 'js/dominopolis-fondos.js', 'js/dominopolis-engine.js', 'js/dominopolis-ui.js', 'js/i18n.js', 'js/lang-en.js', 'js/lang-fr.js', 'js/lang-pt.js', 'js/lang-zh.js', 'js/lang-v2.js', 'js/lang-v3.js','js/tutorial.js', 'js/game-tutorials.js', 'js/daily.js', 'js/profile.js', 'js/game-art.js', 'js/party-net.js', 'js/dos-game.js', 'js/stop-party.js', 'js/stop-clasico.js', 'js/tabbar.js', 'js/result.js', 'js/puzzle-art.js', 'js/puzzle-pics.js', 'js/puzzles.js', 'js/story.js', 'js/adventure.js', 'js/words-es.js', 'js/words-en.js', 'js/words.js', 'js/radio.js', 'js/admin.js', 'js/table-talk.js', 'js/card-tables.js', 'js/icons.js', 'js/host-handoff.js',
-  'img/dragones/dragon1.png', 'img/dragones/dragon2.png', 'img/dragones/dragon3.png', 'img/dragones/dragon4.png', 'img/dragones/dragon5.png', 'img/dragones/dragon6.png', 'img/dragones/dragon7.png', 'img/yukiri/yukiri1.svg', 'img/yukiri/yukiri2.svg', 'img/yukiri/yukiri3.svg', 'img/maicolino/logo.svg', 'img/maicolino/cara.png','img/pollo/pollo1.png', 'img/pollo/pollo2.png', 'img/damas/madera-roja.png', 'img/damas/madera-azul.png','img/instalar/ios1.jpg', 'img/instalar/ios2.jpg', 'img/instalar/ios3.jpg', 'img/instalar/ios4.jpg','icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'
-];
-
-self.addEventListener('install', event => {
-  // allSettled: one missing optional file must not make the whole install fail
-  event.waitUntil(caches.open(CACHE).then(cache => Promise.allSettled(SHELL.map(url => cache.add(url)))));
+/* SUDOMI — service worker de la MUDANZA (1 nov 2026). Reemplaza al del juego en las direcciones viejas.
+ * Se activa al momento, borra todo lo guardado del juego viejo, recarga las ventanas abiertas y, desde entonces,
+ * cualquier página que se abra aquí recibe el index.html de la mudanza (que lleva el progreso a la dirección nueva). */
+const VERSION = 'mudanza-1';
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil((async () => {
+  for (const k of await caches.keys()) await caches.delete(k);
+  await self.clients.claim();
+  for (const c of await self.clients.matchAll({ type: 'window' })) { try { c.navigate(c.url); } catch (_) {} }
+})()));
+self.addEventListener('fetch', e => {
+  if (e.request.mode !== 'navigate') return;
+  e.respondWith(fetch(self.registration.scope + 'index.html', { cache: 'no-store' })
+    .catch(() => new Response('<meta charset="utf-8"><p style="font:18px system-ui;text-align:center;margin-top:30vh">SUDOMI se mudó a <b>sudomi-rd.com</b>. Conéctate a internet para llevar tu progreso.</p>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } })));
 });
-
-self.addEventListener('activate', event => {
-  event.waitUntil((async () => {
-    for (const key of await caches.keys()) if (key.startsWith('sudomiv2-') && key !== CACHE) await caches.delete(key);
-    await self.clients.claim();
-  })());
-});
-
-// The page asks to take over once the player chose to update.
-self.addEventListener('message', event => { if (event.data === 'SKIP_WAITING') self.skipWaiting(); });
-
-self.addEventListener('fetch', event => {
-  const req = event.request;
-  if (req.method !== 'GET') return;
-  const url = new URL(req.url);
-  if (url.origin !== location.origin || url.pathname.includes('/api/')) return;
-  event.respondWith(serve(req));
-});
-
-async function serve(req) {
-  const cache = await caches.open(CACHE);
-  const hit = await cache.match(req, { ignoreSearch: true });      // invitation links (?room=…) must still open the cached app
-  if (hit) return hit;
-  try {
-    const res = await fetch(req);
-    if (res && res.ok && res.type === 'basic') cache.put(req, res.clone());
-    return res;
-  } catch (err) {
-    if (req.mode === 'navigate') {
-      const shell = await cache.match('index.html');
-      if (shell) return shell;
-    }
-    throw err;
-  }
-}
